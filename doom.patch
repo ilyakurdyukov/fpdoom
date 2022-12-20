@@ -1,0 +1,3177 @@
+diff --git a/am_map.c b/am_map.c
+index 999e455..4be1e68 100644
+--- a/am_map.c
++++ b/am_map.c
+@@ -783,7 +783,7 @@ void AM_doFollowPlayer(void)
+ //
+ void AM_updateLightLev(void)
+ {
+-    static nexttic = 0;
++    static int nexttic = 0;
+     //static int litelevels[] = { 0, 3, 5, 6, 6, 7, 7, 7 };
+     static int litelevels[] = { 0, 4, 7, 10, 12, 14, 15, 15 };
+     static int litelevelscnt = 0;
+@@ -856,9 +856,9 @@ AM_clipMline
+ 	TOP	=8
+     };
+     
+-    register	outcode1 = 0;
+-    register	outcode2 = 0;
+-    register	outside;
++    register	int outcode1 = 0;
++    register	int outcode2 = 0;
++    register	int outside;
+     
+     fpoint_t	tmp;
+     int		dx;
+@@ -989,7 +989,7 @@ AM_drawFline
+     register int ay;
+     register int d;
+     
+-    static fuck = 0;
++    static int fuck = 0;
+ 
+     // For debugging only
+     if (      fl->a.x < 0 || fl->a.x >= f_w
+diff --git a/d_main.c b/d_main.c
+index 23427e8..7ccda3d 100644
+--- a/d_main.c
++++ b/d_main.c
+@@ -32,12 +32,9 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
+ 
+ 
+ #ifdef NORMALUNIX
++#include <ctype.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include <unistd.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <fcntl.h>
+ #endif
+ 
+ 
+@@ -119,13 +116,6 @@ FILE*		debugfile;
+ boolean		advancedemo;
+ 
+ 
+-
+-
+-char		wadfile[1024];		// primary wad file
+-char		mapdir[1024];           // directory of development maps
+-char		basedefault[1024];      // default file
+-
+-
+ void D_CheckNetGame (void);
+ void D_ProcessEvents (void);
+ void G_BuildTiccmd (ticcmd_t* cmd);
+@@ -150,7 +140,7 @@ int 		eventtail;
+ void D_PostEvent (event_t* ev)
+ {
+     events[eventhead] = *ev;
+-    eventhead = (++eventhead)&(MAXEVENTS-1);
++    eventhead = (eventhead+1)&(MAXEVENTS-1);
+ }
+ 
+ 
+@@ -167,7 +157,7 @@ void D_ProcessEvents (void)
+ 	 && (W_CheckNumForName("map01")<0) )
+       return;
+ 	
+-    for ( ; eventtail != eventhead ; eventtail = (++eventtail)&(MAXEVENTS-1) )
++    for ( ; eventtail != eventhead ; eventtail = (eventtail+1)&(MAXEVENTS-1) )
+     {
+ 	ev = &events[eventtail];
+ 	if (M_Responder (ev))
+@@ -529,18 +519,10 @@ void D_StartTitle (void)
+     D_AdvanceDemo ();
+ }
+ 
+-
+-
+-
+-//      print title for every printed line
+-char            title[128];
+-
+-
+-
+ //
+ // D_AddFile
+ //
+-void D_AddFile (char *file)
++void D_AddFile (const char *file)
+ {
+     int     numwadfiles;
+     char    *newfile;
+@@ -554,6 +536,9 @@ void D_AddFile (char *file)
+     wadfiles[numwadfiles] = newfile;
+ }
+ 
++int gameversion = 109;
++static const char *title = "Public DOOM";
++
+ //
+ // IdentifyVersion
+ // Checks availability of IWAD files by name,
+@@ -563,6 +548,34 @@ void D_AddFile (char *file)
+ void IdentifyVersion (void)
+ {
+ 
++#if 1
++    int i; FILE* file;
++    static const struct {
++	const char *name, *title;
++	int gamemode, language;
++    } list[] = {
++	{ "doom2f.wad", "DOOM 2: Hell on Earth", commercial, french },
++	{ "doom2.wad", "DOOM 2: Hell on Earth", commercial, english },
++	{ "plutonia.wad", "DOOM 2: Plutonia Experiment", commercial, english },
++	{ "tnt.wad", "DOOM 2: TNT - Evilution", commercial, english },
++	{ "doomu.wad", "The Ultimate DOOM Startup", retail, english },
++	{ "doom.wad", "DOOM Registered Startup", registered, english },
++	{ "doom1.wad", "DOOM Shareware Startup", shareware, english },
++	{ NULL } };
++
++    for (i = 0; list[i].name; i++) {
++	const char *fn = list[i].name;
++	file = fopen(fn, "rb");
++	if (file) {
++	    fclose(file);
++	    language = list[i].language;
++	    gamemode = list[i].gamemode;
++	    title = list[i].title;
++	    D_AddFile(fn);
++	    return;
++	}
++    }
++#else
+     char*	doom1wad;
+     char*	doomwad;
+     char*	doomuwad;
+@@ -707,6 +720,7 @@ void IdentifyVersion (void)
+       D_AddFile (doom1wad);
+       return;
+     }
++#endif
+ 
+     printf("Game mode indeterminate.\n");
+     gamemode = indetermined;
+@@ -814,6 +828,9 @@ void D_DoomMain (void)
+     else if (M_CheckParm ("-deathmatch"))
+ 	deathmatch = 1;
+ 
++#if 1
++    printf ("%s - v%i.%i\n", title, VERSION/100,VERSION%100);
++#else
+     switch ( gamemode )
+     {
+       case retail:
+@@ -870,17 +887,11 @@ void D_DoomMain (void)
+     }
+     
+     printf ("%s\n",title);
++#endif
+ 
+     if (devparm)
+ 	printf(D_DEVSTR);
+     
+-    if (M_CheckParm("-cdrom"))
+-    {
+-	printf(D_CDROM);
+-	mkdir("c:\\doomdata",0);
+-	strcpy (basedefault,"c:/doomdata/default.cfg");
+-    }	
+-    
+     // turbo option
+     if ( (p=M_CheckParm ("-turbo")) )
+     {
+@@ -1091,7 +1102,7 @@ void D_DoomMain (void)
+     printf ("M_Init: Init miscellaneous info.\n");
+     M_Init ();
+ 
+-    printf ("R_Init: Init DOOM refresh daemon - ");
++    printf ("R_Init: Init DOOM refresh daemon");
+     R_Init ();
+ 
+     printf ("\nP_Init: Init Playloop state.\n");
+@@ -1112,17 +1123,6 @@ void D_DoomMain (void)
+     printf ("ST_Init: Init status bar.\n");
+     ST_Init ();
+ 
+-    // check for a driver that wants intermission stats
+-    p = M_CheckParm ("-statcopy");
+-    if (p && p<myargc-1)
+-    {
+-	// for statistics driver
+-	extern  void*	statcopy;                            
+-
+-	statcopy = (void*)atoi(myargv[p+1]);
+-	printf ("External statistics registered.\n");
+-    }
+-    
+     // start the apropriate game based on parms
+     p = M_CheckParm ("-record");
+ 
+@@ -1150,10 +1150,7 @@ void D_DoomMain (void)
+     p = M_CheckParm ("-loadgame");
+     if (p && p < myargc-1)
+     {
+-	if (M_CheckParm("-cdrom"))
+-	    sprintf(file, "c:\\doomdata\\"SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
+-	else
+-	    sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
++	sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
+ 	G_LoadGame (file);
+     }
+ 	
+diff --git a/d_main.h b/d_main.h
+index 7763e13..8b02a08 100644
+--- a/d_main.h
++++ b/d_main.h
+@@ -36,7 +36,7 @@
+ #define MAXWADFILES             20
+ extern char*		wadfiles[MAXWADFILES];
+ 
+-void D_AddFile (char *file);
++void D_AddFile (const char *file);
+ 
+ 
+ 
+diff --git a/d_net.c b/d_net.c
+index 75b5436..e56c8cd 100644
+--- a/d_net.c
++++ b/d_net.c
+@@ -89,7 +89,7 @@ doomdata_t	reboundstore;
+ //
+ int NetbufferSize (void)
+ {
+-    return (int)&(((doomdata_t *)0)->cmds[netbuffer->numtics]); 
++    return (intptr_t)&(((doomdata_t *)0)->cmds[netbuffer->numtics]);
+ }
+ 
+ //
+@@ -97,21 +97,21 @@ int NetbufferSize (void)
+ //
+ unsigned NetbufferChecksum (void)
+ {
++#ifdef NORMALUNIX
++    // FIXME -endianess?
++    return 0;			// byte order problems
++#else
+     unsigned		c;
+     int		i,l;
+ 
+     c = 0x1234567;
+ 
+-    // FIXME -endianess?
+-#ifdef NORMALUNIX
+-    return 0;			// byte order problems
+-#endif
+-
+-    l = (NetbufferSize () - (int)&(((doomdata_t *)0)->retransmitfrom))/4;
++    l = (NetbufferSize () - (intptr_t)&(((doomdata_t *)0)->retransmitfrom))/4;
+     for (i=0 ; i<l ; i++)
+ 	c += ((unsigned *)&netbuffer->retransmitfrom)[i] * (i+1);
+ 
+     return c & NCMD_CHECKSUM;
++#endif
+ }
+ 
+ //
+@@ -461,7 +461,7 @@ void CheckAbort (void)
+ 	
+     I_StartTic ();
+     for ( ; eventtail != eventhead 
+-	      ; eventtail = (++eventtail)&(MAXEVENTS-1) ) 
++	      ; eventtail = (eventtail+1)&(MAXEVENTS-1) )
+     { 
+ 	ev = &events[eventtail]; 
+ 	if (ev->type == ev_keydown && ev->data1 == KEY_ESCAPE)
+diff --git a/d_player.h b/d_player.h
+index 0a4d887..d65e274 100644
+--- a/d_player.h
++++ b/d_player.h
+@@ -106,8 +106,8 @@ typedef struct player_s
+ 
+     // Power ups. invinc and invis are tic counters.
+     int			powers[NUMPOWERS];
+-    boolean		cards[NUMCARDS];
+-    boolean		backpack;
++    savebool_t		cards[NUMCARDS];
++    savebool_t		backpack;
+     
+     // Frags, kills of other players.
+     int			frags[MAXPLAYERS];
+@@ -116,7 +116,7 @@ typedef struct player_s
+     // Is wp_nochange if not changing.
+     weapontype_t	pendingweapon;
+ 
+-    boolean		weaponowned[NUMWEAPONS];
++    savebool_t		weaponowned[NUMWEAPONS];
+     int			ammo[NUMAMMO];
+     int			maxammo[NUMAMMO];
+ 
+@@ -161,7 +161,7 @@ typedef struct player_s
+     pspdef_t		psprites[NUMPSPRITES];
+ 
+     // True if secret level has been done.
+-    boolean		didsecret;	
++    savebool_t		didsecret;
+ 
+ } player_t;
+ 
+diff --git a/d_ticcmd.h b/d_ticcmd.h
+index 5817989..516ea1d 100644
+--- a/d_ticcmd.h
++++ b/d_ticcmd.h
+@@ -35,8 +35,8 @@
+ // plus a checksum for internal state consistency.
+ typedef struct
+ {
+-    char	forwardmove;	// *2048 for move
+-    char	sidemove;	// *2048 for move
++    signed char	forwardmove;	// *2048 for move
++    signed char	sidemove;	// *2048 for move
+     short	angleturn;	// <<16 for angle delta
+     short	consistancy;	// checks for net game
+     byte	chatchar;
+diff --git a/doomdata.h b/doomdata.h
+index bab5e00..f9b3926 100644
+--- a/doomdata.h
++++ b/doomdata.h
+@@ -61,7 +61,7 @@ typedef struct
+ {
+   short		x;
+   short		y;
+-} mapvertex_t;
++} PACKED mapvertex_t;
+ 
+ 
+ // A SideDef, defining the visual appearance of a wall,
+@@ -75,7 +75,7 @@ typedef struct
+   char		midtexture[8];
+   // Front sector, towards viewer.
+   short		sector;
+-} mapsidedef_t;
++} PACKED mapsidedef_t;
+ 
+ 
+ 
+@@ -90,7 +90,7 @@ typedef struct
+   short		tag;
+   // sidenum[1] will be -1 if one sided
+   short		sidenum[2];		
+-} maplinedef_t;
++} PACKED maplinedef_t;
+ 
+ 
+ //
+@@ -147,7 +147,7 @@ typedef	struct
+   short		lightlevel;
+   short		special;
+   short		tag;
+-} mapsector_t;
++} PACKED mapsector_t;
+ 
+ // SubSector, as generated by BSP.
+ typedef struct
+@@ -155,7 +155,7 @@ typedef struct
+   short		numsegs;
+   // Index of first one, segs are stored sequentially.
+   short		firstseg;	
+-} mapsubsector_t;
++} PACKED mapsubsector_t;
+ 
+ 
+ // LineSeg, generated by splitting LineDefs
+@@ -168,7 +168,7 @@ typedef struct
+   short		linedef;
+   short		side;
+   short		offset;
+-} mapseg_t;
++} PACKED mapseg_t;
+ 
+ 
+ 
+@@ -193,7 +193,7 @@ typedef struct
+   // else it's a node of another subtree.
+   unsigned short	children[2];
+ 
+-} mapnode_t;
++} PACKED mapnode_t;
+ 
+ 
+ 
+@@ -207,7 +207,7 @@ typedef struct
+     short		angle;
+     short		type;
+     short		options;
+-} mapthing_t;
++} PACKED mapthing_t;
+ 
+ 
+ 
+diff --git a/doomdef.h b/doomdef.h
+index 1850477..5571030 100644
+--- a/doomdef.h
++++ b/doomdef.h
+@@ -25,6 +25,7 @@
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <stdint.h>
+ 
+ //
+ // Global parameters/defines.
+@@ -81,7 +82,7 @@ typedef enum
+ //  and unfinished. Default is synchronous.
+ // Experimental asynchronous timer based is
+ //  handled by SNDINTR. 
+-#define SNDSERV  1
++//#define SNDSERV  1
+ //#define SNDINTR  1
+ 
+ 
+diff --git a/doomstat.h b/doomstat.h
+index 65f5225..40faa77 100644
+--- a/doomstat.h
++++ b/doomstat.h
+@@ -241,7 +241,6 @@ extern  int		maxammo[NUMAMMO];
+ //
+ 
+ // File handling stuff.
+-extern	char		basedefault[1024];
+ extern  FILE*		debugfile;
+ 
+ // if true, load all graphics at level load
+diff --git a/doomtype.h b/doomtype.h
+index e89a7a6..97a7685 100644
+--- a/doomtype.h
++++ b/doomtype.h
+@@ -56,7 +56,14 @@ typedef unsigned char byte;
+ #endif
+ 
+ 
++#ifdef __GNUC__
++#define PACKED __attribute__((packed))
++#else
++#define PACKED
++#endif
+ 
++// for compatible savegames
++typedef int savebool_t;
+ 
+ #endif
+ //-----------------------------------------------------------------------------
+diff --git a/dstrings.c b/dstrings.c
+index e6abe88..bc1e5b2 100644
+--- a/dstrings.c
++++ b/dstrings.c
+@@ -42,7 +42,7 @@ char* endmsg[NUM_QUITMESSAGES+1]=
+   "you're trying to say you like dos\nbetter than me, right?",
+   "don't leave yet -- there's a\ndemon around that corner!",
+   "ya know, next time you come in here\ni'm gonna toast ya.",
+-  "go ahead and leave. see if i care."
++  "go ahead and leave. see if i care.",
+ 
+   // QuitDOOM II messages
+   "you want to quit?\nthen, thou hast lost an eighth!",
+@@ -51,7 +51,7 @@ char* endmsg[NUM_QUITMESSAGES+1]=
+   "if i were your boss, i'd \n deathmatch ya in a minute!",
+   "look, bud. you leave now\nand you forfeit your body count!",
+   "just leave. when you come\nback, i'll be waiting with a bat.",
+-  "you're lucky i don't smack\nyou for thinking about leaving."
++  "you're lucky i don't smack\nyou for thinking about leaving.",
+ 
+   // FinalDOOM?
+   "fuck you, pussy!\nget the fuck out!",
+diff --git a/f_wipe.c b/f_wipe.c
+index e8596f3..2ebcb10 100644
+--- a/f_wipe.c
++++ b/f_wipe.c
+@@ -57,7 +57,7 @@ wipe_shittyColMajorXform
+     int		y;
+     short*	dest;
+ 
+-    dest = (short*) Z_Malloc(width*height*2, PU_STATIC, 0);
++    dest = (short*) Z_Malloc(width*height*sizeof(*dest), PU_STATIC, 0);
+ 
+     for(y=0;y<height;y++)
+ 	for(x=0;x<width;x++)
+@@ -155,7 +155,7 @@ wipe_initMelt
+     
+     // setup initial column positions
+     // (y<0 => not ready to scroll yet)
+-    y = (int *) Z_Malloc(width*sizeof(int), PU_STATIC, 0);
++    y = (int *) Z_Malloc(width*sizeof(*y), PU_STATIC, 0);
+     y[0] = -(M_Random()%16);
+     for (i=1;i<width;i++)
+     {
+diff --git a/g_game.c b/g_game.c
+index 30ac33c..fada899 100644
+--- a/g_game.c
++++ b/g_game.c
+@@ -24,6 +24,7 @@
+ static const char
+ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
+ 
++#include <ctype.h>
+ #include <string.h>
+ #include <stdlib.h>
+ 
+@@ -180,7 +181,7 @@ fixed_t		angleturn[3] = {640, 1280, 320};	// + slow turn
+  
+ #define NUMKEYS		256 
+ 
+-boolean         gamekeydown[NUMKEYS]; 
++char            gamekeydown[NUMKEYS];
+ int             turnheld;				// for accelerative turning 
+  
+ boolean		mousearray[4]; 
+@@ -212,7 +213,6 @@ char		savedescription[32];
+ mobj_t*		bodyque[BODYQUESIZE]; 
+ int		bodyqueslot; 
+  
+-void*		statcopy;				// for statistics driver
+  
+  
+  
+@@ -492,8 +492,8 @@ void G_DoLoadLevel (void)
+     joyxmove = joyymove = 0; 
+     mousex = mousey = 0; 
+     sendpause = sendsave = paused = false; 
+-    memset (mousebuttons, 0, sizeof(mousebuttons)); 
+-    memset (joybuttons, 0, sizeof(joybuttons)); 
++    memset (mousearray, 0, sizeof(mousearray));
++    memset (joyarray, 0, sizeof(joyarray));
+ } 
+  
+  
+@@ -1133,9 +1133,6 @@ void G_DoCompleted (void)
+     gamestate = GS_INTERMISSION; 
+     viewactive = false; 
+     automapactive = false; 
+- 
+-    if (statcopy)
+-	memcpy (statcopy, &wminfo, sizeof(wminfo));
+ 	
+     WI_Start (&wminfo); 
+ } 
+@@ -1197,13 +1194,13 @@ void G_LoadGame (char* name)
+  
+ #define VERSIONSIZE		16 
+ 
++extern int gameversion;
+ 
+ void G_DoLoadGame (void) 
+ { 
+     int		length; 
+     int		i; 
+     int		a,b,c; 
+-    char	vcheck[VERSIONSIZE]; 
+ 	 
+     gameaction = ga_nothing; 
+ 	 
+@@ -1211,10 +1208,8 @@ void G_DoLoadGame (void)
+     save_p = savebuffer + SAVESTRINGSIZE;
+     
+     // skip the description field 
+-    memset (vcheck,0,sizeof(vcheck)); 
+-    sprintf (vcheck,"version %i",VERSION); 
+-    if (strcmp (save_p, vcheck)) 
+-	return;				// bad version 
++    if (save_p[11] || memcmp(save_p, "version ", 8)) return;
++    if (atoi((char*)&save_p[8]) != gameversion) return;
+     save_p += VERSIONSIZE; 
+ 			 
+     gameskill = *save_p++; 
+@@ -1266,6 +1261,7 @@ G_SaveGame
+     strcpy (savedescription, description); 
+     sendsave = true; 
+ } 
++
+  
+ void G_DoSaveGame (void) 
+ { 
+@@ -1275,10 +1271,7 @@ void G_DoSaveGame (void)
+     int		length; 
+     int		i; 
+ 	
+-    if (M_CheckParm("-cdrom"))
+-	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
+-    else
+-	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
++    sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot);
+     description = savedescription; 
+ 	 
+     save_p = savebuffer = screens[1]+0x4000; 
+@@ -1286,7 +1279,7 @@ void G_DoSaveGame (void)
+     memcpy (save_p, description, SAVESTRINGSIZE); 
+     save_p += SAVESTRINGSIZE; 
+     memset (name2,0,sizeof(name2)); 
+-    sprintf (name2,"version %i",VERSION); 
++    sprintf (name2,"version %i",gameversion);
+     memcpy (save_p, name2, VERSIONSIZE); 
+     save_p += VERSIONSIZE; 
+ 	 
+@@ -1586,9 +1579,10 @@ void G_DoPlayDemo (void)
+ 	 
+     gameaction = ga_nothing; 
+     demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
+-    if ( *demo_p++ != VERSION)
++    if ( *demo_p++ != gameversion)
+     {
+-      fprintf( stderr, "Demo is from a different game version!\n");
++      fprintf( stderr, "Demo is from a different game version!"
++	  " (v%d.%02d)\n", demo_p[-1] / 100, demo_p[-1] % 100);
+       gameaction = ga_nothing;
+       return;
+     }
+diff --git a/i_net.c b/i_net.c
+index 557f417..773bca7 100644
+--- a/i_net.c
++++ b/i_net.c
+@@ -27,6 +27,7 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ #include <string.h>
+ #include <stdio.h>
+ 
++#if 0
+ #include <sys/socket.h>
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+@@ -34,6 +35,7 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ #include <unistd.h>
+ #include <netdb.h>
+ #include <sys/ioctl.h>
++#endif
+ 
+ #include "i_system.h"
+ #include "d_event.h"
+@@ -47,6 +49,21 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ #endif
+ #include "i_net.h"
+ 
++#if 1
++void I_InitNetwork (void) {
++    doomcom = malloc (sizeof (*doomcom) );
++    memset (doomcom, 0, sizeof(*doomcom) );
++
++    doomcom-> ticdup = 1;
++
++    doomcom->id = DOOMCOM_ID;
++    doomcom->numplayers = doomcom->numnodes = 1;
++    doomcom->deathmatch = false;
++    doomcom->consoleplayer = 0;
++}
++
++void I_NetCmd (void) { }
++#else
+ 
+ 
+ 
+@@ -345,4 +362,5 @@ void I_NetCmd (void)
+     else
+ 	I_Error ("Bad net cmd: %i\n",doomcom->command);
+ }
++#endif
+ 
+diff --git a/i_sound.c b/i_sound.c
+index a327bfa..89ae9a0 100644
+--- a/i_sound.c
++++ b/i_sound.c
+@@ -26,6 +26,48 @@ rcsid[] = "$Id: i_unix.c,v 1.5 1997/02/03 22:45:10 b1 Exp $";
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
++#if 1
++#include "z_zone.h"
++
++#include "i_system.h"
++#include "i_sound.h"
++#include "m_argv.h"
++#include "m_misc.h"
++#include "w_wad.h"
++
++#include "doomdef.h"
++
++void I_SetChannels() { }
++void I_SetSfxVolume(int volume) { }
++void I_SetMusicVolume(int volume) { }
++
++int I_GetSfxLumpNum(sfxinfo_t* sfx) {
++    char namebuf[9];
++    sprintf(namebuf, "ds%s", sfx->name);
++    return W_GetNumForName(namebuf);
++}
++
++int I_StartSound(int id, int vol, int sep, int pitch, int priority) { return id; }
++void I_StopSound (int handle) { }
++int I_SoundIsPlaying(int handle) { return 0; }
++void I_UpdateSound(void) { }
++void I_SubmitSound(void) { }
++void I_UpdateSoundParams(int handle, int vol, int sep, int pitch) { }
++void I_ShutdownSound(void) { }
++void I_InitSound() { }
++void I_InitMusic(void) { }
++void I_ShutdownMusic(void) { }
++void I_PlaySong(int handle, int looping) { }
++void I_PauseSong (int handle) { }
++void I_ResumeSong (int handle) { }
++void I_StopSong(int handle) { }
++void I_UnRegisterSong(int handle) { }
++int I_RegisterSong(void* data) { return 1; }
++int I_QrySongPlaying(int handle) { return 0; }
++void I_HandleSoundTimer(int ignore ) { }
++int I_SoundSetTimer(int duration_of_tick ) { return 0; }
++void I_SoundDelTimer() { }
++#else
+ #include <stdarg.h>
+ 
+ #include <math.h>
+@@ -983,3 +1025,4 @@ void I_SoundDelTimer()
+   if ( I_SoundSetTimer( 0 ) == -1)
+     fprintf( stderr, "I_SoundDelTimer: failed to remove interrupt. Doh!\n");
+ }
++#endif
+diff --git a/i_system.c b/i_system.c
+index 1b67d51..b66a996 100644
+--- a/i_system.c
++++ b/i_system.c
+@@ -30,7 +30,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ 
+ #include <stdarg.h>
+ #include <sys/time.h>
++#if defined(EMBEDDED)
++#include "../syscode.h"
++#else
+ #include <unistd.h>
++#endif
+ 
+ #include "doomdef.h"
+ #include "m_misc.h"
+@@ -48,7 +52,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ 
+ 
+ 
++#ifdef EMBEDDED
++int	mb_used = 3;
++#else
+ int	mb_used = 6;
++#endif
+ 
+ 
+ void
+@@ -87,16 +95,25 @@ byte* I_ZoneBase (int*	size)
+ //
+ int  I_GetTime (void)
+ {
++#ifdef EMBEDDED
++    unsigned t = sys_timer_ms();
++#if TICRATE == 35
++    return (((t * 0xf5c28f5dULL) >> 35) + t) >> 5;
++#else
++    unsigned sec = t / 1000, ms = t - sec * 1000;
++    return sec * TICRATE + ms * TICRATE / 1000;
++#endif
++#else
+     struct timeval	tp;
+-    struct timezone	tzp;
+     int			newtics;
+     static int		basetime=0;
+   
+-    gettimeofday(&tp, &tzp);
++    gettimeofday(&tp, NULL);
+     if (!basetime)
+ 	basetime = tp.tv_sec;
+     newtics = (tp.tv_sec-basetime)*TICRATE + tp.tv_usec*TICRATE/1000000;
+     return newtics;
++#endif
+ }
+ 
+ 
+@@ -125,15 +142,11 @@ void I_Quit (void)
+ 
+ void I_WaitVBL(int count)
+ {
+-#ifdef SGI
+-    sginap(1);                                           
+-#else
+-#ifdef SUN
+-    sleep(0);
++#if defined(EMBEDDED)
++    sys_wait_ms(count*1000/70);
+ #else
+     usleep (count * (1000000/70) );                                
+ #endif
+-#endif
+ }
+ 
+ void I_BeginRead(void)
+diff --git a/i_video.c b/i_video.c
+index 9b311b3..a64f621 100644
+--- a/i_video.c
++++ b/i_video.c
+@@ -25,6 +25,7 @@ static const char
+ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
+ 
+ #include <stdlib.h>
++#ifndef EMBEDDED
+ #include <unistd.h>
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+@@ -47,6 +48,7 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+ 
+ #include <netinet/in.h>
+ #include <errnos.h>
++#endif
+ #include <signal.h>
+ 
+ #include "doomstat.h"
+@@ -59,6 +61,21 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+ 
+ #define POINTER_WARP_COUNTDOWN	1
+ 
++#ifdef EMBEDDED
++#include "../syscode.h"
++
++#ifdef USEASM
++#define I_FinishUpdateCopy I_FinishUpdateCopyAsm
++#define I_FinishUpdateHalf I_FinishUpdateHalfAsm
++#define I_SetPalette16 I_SetPalette16Asm
++#endif
++void I_FinishUpdateCopy (void);
++void I_FinishUpdateHalf (void);
++void I_SetPalette16 (byte* palette);
++void I_SetPaletteHalf (byte* palette);
++
++void*	imagedata=NULL;
++#else
+ Display*	X_display=0;
+ Window		X_mainWindow;
+ Colormap	X_cmap;
+@@ -82,6 +99,7 @@ int		X_shmeventtype;
+ // Needs an invisible mouse cursor at least.
+ boolean		grabMouse;
+ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
++#endif
+ 
+ // Blocky mode,
+ // replace each 320x200 pixel with multiply*multiply pixels.
+@@ -89,6 +107,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+ // to use ....
+ static int	multiply=1;
+ 
++#ifdef EMBEDDED
++int I_CycleWeapon(int dir) {
++    player_t* p = &players[consoleplayer];
++    weapontype_t cur = p->readyweapon, next = cur;
++    static const char cycle[2][NUMWEAPONS] = { {
++	/* wp_fist */ wp_bfg,
++	/* wp_pistol */ wp_chainsaw,
++	/* wp_shotgun */ wp_pistol,
++	/* wp_chaingun */ wp_supershotgun,
++	/* wp_missile */ wp_chaingun,
++	/* wp_plasma */ wp_missile,
++	/* wp_bfg */ wp_plasma,
++	/* wp_chainsaw */ wp_fist,
++	/* wp_supershotgun */ wp_shotgun
++    }, {
++	/* wp_fist */ wp_chainsaw,
++	/* wp_pistol */ wp_shotgun,
++	/* wp_shotgun */ wp_supershotgun,
++	/* wp_chaingun */ wp_missile,
++	/* wp_missile */ wp_plasma,
++	/* wp_plasma */ wp_bfg,
++	/* wp_bfg */ wp_fist,
++	/* wp_chainsaw */ wp_pistol,
++	/* wp_supershotgun */ wp_chaingun
++    } };
++    do {
++	next = cycle[dir][next];
++	if (p->weaponowned[next]) {
++#if 0
++	    if (1) {
++#else
++	    ammotype_t ammo = weaponinfo[next].ammo;
++	    if (ammo == am_noammo || p->ammo[ammo] > 0) {
++#endif
++		// p->pendingweapon = next;
++		return "123456713"[next];
++	    }
++	}
++    } while (next != cur);
++    return 0x8000;
++}
++
++#define KEY_RSHIFT	(0x80+0x36)
++extern char gamekeydown[256];
++
++void I_ShutdownGraphics() { }
++void I_StartFrame() { }
++void I_StartTic() {
++    static int keyup = 0;
++    int type, key;
++    event_t event;
++    if (keyup) {
++	event.type = ev_keyup;
++	event.data1 = keyup;
++	D_PostEvent(&event);
++	keyup = 0;
++    }
++    for (;;) {
++	type = CHIP_FN2(sys_event)(&key);
++	switch (type) {
++	case EVENT_KEYDOWN:
++	    if (key == KEY_ENTER && !menuactive) key = ' ';
++	    if (key == KEY_RSHIFT && gamekeydown[KEY_RSHIFT]) goto keyup;
++	    if (keyup);
++	    else if (key == '[') keyup = key = I_CycleWeapon(0);
++	    else if (key == ']') keyup = key = I_CycleWeapon(1);
++	    event.type = ev_keydown;
++	    event.data1 = key;
++	    D_PostEvent(&event);
++	    break;
++	case EVENT_KEYUP:
++	    if (key == KEY_ENTER && !menuactive) key = ' ';
++	    if (key == KEY_RSHIFT) break;
++keyup:	    event.type = ev_keyup;
++	    event.data1 = key;
++	    D_PostEvent(&event);
++	    break;
++	case EVENT_END: return;
++	case EVENT_QUIT: I_Quit();
++	}
++    }
++}
++#else
+ 
+ //
+ //  Translates the key currently in X_event
+@@ -272,7 +373,7 @@ void I_GetEvent(void)
+ 	break;
+ 	
+       default:
+-	if (doShm && X_event.type == X_shmeventtype) shmFinished = true;
++       if (doShm && X_event.type == X_shmeventtype) shmFinished = true;
+ 	break;
+     }
+ 
+@@ -336,6 +437,7 @@ void I_StartTic (void)
+     mousemoved = false;
+ 
+ }
++#endif
+ 
+ 
+ //
+@@ -373,6 +475,14 @@ void I_FinishUpdate (void)
+     
+     }
+ 
++#ifdef EMBEDDED
++    CHIP_FN2(sys_wait_refresh)();
++    if (sys_data.display.w2 == 160)
++	I_FinishUpdateHalf();
++    else
++	I_FinishUpdateCopy();
++    CHIP_FN2(sys_start_refresh)();
++#else
+     // scales the screen size before blitting it
+     if (multiply == 2)
+     {
+@@ -518,6 +628,7 @@ void I_FinishUpdate (void)
+ 
+     }
+ 
++#endif
+ }
+ 
+ 
+@@ -533,6 +644,89 @@ void I_ReadScreen (byte* scr)
+ //
+ // Palette stuff.
+ //
++#ifdef EMBEDDED
++union {
++    short c16[256];
++    unsigned c32[256];
++} colors;
++
++#ifndef USEASM
++void I_FinishUpdateCopy (void) {
++    byte *s = screens[0];
++    short *d = (short*)imagedata;
++    int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
++    for (y = 0; y < h; y++)
++    for (x = 0; x < w; x++)
++	*d++ = colors.c16[*s++];
++}
++
++void I_SetPalette16 (byte* palette) {
++    int i, r, g, b;
++    short *d = colors.c16;
++    byte *tab = gammatable[usegamma];
++    if (!usegamma)
++    for (i = 0; i < 256; i++) {
++	r = *palette++;
++	g = *palette++;
++	b = *palette++;
++	*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3;
++    }
++    else
++    for (i = 0; i < 256; i++) {
++	r = tab[*palette++];
++	g = tab[*palette++];
++	b = tab[*palette++];
++	*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3;
++    }
++}
++
++// 00rrrrrr rr000bbb bbbbb00g ggggggg0
++// rrrrr000 000bbbbb 00000ggg ggg00000
++// rounding half to even
++
++void I_FinishUpdateHalf (void) {
++    byte *s = screens[0];
++    short *d = (short*)imagedata;
++    int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
++    unsigned a, b = 0x00400802;
++    for (y = 0; y < h; y += 2, s += w)
++    for (x = 0; x < w; x += 2, s += 2) {
++	a = colors.c32[s[0]] + colors.c32[s[1]];
++	a += colors.c32[s[w]] + colors.c32[s[w + 1]];
++	a += (b & a >> 2) + b;
++	a &= 0xf81f07e0;
++	*d++ = a | a >> 16;
++    }
++}
++#endif
++
++void I_SetPaletteHalf (byte* palette) {
++    int i, r, g, b;
++    unsigned *d = colors.c32;
++    byte *tab = gammatable[usegamma];
++    if (!usegamma)
++    for (i = 0; i < 256; i++) {
++	r = *palette++;
++	g = *palette++;
++	b = *palette++;
++	*d++ = r << 22 | b << 11 | g << 1;
++    }
++    else
++    for (i = 0; i < 256; i++) {
++	r = tab[*palette++];
++	g = tab[*palette++];
++	b = tab[*palette++];
++	*d++ = r << 22 | b << 11 | g << 1;
++    }
++}
++
++void I_SetPalette (byte* palette) {
++    if (sys_data.display.w2 == 160)
++	I_SetPaletteHalf(palette);
++    else
++	I_SetPalette16(palette);
++}
++#else
+ static XColor	colors[256];
+ 
+ void UploadNewPalette(Colormap cmap, byte *palette)
+@@ -688,6 +882,7 @@ void grabsharedmemory(int size)
+   fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
+ 	  (int) (image->data));
+ }
++#endif
+ 
+ void I_InitGraphics(void)
+ {
+@@ -699,6 +894,7 @@ void I_InitGraphics(void)
+     int			x=0;
+     int			y=0;
+     
++#ifndef EMBEDDED
+     // warning: char format, different type arg
+     char		xsign=' ';
+     char		ysign=' ';
+@@ -708,6 +904,7 @@ void I_InitGraphics(void)
+     XSetWindowAttributes attribs;
+     XGCValues		xgcvalues;
+     int			valuemask;
++#endif
+     static int		firsttime=1;
+ 
+     if (!firsttime)
+@@ -716,6 +913,11 @@ void I_InitGraphics(void)
+ 
+     signal(SIGINT, (void (*)(int)) I_Quit);
+ 
++#ifdef EMBEDDED
++    imagedata = malloc(sys_data.display.w2 * sys_data.display.h2 * 2);
++    CHIP_FN2(sys_framebuffer)(imagedata);
++    CHIP_FN2(sys_start)();
++#else
+     if (M_CheckParm("-2"))
+ 	multiply = 2;
+ 
+@@ -912,9 +1114,11 @@ void I_InitGraphics(void)
+     else
+ 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
+ 
++#endif
+ }
+ 
+ 
++#ifndef EMBEDDED
+ unsigned	exptable[256];
+ 
+ void InitExpand (void)
+@@ -1046,5 +1250,6 @@ Expand4
+ 	xline += step;
+     } while (y--);
+ }
++#endif
+ 
+ 
+diff --git a/info.c b/info.c
+index 230c72b..8845fa8 100644
+--- a/info.c
++++ b/info.c
+@@ -37,7 +37,7 @@ rcsid[] = "$Id: info.c,v 1.3 1997/01/26 07:45:00 b1 Exp $";
+ 
+ #include "p_mobj.h"
+ 
+-char *sprnames[NUMSPRITES] = {
++char *sprnames[NUMSPRITES+1] = {
+     "TROO","SHTG","PUNG","PISG","PISF","SHTF","SHT2","CHGG","CHGF","MISG",
+     "MISF","SAWG","PLSG","PLSF","BFGG","BFGF","BLUD","PUFF","BAL1","BAL2",
+     "PLSS","PLSE","MISL","BFS1","BFE1","BFE2","TFOG","IFOG","PLAY","POSS",
+@@ -52,6 +52,7 @@ char *sprnames[NUMSPRITES] = {
+     "COL3","COL4","CAND","CBRA","COL6","TRE1","TRE2","ELEC","CEYE","FSKU",
+     "COL5","TBLU","TGRN","TRED","SMBT","SMGT","SMRT","HDB1","HDB2","HDB3",
+     "HDB4","HDB5","HDB6","POB1","POB2","BRS1","TLMP","TLP2"
++    ,NULL
+ };
+ 
+ 
+diff --git a/info.h b/info.h
+index 786a717..00da20b 100644
+--- a/info.h
++++ b/info.h
+@@ -1156,7 +1156,7 @@ typedef struct
+ } state_t;
+ 
+ extern state_t	states[NUMSTATES];
+-extern char *sprnames[NUMSPRITES];
++extern char *sprnames[NUMSPRITES+1];
+ 
+ 
+ 
+diff --git a/m_fixed.c b/m_fixed.c
+index 4e0792d..295541d 100644
+--- a/m_fixed.c
++++ b/m_fixed.c
+@@ -35,7 +35,36 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ #endif
+ #include "m_fixed.h"
+ 
++#ifdef EMBEDDED
++#ifndef USEASM
++fixed_t FixedMul(fixed_t a, fixed_t b) {
++    return ((long long)a * (long long)b) >> FRACBITS;
++}
+ 
++fixed_t FixedDiv(fixed_t a, fixed_t b) {
++	unsigned r0 = a, r1 = b;
++	unsigned r12 = r0 ^ r1, r2, r3;
++	r2 = r0 ^ ((int32_t)r0 >> 31);
++	r3 = r1 ^ ((int32_t)r1 >> 31);
++	r2 -= ((int32_t)r0 >> 31);
++	r3 -= ((int32_t)r1 >> 31);
++	r1 = r2 >> 15; r2 <<= 17;
++	r0 = 0x7fffffff ^ ((int32_t)r12 >> 31);
++	if (r1 >= r3) return r0;
++	r0 = 2;
++	for (;;) {
++		int end = r0;
++		r1 = r1 << 1 | r2 >> 31;
++		r2 <<= 1;
++		r0 += r0;
++		if (r1 >= r3) r0++, r1 -= r3;
++		if (end < 0) break;
++	}
++	if (r12 >> 31) r0 = -r0;
++	return r0;
++}
++#endif
++#else
+ 
+ 
+ // Fixme. __USE_C_FIXED__ or something.
+@@ -71,11 +100,11 @@ FixedDiv2
+ ( fixed_t	a,
+   fixed_t	b )
+ {
+-#if 0
++#if 1
+     long long c;
+     c = ((long long)a<<16) / ((long long)b);
+     return (fixed_t) c;
+-#endif
++#else
+ 
+     double c;
+ 
+@@ -84,4 +113,6 @@ FixedDiv2
+     if (c >= 2147483648.0 || c < -2147483648.0)
+ 	I_Error("FixedDiv: divide by zero");
+     return (fixed_t) c;
++#endif
+ }
++#endif
+diff --git a/m_fixed.h b/m_fixed.h
+index 7cd7c66..e0e54cf 100644
+--- a/m_fixed.h
++++ b/m_fixed.h
+@@ -37,6 +37,11 @@
+ 
+ typedef int fixed_t;
+ 
++#ifdef USEASM
++#define FixedMul FixedMulAsm
++#define FixedDiv FixedDivAsm
++#endif
++
+ fixed_t FixedMul	(fixed_t a, fixed_t b);
+ fixed_t FixedDiv	(fixed_t a, fixed_t b);
+ fixed_t FixedDiv2	(fixed_t a, fixed_t b);
+diff --git a/m_menu.c b/m_menu.c
+index 4d415ae..e4153de 100644
+--- a/m_menu.c
++++ b/m_menu.c
+@@ -25,10 +25,6 @@
+ static const char
+ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
+ 
+-#include <unistd.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <fcntl.h>
+ #include <stdlib.h>
+ #include <ctype.h>
+ 
+@@ -510,27 +506,23 @@ menu_t  SaveDef =
+ //
+ void M_ReadSaveStrings(void)
+ {
+-    int             handle;
++    FILE*           file;
+     int             count;
+-    int             i;
++    int             i, j;
+     char    name[256];
+ 	
+     for (i = 0;i < load_end;i++)
+     {
+-	if (M_CheckParm("-cdrom"))
+-	    sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",i);
+-	else
+-	    sprintf(name,SAVEGAMENAME"%d.dsg",i);
+-
+-	handle = open (name, O_RDONLY | 0, 0666);
+-	if (handle == -1)
++	sprintf(name,SAVEGAMENAME"%d.dsg",i);
++	file = fopen (name, "rb");
++	if (!file)
+ 	{
+ 	    strcpy(&savegamestrings[i][0],EMPTYSTRING);
+ 	    LoadMenu[i].status = 0;
+ 	    continue;
+ 	}
+-	count = read (handle, &savegamestrings[i], SAVESTRINGSIZE);
+-	close (handle);
++	count = fread (&savegamestrings[i], 1, SAVESTRINGSIZE, file);
++	fclose (file);
+ 	LoadMenu[i].status = 1;
+     }
+ }
+@@ -579,11 +571,8 @@ void M_DrawSaveLoadBorder(int x,int y)
+ void M_LoadSelect(int choice)
+ {
+     char    name[256];
+-	
+-    if (M_CheckParm("-cdrom"))
+-	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",choice);
+-    else
+-	sprintf(name,SAVEGAMENAME"%d.dsg",choice);
++
++    sprintf(name,SAVEGAMENAME"%d.dsg",choice);
+     G_LoadGame (name);
+     M_ClearMenus ();
+ }
+@@ -1100,9 +1089,11 @@ void M_QuitDOOM(int choice)
+   // We pick index 0 which is language sensitive,
+   //  or one at random, between 1 and maximum number.
+   if (language != english )
+-    sprintf(endstring,"%s\n\n"DOSY, endmsg[0] );
++    snprintf(endstring,sizeof(endstring),
++        "%s\n\n"DOSY, endmsg[0] );
+   else
+-    sprintf(endstring,"%s\n\n"DOSY, endmsg[ (gametic%(NUM_QUITMESSAGES-2))+1 ]);
++    snprintf(endstring,sizeof(endstring),
++        "%s\n\n"DOSY, endmsg[ (gametic%(NUM_QUITMESSAGES-2))+1 ]);
+   
+   M_StartMessage(endstring,M_QuitResponse,true);
+ }
+@@ -1133,17 +1124,11 @@ void M_ChangeDetail(int choice)
+     choice = 0;
+     detailLevel = 1 - detailLevel;
+ 
+-    // FIXME - does not work. Remove anyway?
+-    fprintf( stderr, "M_ChangeDetail: low detail mode n.a.\n");
+-
+-    return;
+-    
+-    /*R_SetViewSize (screenblocks, detailLevel);
+-
++    R_SetViewSize (screenblocks, detailLevel);
+     if (!detailLevel)
+ 	players[consoleplayer].message = DETAILHI;
+     else
+-	players[consoleplayer].message = DETAILLO;*/
++	players[consoleplayer].message = DETAILLO;
+ }
+ 
+ 
+diff --git a/m_misc.c b/m_misc.c
+index 0df4fe5..de3a52e 100644
+--- a/m_misc.c
++++ b/m_misc.c
+@@ -27,12 +27,7 @@
+ static const char
+ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
+ 
+-#include <sys/stat.h>
+-#include <sys/types.h>
+-#include <fcntl.h>
+ #include <stdlib.h>
+-#include <unistd.h>
+-
+ #include <ctype.h>
+ 
+ 
+@@ -115,16 +110,16 @@ M_WriteFile
+   void*		source,
+   int		length )
+ {
+-    int		handle;
++    FILE*	file;
+     int		count;
+ 	
+-    handle = open ( name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
++    file = fopen (name, "wb");
+ 
+-    if (handle == -1)
++    if (file == NULL)
+ 	return false;
+ 
+-    count = write (handle, source, length);
+-    close (handle);
++    count = fwrite (source, 1, length, file);
++    fclose (file);
+ 	
+     if (count < length)
+ 	return false;
+@@ -141,19 +136,20 @@ M_ReadFile
+ ( char const*	name,
+   byte**	buffer )
+ {
+-    int	handle, count, length;
+-    struct stat	fileinfo;
+-    byte		*buf;
++    FILE*	file;
++    int		count, length;
++    byte	*buf;
+ 	
+-    handle = open (name, O_RDONLY | O_BINARY, 0666);
+-    if (handle == -1)
+-	I_Error ("Couldn't read file %s", name);
+-    if (fstat (handle,&fileinfo) == -1)
++    file = fopen (name, "rb");
++    if (file == NULL)
+ 	I_Error ("Couldn't read file %s", name);
+-    length = fileinfo.st_size;
++
++    fseek (file, 0, SEEK_END);
++    length = ftell(file);
++    fseek (file, 0, SEEK_SET);
+     buf = Z_Malloc (length, PU_STATIC, NULL);
+-    count = read (handle, buf, length);
+-    close (handle);
++    count = fread (buf, 1, length, file);
++    fclose (file);
+ 	
+     if (count < length)
+ 	I_Error ("Couldn't read file %s", name);
+@@ -206,18 +202,6 @@ extern int	showMessages;
+ // machine-independent sound params
+ extern	int	numChannels;
+ 
+-
+-// UNIX hack, to be removed.
+-#ifdef SNDSERV
+-extern char*	sndserver_filename;
+-extern int	mb_used;
+-#endif
+-
+-#ifdef LINUX
+-char*		mousetype;
+-char*		mousedev;
+-#endif
+-
+ extern char*	chat_macros[];
+ 
+ 
+@@ -225,10 +209,9 @@ extern char*	chat_macros[];
+ typedef struct
+ {
+     char*	name;
+-    int*	location;
+-    int		defaultvalue;
+-    int		scantranslate;		// PC scan code hack
+-    int		untranslated;		// lousy hack
++    void*	location;
++    int		value;
++    void*	string;
+ } default_t;
+ 
+ default_t	defaults[] =
+@@ -260,6 +243,7 @@ default_t	defaults[] =
+     
+ #endif
+ 
++#ifndef EMBEDDED
+ #ifdef LINUX
+     {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
+     {"mousetype", (int*)&mousetype, (int)"microsoft"},
+@@ -275,6 +259,7 @@ default_t	defaults[] =
+     {"joyb_strafe",&joybstrafe,1},
+     {"joyb_use",&joybuse,3},
+     {"joyb_speed",&joybspeed,2},
++#endif
+ 
+     {"screenblocks",&screenblocks, 9},
+     {"detaillevel",&detailLevel, 0},
+@@ -285,6 +270,7 @@ default_t	defaults[] =
+ 
+     {"usegamma",&usegamma, 0},
+ 
++#ifndef EMBEDDED
+     {"chatmacro0", (int *) &chat_macros[0], (int) HUSTR_CHATMACRO0 },
+     {"chatmacro1", (int *) &chat_macros[1], (int) HUSTR_CHATMACRO1 },
+     {"chatmacro2", (int *) &chat_macros[2], (int) HUSTR_CHATMACRO2 },
+@@ -295,12 +281,11 @@ default_t	defaults[] =
+     {"chatmacro7", (int *) &chat_macros[7], (int) HUSTR_CHATMACRO7 },
+     {"chatmacro8", (int *) &chat_macros[8], (int) HUSTR_CHATMACRO8 },
+     {"chatmacro9", (int *) &chat_macros[9], (int) HUSTR_CHATMACRO9 }
+-
++#endif
++    { NULL }
+ };
+ 
+-int	numdefaults;
+-char*	defaultfile;
+-
++static const char*	defaultfile = "default.cfg";
+ 
+ //
+ // M_SaveDefaults
+@@ -315,12 +300,11 @@ void M_SaveDefaults (void)
+     if (!f)
+ 	return; // can't write the file, but don't complain
+ 		
+-    for (i=0 ; i<numdefaults ; i++)
++    for (i=0 ; defaults[i].name ; i++)
+     {
+-	if (defaults[i].defaultvalue > -0xfff
+-	    && defaults[i].defaultvalue < 0xfff)
++	if (!defaults[i].string)
+ 	{
+-	    v = *defaults[i].location;
++	    v = *(int*)defaults[i].location;
+ 	    fprintf (f,"%s\t\t%i\n",defaults[i].name,v);
+ 	} else {
+ 	    fprintf (f,"%s\t\t\"%s\"\n",defaults[i].name,
+@@ -335,24 +319,23 @@ void M_SaveDefaults (void)
+ //
+ // M_LoadDefaults
+ //
+-extern byte	scantokey[128];
+ 
+ void M_LoadDefaults (void)
+ {
+-    int		i;
++    int		i, n, a;
+     int		len;
+     FILE*	f;
+     char	def[80];
+     char	strparm[100];
+     char*	newstring;
+-    int		parm;
+-    boolean	isstring;
+     
+     // set everything to base values
+-    numdefaults = sizeof(defaults)/sizeof(defaults[0]);
+-    for (i=0 ; i<numdefaults ; i++)
+-	*defaults[i].location = defaults[i].defaultvalue;
+-    
++    for (i = 0; defaults[i].name; i++)
++	if (!defaults[i].string)
++	    *(int*)defaults[i].location = defaults[i].value;
++	else
++    	    *(char**)defaults[i].location = defaults[i].string;
++
+     // check for a custom default file
+     i = M_CheckParm ("-config");
+     if (i && i<myargc-1)
+@@ -360,46 +343,45 @@ void M_LoadDefaults (void)
+ 	defaultfile = myargv[i+1];
+ 	printf ("	default file: %s\n",defaultfile);
+     }
+-    else
+-	defaultfile = basedefault;
+     
+     // read the file in, overriding any set defaults
+     f = fopen (defaultfile, "r");
+-    if (f)
+-    {
+-	while (!feof(f))
+-	{
+-	    isstring = false;
+-	    if (fscanf (f, "%79s %[^\n]\n", def, strparm) == 2)
+-	    {
++    if (!f) return;
++    for (i = a = n = 0; a >= 0; ) {
++	a = fgetc(f);
++	if ((a == ' ' || a == '\t') && (!i || !n)) {
++	    if (n) { def[n] = 0; n = 0; i++; }
++	} else if (a < 0 || a == '\n' || a == '\r') {
++	    if (i) {
++		strparm[n] = 0;
++		newstring = NULL;
+ 		if (strparm[0] == '"')
+ 		{
+-		    // get a string default
+-		    isstring = true;
+ 		    len = strlen(strparm);
+ 		    newstring = (char *) malloc(len);
+ 		    strparm[len-1] = 0;
+ 		    strcpy(newstring, strparm+1);
+ 		}
+-		else if (strparm[0] == '0' && strparm[1] == 'x')
+-		    sscanf(strparm+2, "%x", &parm);
+-		else
+-		    sscanf(strparm, "%i", &parm);
+-		for (i=0 ; i<numdefaults ; i++)
++		else n = strtol(strparm, NULL, 0);
++
++		for (i = 0; defaults[i].name; i++)
+ 		    if (!strcmp(def, defaults[i].name))
+ 		    {
+-			if (!isstring)
+-			    *defaults[i].location = parm;
+-			else
+-			    *defaults[i].location =
+-				(int) newstring;
++			if (!newstring && !defaults[i].string)
++			    *(int*) defaults[i].location = n;
++			else if (newstring && defaults[i].string)
++			    *(char**) defaults[i].location = newstring;
+ 			break;
+ 		    }
+ 	    }
++	    i = n = 0;
++	} else if (i) {
++	    strparm[n] = a; n += n < sizeof(strparm) - 1;
++	} else {
++	    def[n] = a; n += n < sizeof(def) - 1;
+ 	}
+-		
+-	fclose (f);
+     }
++    fclose (f);
+ }
+ 
+ 
+@@ -432,7 +414,7 @@ typedef struct
+     
+     char		filler[58];
+     unsigned char	data;		// unbounded
+-} pcx_t;
++} PACKED pcx_t;
+ 
+ 
+ //
+@@ -505,6 +487,7 @@ void M_ScreenShot (void)
+     int		i;
+     byte*	linear;
+     char	lbmname[12];
++    FILE*	file;
+     
+     // munge planar buffer to linear
+     linear = screens[2];
+@@ -517,8 +500,9 @@ void M_ScreenShot (void)
+     {
+ 	lbmname[4] = i/10 + '0';
+ 	lbmname[5] = i%10 + '0';
+-	if (access(lbmname,0) == -1)
++	if (!(file = fopen(lbmname,"rb")))
+ 	    break;	// file doesn't exist
++	fclose(file);
+     }
+     if (i==100)
+ 	I_Error ("M_ScreenShot: Couldn't create a PCX");
+@@ -531,4 +515,3 @@ void M_ScreenShot (void)
+     players[consoleplayer].message = "screen shot";
+ }
+ 
+-
+diff --git a/p_saveg.c b/p_saveg.c
+index 4500a54..bf450ba 100644
+--- a/p_saveg.c
++++ b/p_saveg.c
+@@ -32,14 +32,137 @@ rcsid[] = "$Id: p_tick.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
+ #include "doomstat.h"
+ #include "r_state.h"
+ 
++extern byte*	savebuffer;
+ byte*		save_p;
+ 
++// does nothing if compiler uses packed structures
++#define ALIGNP(t) s += ((byte*)p - s) & (sizeof(struct { char a; t b; }) - sizeof(t) - 1);
++
++#define SAVEFMT(t, a) P_SaveFmt(t##_fmt, a);
++#define LOADFMT(t, a) P_LoadFmt(t##_fmt, a);
++
++#define player_t_fmt "v4112211*A4;v44v444*Bs444;4"
++#define mobj_t_fmt "vvv444vv444vvv444444444v4S4444v44p422222v"
++#define ceiling_t_fmt "vvv4r4444444"
++#define vldoor_t_fmt "vvv4r44444"
++#define floormove_t_fmt "vvv44r44244"
++#define plat_t_fmt "vvvr4444444444"
++#define lightflash_t_fmt "vvvr44444"
++#define strobe_t_fmt "vvvr44444"
++#define glow_t_fmt "vvvr444"
++
++static const int savegamerep[] = {
++    7+NUMPOWERS+NUMCARDS+1+MAXPLAYERS+2+NUMWEAPONS+NUMAMMO*2+7,
++    NUMPSPRITES
++};
++
++static void P_SaveFmt(const char *f, void *p) {
++    byte *s = (byte*)p, *d = save_p;
++    int i, a, n = 0; const char *f1 = NULL;
++
++    while((d - savebuffer) & 3) *d++ = 0;
++
++    while (*f) switch(*f++) {
++    case 'v':
++	ALIGNP(void*)
++	a = *(void**)s ? 1 : 0;
++saveptr:
++	*d++ = a;
++	*d++ = a >> 8;
++	*d++ = a >> 16;
++	*d++ = a >> 24;
++	s += sizeof(void*);
++	break;
++    case 'p':
++	ALIGNP(void*)
++	a = *(void**)s ? (*(player_t**)s - players) + 1 : 0;
++	goto saveptr;
++    case 'S':
++	ALIGNP(void*)
++	a = *(state_t**)s - states;
++	goto saveptr;
++    case 's':
++	ALIGNP(void*)
++	a = *(void**)s ? *(state_t**)s - states : 0;
++	goto saveptr;
++    case 'r':
++	ALIGNP(void*)
++	a = *(sector_t**)s - sectors;
++	goto saveptr;
++    case '1':
++	*d++ = *(char*)s;
++	s += sizeof(char);
++	break;
++    case '2':
++	ALIGNP(short)
++	a = *(short*)s; s += sizeof(short);
++	*d++ = a;
++	*d++ = a >> 8;
++	break;
++    case '4':
++	ALIGNP(int)
++	a = *(int*)s; s += sizeof(int);
++	*d++ = a;
++	*d++ = a >> 8;
++	*d++ = a >> 16;
++	*d++ = a >> 24;
++	break;
++    case '*':
++	n = savegamerep[*f++ - 'A']; f1 = f;
++	break;
++    case ';':
++	if (--n) f = f1;
++	break;
++    }
++    save_p = d;
++}
+ 
+-// Pads save_p to a 4-byte boundary
+-//  so that the load/save works on SGI&Gecko.
+-#define PADSAVEP()	save_p += (4 - ((int) save_p & 3)) & 3
+-
+-
++#define READ4 d[0]|d[1]<<8|d[2]<<16|d[3]<<24
++static void P_LoadFmt(const char *f, void *p) {
++    byte *s = (byte*)p, *d = save_p; void *b;
++    int i, a, n = 0; const char *f1 = NULL;
++    d += -(d - savebuffer) & 3;
++
++    while (*f) switch(*f++) {
++    case 'v':
++	b = ((char*)0) + d[0];
++loadptr:
++	d += 4;
++	ALIGNP(void*) *(void**)s = b; s += sizeof(void*);
++	break;
++    case 'p':
++	a = READ4; b = a ? &players[a-1] : NULL;
++	goto loadptr;
++    case 'S':
++	a = READ4; b = states + a;
++	goto loadptr;
++    case 's':
++	a = READ4; b = a ? states + a : NULL;
++	goto loadptr;
++    case 'r':
++	a = READ4; b = sectors + a;
++	goto loadptr;
++    case '1':
++	*(char*)s = *d++; s += sizeof(char);
++	break;
++    case '2':
++	a = d[0]|d[1]<<8; d += 2;
++	ALIGNP(short) *(short*)s = a; s += sizeof(short);
++	break;
++    case '4':
++	a = READ4; d += 4;
++	ALIGNP(int) *(int*)s = a; s += sizeof(int);
++	break;
++    case '*':
++	n = savegamerep[*f++ - 'A']; f1 = f;
++	break;
++    case ';':
++	if (--n) f = f1;
++	break;
++    }
++    save_p = d;
++}
++#undef READ4
+ 
+ //
+ // P_ArchivePlayers
+@@ -47,27 +170,11 @@ byte*		save_p;
+ void P_ArchivePlayers (void)
+ {
+     int		i;
+-    int		j;
+-    player_t*	dest;
+ 		
+     for (i=0 ; i<MAXPLAYERS ; i++)
+     {
+-	if (!playeringame[i])
+-	    continue;
+-	
+-	PADSAVEP();
+-
+-	dest = (player_t *)save_p;
+-	memcpy (dest,&players[i],sizeof(player_t));
+-	save_p += sizeof(player_t);
+-	for (j=0 ; j<NUMPSPRITES ; j++)
+-	{
+-	    if (dest->psprites[j].state)
+-	    {
+-		dest->psprites[j].state 
+-		    = (state_t *)(dest->psprites[j].state-states);
+-	    }
+-	}
++	if (!playeringame[i]) continue;
++	SAVEFMT(player_t, &players[i])
+     }
+ }
+ 
+@@ -79,31 +186,14 @@ void P_ArchivePlayers (void)
+ void P_UnArchivePlayers (void)
+ {
+     int		i;
+-    int		j;
+ 	
+     for (i=0 ; i<MAXPLAYERS ; i++)
+     {
+-	if (!playeringame[i])
+-	    continue;
+-	
+-	PADSAVEP();
+-
+-	memcpy (&players[i],save_p, sizeof(player_t));
+-	save_p += sizeof(player_t);
+-	
+-	// will be set when unarc thinker
++	if (!playeringame[i]) continue;
++	LOADFMT(player_t, &players[i])
+ 	players[i].mo = NULL;	
+ 	players[i].message = NULL;
+ 	players[i].attacker = NULL;
+-
+-	for (j=0 ; j<NUMPSPRITES ; j++)
+-	{
+-	    if (players[i]. psprites[j].state)
+-	    {
+-		players[i]. psprites[j].state 
+-		    = &states[ (int)players[i].psprites[j].state ];
+-	    }
+-	}
+     }
+ }
+ 
+@@ -232,7 +322,6 @@ typedef enum
+ void P_ArchiveThinkers (void)
+ {
+     thinker_t*		th;
+-    mobj_t*		mobj;
+ 	
+     // save off the current thinkers
+     for (th = thinkercap.next ; th != &thinkercap ; th=th->next)
+@@ -240,14 +329,7 @@ void P_ArchiveThinkers (void)
+ 	if (th->function.acp1 == (actionf_p1)P_MobjThinker)
+ 	{
+ 	    *save_p++ = tc_mobj;
+-	    PADSAVEP();
+-	    mobj = (mobj_t *)save_p;
+-	    memcpy (mobj, th, sizeof(*mobj));
+-	    save_p += sizeof(*mobj);
+-	    mobj->state = (state_t *)(mobj->state - states);
+-	    
+-	    if (mobj->player)
+-		mobj->player = (player_t *)((mobj->player-players) + 1);
++	    SAVEFMT(mobj_t, th)
+ 	    continue;
+ 	}
+ 		
+@@ -295,15 +377,11 @@ void P_UnArchiveThinkers (void)
+ 	    return; 	// end of list
+ 			
+ 	  case tc_mobj:
+-	    PADSAVEP();
+ 	    mobj = Z_Malloc (sizeof(*mobj), PU_LEVEL, NULL);
+-	    memcpy (mobj, save_p, sizeof(*mobj));
+-	    save_p += sizeof(*mobj);
+-	    mobj->state = &states[(int)mobj->state];
++	    LOADFMT(mobj_t, mobj)
+ 	    mobj->target = NULL;
+ 	    if (mobj->player)
+ 	    {
+-		mobj->player = &players[(int)mobj->player-1];
+ 		mobj->player->mo = mobj;
+ 	    }
+ 	    P_SetThingPosition (mobj);
+@@ -355,13 +433,6 @@ enum
+ void P_ArchiveSpecials (void)
+ {
+     thinker_t*		th;
+-    ceiling_t*		ceiling;
+-    vldoor_t*		door;
+-    floormove_t*	floor;
+-    plat_t*		plat;
+-    lightflash_t*	flash;
+-    strobe_t*		strobe;
+-    glow_t*		glow;
+     int			i;
+ 	
+     // save off the current thinkers
+@@ -376,11 +447,7 @@ void P_ArchiveSpecials (void)
+ 	    if (i<MAXCEILINGS)
+ 	    {
+ 		*save_p++ = tc_ceiling;
+-		PADSAVEP();
+-		ceiling = (ceiling_t *)save_p;
+-		memcpy (ceiling, th, sizeof(*ceiling));
+-		save_p += sizeof(*ceiling);
+-		ceiling->sector = (sector_t *)(ceiling->sector - sectors);
++		SAVEFMT(ceiling_t, th)
+ 	    }
+ 	    continue;
+ 	}
+@@ -388,84 +455,55 @@ void P_ArchiveSpecials (void)
+ 	if (th->function.acp1 == (actionf_p1)T_MoveCeiling)
+ 	{
+ 	    *save_p++ = tc_ceiling;
+-	    PADSAVEP();
+-	    ceiling = (ceiling_t *)save_p;
+-	    memcpy (ceiling, th, sizeof(*ceiling));
+-	    save_p += sizeof(*ceiling);
+-	    ceiling->sector = (sector_t *)(ceiling->sector - sectors);
++	    SAVEFMT(ceiling_t, th)
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_VerticalDoor)
+ 	{
+ 	    *save_p++ = tc_door;
+-	    PADSAVEP();
+-	    door = (vldoor_t *)save_p;
+-	    memcpy (door, th, sizeof(*door));
+-	    save_p += sizeof(*door);
+-	    door->sector = (sector_t *)(door->sector - sectors);
++	    SAVEFMT(vldoor_t, th);
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_MoveFloor)
+ 	{
+ 	    *save_p++ = tc_floor;
+-	    PADSAVEP();
+-	    floor = (floormove_t *)save_p;
+-	    memcpy (floor, th, sizeof(*floor));
+-	    save_p += sizeof(*floor);
+-	    floor->sector = (sector_t *)(floor->sector - sectors);
++	    SAVEFMT(floormove_t, th)
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_PlatRaise)
+ 	{
+ 	    *save_p++ = tc_plat;
+-	    PADSAVEP();
+-	    plat = (plat_t *)save_p;
+-	    memcpy (plat, th, sizeof(*plat));
+-	    save_p += sizeof(*plat);
+-	    plat->sector = (sector_t *)(plat->sector - sectors);
++	    SAVEFMT(plat_t, th)
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_LightFlash)
+ 	{
+ 	    *save_p++ = tc_flash;
+-	    PADSAVEP();
+-	    flash = (lightflash_t *)save_p;
+-	    memcpy (flash, th, sizeof(*flash));
+-	    save_p += sizeof(*flash);
+-	    flash->sector = (sector_t *)(flash->sector - sectors);
++	    SAVEFMT(lightflash_t, th)
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_StrobeFlash)
+ 	{
+ 	    *save_p++ = tc_strobe;
+-	    PADSAVEP();
+-	    strobe = (strobe_t *)save_p;
+-	    memcpy (strobe, th, sizeof(*strobe));
+-	    save_p += sizeof(*strobe);
+-	    strobe->sector = (sector_t *)(strobe->sector - sectors);
++	    SAVEFMT(strobe_t, th)
+ 	    continue;
+ 	}
+ 			
+ 	if (th->function.acp1 == (actionf_p1)T_Glow)
+ 	{
+ 	    *save_p++ = tc_glow;
+-	    PADSAVEP();
+-	    glow = (glow_t *)save_p;
+-	    memcpy (glow, th, sizeof(*glow));
+-	    save_p += sizeof(*glow);
+-	    glow->sector = (sector_t *)(glow->sector - sectors);
++	    SAVEFMT(glow_t, th)
+ 	    continue;
+ 	}
+     }
+ 	
+     // add a terminating marker
+     *save_p++ = tc_endspecials;	
+-
+ }
+ 
+ 
+@@ -494,11 +532,8 @@ void P_UnArchiveSpecials (void)
+ 	    return;	// end of list
+ 			
+ 	  case tc_ceiling:
+-	    PADSAVEP();
+ 	    ceiling = Z_Malloc (sizeof(*ceiling), PU_LEVEL, NULL);
+-	    memcpy (ceiling, save_p, sizeof(*ceiling));
+-	    save_p += sizeof(*ceiling);
+-	    ceiling->sector = &sectors[(int)ceiling->sector];
++	    LOADFMT(ceiling_t, ceiling)
+ 	    ceiling->sector->specialdata = ceiling;
+ 
+ 	    if (ceiling->thinker.function.acp1)
+@@ -509,33 +544,24 @@ void P_UnArchiveSpecials (void)
+ 	    break;
+ 				
+ 	  case tc_door:
+-	    PADSAVEP();
+ 	    door = Z_Malloc (sizeof(*door), PU_LEVEL, NULL);
+-	    memcpy (door, save_p, sizeof(*door));
+-	    save_p += sizeof(*door);
+-	    door->sector = &sectors[(int)door->sector];
++	    LOADFMT(vldoor_t, door)
+ 	    door->sector->specialdata = door;
+ 	    door->thinker.function.acp1 = (actionf_p1)T_VerticalDoor;
+ 	    P_AddThinker (&door->thinker);
+ 	    break;
+ 				
+ 	  case tc_floor:
+-	    PADSAVEP();
+ 	    floor = Z_Malloc (sizeof(*floor), PU_LEVEL, NULL);
+-	    memcpy (floor, save_p, sizeof(*floor));
+-	    save_p += sizeof(*floor);
+-	    floor->sector = &sectors[(int)floor->sector];
++	    LOADFMT(floormove_t, floor)
+ 	    floor->sector->specialdata = floor;
+ 	    floor->thinker.function.acp1 = (actionf_p1)T_MoveFloor;
+ 	    P_AddThinker (&floor->thinker);
+ 	    break;
+ 				
+ 	  case tc_plat:
+-	    PADSAVEP();
+ 	    plat = Z_Malloc (sizeof(*plat), PU_LEVEL, NULL);
+-	    memcpy (plat, save_p, sizeof(*plat));
+-	    save_p += sizeof(*plat);
+-	    plat->sector = &sectors[(int)plat->sector];
++	    LOADFMT(plat_t, plat)
+ 	    plat->sector->specialdata = plat;
+ 
+ 	    if (plat->thinker.function.acp1)
+@@ -546,31 +572,22 @@ void P_UnArchiveSpecials (void)
+ 	    break;
+ 				
+ 	  case tc_flash:
+-	    PADSAVEP();
+ 	    flash = Z_Malloc (sizeof(*flash), PU_LEVEL, NULL);
+-	    memcpy (flash, save_p, sizeof(*flash));
+-	    save_p += sizeof(*flash);
+-	    flash->sector = &sectors[(int)flash->sector];
++	    LOADFMT(lightflash_t, flash)
+ 	    flash->thinker.function.acp1 = (actionf_p1)T_LightFlash;
+ 	    P_AddThinker (&flash->thinker);
+ 	    break;
+ 				
+ 	  case tc_strobe:
+-	    PADSAVEP();
+ 	    strobe = Z_Malloc (sizeof(*strobe), PU_LEVEL, NULL);
+-	    memcpy (strobe, save_p, sizeof(*strobe));
+-	    save_p += sizeof(*strobe);
+-	    strobe->sector = &sectors[(int)strobe->sector];
++	    LOADFMT(strobe_t, strobe)
+ 	    strobe->thinker.function.acp1 = (actionf_p1)T_StrobeFlash;
+ 	    P_AddThinker (&strobe->thinker);
+ 	    break;
+ 				
+ 	  case tc_glow:
+-	    PADSAVEP();
+ 	    glow = Z_Malloc (sizeof(*glow), PU_LEVEL, NULL);
+-	    memcpy (glow, save_p, sizeof(*glow));
+-	    save_p += sizeof(*glow);
+-	    glow->sector = &sectors[(int)glow->sector];
++	    LOADFMT(glow_t, glow)
+ 	    glow->thinker.function.acp1 = (actionf_p1)T_Glow;
+ 	    P_AddThinker (&glow->thinker);
+ 	    break;
+diff --git a/p_setup.c b/p_setup.c
+index e5d3667..f27b4ff 100644
+--- a/p_setup.c
++++ b/p_setup.c
+@@ -533,7 +533,7 @@ void P_GroupLines (void)
+     }
+ 	
+     // build line tables for each sector	
+-    linebuffer = Z_Malloc (total*4, PU_LEVEL, 0);
++    linebuffer = Z_Malloc (total*sizeof(*linebuffer), PU_LEVEL, 0);
+     sector = sectors;
+     for (i=0 ; i<numsectors ; i++, sector++)
+     {
+diff --git a/p_spec.c b/p_spec.c
+index f048afb..6553d52 100644
+--- a/p_spec.c
++++ b/p_spec.c
+@@ -1184,7 +1184,7 @@ int EV_DoDonut(line_t*	line)
+ 	s2 = getNextSector(s1->lines[0],s1);
+ 	for (i = 0;i < s2->linecount;i++)
+ 	{
+-	    if ((!s2->lines[i]->flags & ML_TWOSIDED) ||
++	    if ((!(s2->lines[i]->flags & ML_TWOSIDED)) ||
+ 		(s2->lines[i]->backsector == s1))
+ 		continue;
+ 	    s3 = s2->lines[i]->backsector;
+diff --git a/p_spec.h b/p_spec.h
+index 39155bf..d8d090e 100644
+--- a/p_spec.h
++++ b/p_spec.h
+@@ -293,7 +293,7 @@ typedef struct
+     int		count;
+     plat_e	status;
+     plat_e	oldstatus;
+-    boolean	crush;
++    savebool_t	crush;
+     int		tag;
+     plattype_e	type;
+     
+@@ -498,7 +498,7 @@ typedef struct
+     fixed_t	bottomheight;
+     fixed_t	topheight;
+     fixed_t	speed;
+-    boolean	crush;
++    savebool_t	crush;
+ 
+     // 1 = up, 0 = waiting, -1 = down
+     int		direction;
+@@ -585,7 +585,7 @@ typedef struct
+ {
+     thinker_t	thinker;
+     floor_e	type;
+-    boolean	crush;
++    savebool_t	crush;
+     sector_t*	sector;
+     int		direction;
+     int		newspecial;
+diff --git a/p_user.c b/p_user.c
+index 22fd6ed..53c0a35 100644
+--- a/p_user.c
++++ b/p_user.c
+@@ -290,7 +290,11 @@ void P_PlayerThink (player_t* player)
+ 	if (newweapon == wp_fist
+ 	    && player->weaponowned[wp_chainsaw]
+ 	    && !(player->readyweapon == wp_chainsaw
++#if 1 // allow to switch back to fist
++		 && true))
++#else
+ 		 && player->powers[pw_strength]))
++#endif
+ 	{
+ 	    newweapon = wp_chainsaw;
+ 	}
+diff --git a/r_data.c b/r_data.c
+index acabd53..3ffbb00 100644
+--- a/r_data.c
++++ b/r_data.c
+@@ -44,6 +44,17 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
+ #ifdef LINUX
+ #include  <alloca.h>
+ #endif
++#ifdef EMBEDDED
++extern char __stack_top[1];
++static inline void _alloca_check(void *p, size_t size) {
++    size_t avail = (intptr_t)p - ((intptr_t)__stack_top + 0x800);
++    if ((intptr_t)(avail | size) < 0 || avail < size)
++	I_Error ("alloca: not enough stack");
++}
++#define alloca_check(size) (_alloca_check(alloca(0), size), alloca(size))
++#else
++#define alloca_check alloca
++#endif
+ 
+ 
+ #include "r_data.h"
+@@ -73,7 +84,7 @@ typedef struct
+     short	patch;
+     short	stepdir;
+     short	colormap;
+-} mappatch_t;
++} PACKED mappatch_t;
+ 
+ 
+ //
+@@ -84,13 +95,13 @@ typedef struct
+ typedef struct
+ {
+     char		name[8];
+-    boolean		masked;	
++    savebool_t		masked;
+     short		width;
+     short		height;
+-    void		**columndirectory;	// OBSOLETE
++    int			columndirectory;	// OBSOLETE
+     short		patchcount;
+     mappatch_t	patches[1];
+-} maptexture_t;
++} PACKED maptexture_t;
+ 
+ 
+ // A single patch from a texture definition,
+@@ -101,8 +112,8 @@ typedef struct
+     // Block origin (allways UL),
+     // which has allready accounted
+     // for the internal origin of the patch.
+-    int		originx;	
+-    int		originy;
++    short	originx;
++    short	originy;
+     int		patch;
+ } texpatch_t;
+ 
+@@ -319,7 +330,7 @@ void R_GenerateLookup (int texnum)
+     //  that are covered by more than one patch.
+     // Fill in the lump / offset, so columns
+     //  with only a single patch are all done.
+-    patchcount = (byte *)alloca (texture->width);
++    patchcount = (byte *)alloca_check (texture->width);
+     memset (patchcount, 0, texture->width);
+     patch = texture->patches;
+ 		
+@@ -448,7 +459,7 @@ void R_InitTextures (void)
+     names = W_CacheLumpName ("PNAMES", PU_STATIC);
+     nummappatches = LONG ( *((int *)names) );
+     name_p = names+4;
+-    patchlookup = alloca (nummappatches*sizeof(*patchlookup));
++    patchlookup = alloca_check (nummappatches*sizeof(*patchlookup));
+     
+     for (i=0 ; i<nummappatches ; i++)
+     {
+@@ -479,13 +490,13 @@ void R_InitTextures (void)
+     }
+     numtextures = numtextures1 + numtextures2;
+ 	
+-    textures = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    texturecolumnlump = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    texturecolumnofs = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    texturecomposite = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    texturecompositesize = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    texturewidthmask = Z_Malloc (numtextures*4, PU_STATIC, 0);
+-    textureheight = Z_Malloc (numtextures*4, PU_STATIC, 0);
++    textures = Z_Malloc (numtextures * sizeof(*textures), PU_STATIC, 0);
++    texturecolumnlump = Z_Malloc (numtextures * sizeof(*texturecolumnlump), PU_STATIC, 0);
++    texturecolumnofs = Z_Malloc (numtextures * sizeof(*texturecolumnofs), PU_STATIC, 0);
++    texturecomposite = Z_Malloc (numtextures * sizeof(*texturecomposite), PU_STATIC, 0);
++    texturecompositesize = Z_Malloc (numtextures * sizeof(*texturecompositesize), PU_STATIC, 0);
++    texturewidthmask = Z_Malloc (numtextures * sizeof(*texturewidthmask), PU_STATIC, 0);
++    textureheight = Z_Malloc (numtextures * sizeof(*textureheight), PU_STATIC, 0);
+ 
+     totalwidth = 0;
+     
+@@ -493,6 +504,7 @@ void R_InitTextures (void)
+     temp1 = W_GetNumForName ("S_START");  // P_???????
+     temp2 = W_GetNumForName ("S_END") - 1;
+     temp3 = ((temp2-temp1+63)/64) + ((numtextures+63)/64);
++#if 0
+     printf("[");
+     for (i = 0; i < temp3; i++)
+ 	printf(" ");
+@@ -500,6 +512,7 @@ void R_InitTextures (void)
+     for (i = 0; i < temp3; i++)
+ 	printf("\x8");
+     printf("\x8\x8\x8\x8\x8\x8\x8\x8\x8\x8");	
++#endif
+ 	
+     for (i=0 ; i<numtextures ; i++, directory++)
+     {
+@@ -545,8 +558,8 @@ void R_InitTextures (void)
+ 			 texture->name);
+ 	    }
+ 	}		
+-	texturecolumnlump[i] = Z_Malloc (texture->width*2, PU_STATIC,0);
+-	texturecolumnofs[i] = Z_Malloc (texture->width*2, PU_STATIC,0);
++	texturecolumnlump[i] = Z_Malloc (texture->width*sizeof(**texturecolumnlump), PU_STATIC,0);
++	texturecolumnofs[i] = Z_Malloc (texture->width*sizeof(**texturecolumnofs), PU_STATIC,0);
+ 
+ 	j = 1;
+ 	while (j*2 <= texture->width)
+@@ -567,7 +580,7 @@ void R_InitTextures (void)
+ 	R_GenerateLookup (i);
+     
+     // Create translation table for global animation.
+-    texturetranslation = Z_Malloc ((numtextures+1)*4, PU_STATIC, 0);
++    texturetranslation = Z_Malloc ((numtextures+1)*sizeof(*texturetranslation), PU_STATIC, 0);
+     
+     for (i=0 ; i<numtextures ; i++)
+ 	texturetranslation[i] = i;
+@@ -587,7 +600,7 @@ void R_InitFlats (void)
+     numflats = lastflat - firstflat + 1;
+ 	
+     // Create translation table for global animation.
+-    flattranslation = Z_Malloc ((numflats+1)*4, PU_STATIC, 0);
++    flattranslation = Z_Malloc ((numflats+1)*sizeof(*flattranslation), PU_STATIC, 0);
+     
+     for (i=0 ; i<numflats ; i++)
+ 	flattranslation[i] = i;
+@@ -609,9 +622,9 @@ void R_InitSpriteLumps (void)
+     lastspritelump = W_GetNumForName ("S_END") - 1;
+     
+     numspritelumps = lastspritelump - firstspritelump + 1;
+-    spritewidth = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
+-    spriteoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
+-    spritetopoffset = Z_Malloc (numspritelumps*4, PU_STATIC, 0);
++    spritewidth = Z_Malloc (numspritelumps*sizeof(*spritewidth), PU_STATIC, 0);
++    spriteoffset = Z_Malloc (numspritelumps*sizeof(*spriteoffset), PU_STATIC, 0);
++    spritetopoffset = Z_Malloc (numspritelumps*sizeof(*spritetopoffset), PU_STATIC, 0);
+ 	
+     for (i=0 ; i< numspritelumps ; i++)
+     {
+@@ -637,9 +650,15 @@ void R_InitColormaps (void)
+     // Load in the light tables, 
+     //  256 byte align tables.
+     lump = W_GetNumForName("COLORMAP"); 
++#ifdef EMBEDDED
++    length = W_LumpLength (lump);
++#else
+     length = W_LumpLength (lump) + 255; 
++#endif
+     colormaps = Z_Malloc (length, PU_STATIC, 0); 
+-    colormaps = (byte *)( ((int)colormaps + 255)&~0xff); 
++#ifndef EMBEDDED
++    colormaps = (byte *)( ((intptr_t)colormaps + 255)&~0xff);
++#endif
+     W_ReadLump (lump,colormaps); 
+ }
+ 
+@@ -759,7 +778,7 @@ void R_PrecacheLevel (void)
+ 	return;
+     
+     // Precache flats.
+-    flatpresent = alloca(numflats);
++    flatpresent = alloca_check(numflats);
+     memset (flatpresent,0,numflats);	
+ 
+     for (i=0 ; i<numsectors ; i++)
+@@ -781,7 +800,7 @@ void R_PrecacheLevel (void)
+     }
+     
+     // Precache textures.
+-    texturepresent = alloca(numtextures);
++    texturepresent = alloca_check(numtextures);
+     memset (texturepresent,0, numtextures);
+ 	
+     for (i=0 ; i<numsides ; i++)
+@@ -816,7 +835,7 @@ void R_PrecacheLevel (void)
+     }
+     
+     // Precache sprites.
+-    spritepresent = alloca(numsprites);
++    spritepresent = alloca_check(numsprites);
+     memset (spritepresent,0, numsprites);
+ 	
+     for (th = thinkercap.next ; th != &thinkercap ; th=th->next)
+diff --git a/r_defs.h b/r_defs.h
+index 6c842a5..645e9db 100644
+--- a/r_defs.h
++++ b/r_defs.h
+@@ -286,7 +286,7 @@ typedef struct
+ {
+     byte		topdelta;	// -1 is the last post in a column
+     byte		length; 	// length data bytes follows
+-} post_t;
++} PACKED post_t;
+ 
+ // column_t is a list of 0 or more post_t, (byte)-1 terminated
+ typedef post_t	column_t;
+@@ -361,7 +361,7 @@ typedef struct
+     short		topoffset;	// pixels below the origin 
+     int			columnofs[8];	// only [width] used
+     // the [0] is &columnofs[width] 
+-} patch_t;
++} PACKED patch_t;
+ 
+ 
+ 
+diff --git a/r_draw.c b/r_draw.c
+index 0145044..e236549 100644
+--- a/r_draw.c
++++ b/r_draw.c
+@@ -66,6 +66,7 @@ int		scaledviewwidth;
+ int		viewheight;
+ int		viewwindowx;
+ int		viewwindowy; 
++byte*		firstpix;
+ byte*		ylookup[MAXHEIGHT]; 
+ int		columnofs[MAXWIDTH]; 
+ 
+@@ -92,9 +93,16 @@ fixed_t			dc_texturemid;
+ // first pixel in a column (possibly virtual) 
+ byte*			dc_source;		
+ 
+-// just for profiling 
+-int			dccount;
++#ifdef RANGECHECK
++#define RANGECHECK_COLUMN(dc_x, name) \
++if ((unsigned)dc_x >= SCREENWIDTH || dc_yl < 0 || \
++	dc_yh >= SCREENHEIGHT) \
++    I_Error (#name ": %i to %i at %i", dc_yl, dc_yh, dc_x);
++#else
++#define RANGECHECK_COLUMN(dc_x, name)
++#endif
+ 
++#ifndef USEASM
+ //
+ // A column is a vertical slice/span from a wall texture that,
+ //  given the DOOM style restrictions on the view orientation,
+@@ -115,12 +123,7 @@ void R_DrawColumn (void)
+     if (count < 0) 
+ 	return; 
+ 				 
+-#ifdef RANGECHECK 
+-    if ((unsigned)dc_x >= SCREENWIDTH
+-	|| dc_yl < 0
+-	|| dc_yh >= SCREENHEIGHT) 
+-	I_Error ("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x); 
+-#endif 
++    RANGECHECK_COLUMN(dc_x, R_DrawColumn)
+ 
+     // Framebuffer destination address.
+     // Use ylookup LUT to avoid multiply with ScreenWidth.
+@@ -212,7 +215,6 @@ void R_DrawColumnLow (void)
+ { 
+     int			count; 
+     byte*		dest; 
+-    byte*		dest2;
+     fixed_t		frac;
+     fixed_t		fracstep;	 
+  
+@@ -221,22 +223,11 @@ void R_DrawColumnLow (void)
+     // Zero length.
+     if (count < 0) 
+ 	return; 
+-				 
+-#ifdef RANGECHECK 
+-    if ((unsigned)dc_x >= SCREENWIDTH
+-	|| dc_yl < 0
+-	|| dc_yh >= SCREENHEIGHT)
+-    {
+-	
+-	I_Error ("R_DrawColumn: %i to %i at %i", dc_yl, dc_yh, dc_x);
+-    }
+-    //	dccount++; 
+-#endif 
++
++    RANGECHECK_COLUMN(dc_x*2, R_DrawColumnLow)
++
+     // Blocky mode, need to multiply by 2.
+-    dc_x <<= 1;
+-    
+-    dest = ylookup[dc_yl] + columnofs[dc_x];
+-    dest2 = ylookup[dc_yl] + columnofs[dc_x+1];
++    dest = ylookup[dc_yl] + columnofs[dc_x*2];
+     
+     fracstep = dc_iscale; 
+     frac = dc_texturemid + (dc_yl-centery)*fracstep;
+@@ -244,13 +235,12 @@ void R_DrawColumnLow (void)
+     do 
+     {
+ 	// Hack. Does not work corretly.
+-	*dest2 = *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
++	dest[1] = *dest = dc_colormap[dc_source[(frac>>FRACBITS)&127]];
+ 	dest += SCREENWIDTH;
+-	dest2 += SCREENWIDTH;
+ 	frac += fracstep; 
+-
+     } while (count--);
+ }
++#endif
+ 
+ 
+ //
+@@ -274,6 +264,7 @@ int	fuzzoffset[FUZZTABLE] =
+ int	fuzzpos = 0; 
+ 
+ 
++#ifndef USEASM
+ //
+ // Framebuffer postprocessing.
+ // Creates a fuzzy image by copying pixels
+@@ -286,8 +277,6 @@ void R_DrawFuzzColumn (void)
+ { 
+     int			count; 
+     byte*		dest; 
+-    fixed_t		frac;
+-    fixed_t		fracstep;	 
+ 
+     // Adjust borders. Low... 
+     if (!dc_yl) 
+@@ -304,48 +293,12 @@ void R_DrawFuzzColumn (void)
+ 	return; 
+ 
+     
+-#ifdef RANGECHECK 
+-    if ((unsigned)dc_x >= SCREENWIDTH
+-	|| dc_yl < 0 || dc_yh >= SCREENHEIGHT)
+-    {
+-	I_Error ("R_DrawFuzzColumn: %i to %i at %i",
+-		 dc_yl, dc_yh, dc_x);
+-    }
+-#endif
+-
+-
+-    // Keep till detailshift bug in blocky mode fixed,
+-    //  or blocky mode removed.
+-    /* WATCOM code 
+-    if (detailshift)
+-    {
+-	if (dc_x & 1)
+-	{
+-	    outpw (GC_INDEX,GC_READMAP+(2<<8) ); 
+-	    outp (SC_INDEX+1,12); 
+-	}
+-	else
+-	{
+-	    outpw (GC_INDEX,GC_READMAP); 
+-	    outp (SC_INDEX+1,3); 
+-	}
+-	dest = destview + dc_yl*80 + (dc_x>>1); 
+-    }
+-    else
+-    {
+-	outpw (GC_INDEX,GC_READMAP+((dc_x&3)<<8) ); 
+-	outp (SC_INDEX+1,1<<(dc_x&3)); 
+-	dest = destview + dc_yl*80 + (dc_x>>2); 
+-    }*/
++    RANGECHECK_COLUMN(dc_x, R_DrawFuzzColumn)
+ 
+     
+     // Does not work with blocky mode.
+     dest = ylookup[dc_yl] + columnofs[dc_x];
+ 
+-    // Looks familiar.
+-    fracstep = dc_iscale; 
+-    frac = dc_texturemid + (dc_yl-centery)*fracstep; 
+-
+     // Looks like an attempt at dithering,
+     //  using the colormap #6 (of 0-31, a bit
+     //  brighter than average).
+@@ -362,12 +315,51 @@ void R_DrawFuzzColumn (void)
+ 	    fuzzpos = 0;
+ 	
+ 	dest += SCREENWIDTH;
+-
+-	frac += fracstep; 
+     } while (count--); 
+ } 
+  
+   
++void R_DrawFuzzColumnLow (void)
++{
++    int			count;
++    byte*		dest;
++
++    // Adjust borders. Low...
++    if (!dc_yl)
++	dc_yl = 1;
++
++    // .. and high.
++    if (dc_yh == viewheight-1)
++	dc_yh = viewheight - 2;
++
++    count = dc_yh - dc_yl;
++
++    // Zero length.
++    if (count < 0) return;
++
++    RANGECHECK_COLUMN(dc_x*2, R_DrawFuzzColumnLow)
++    
++    dest = ylookup[dc_yl] + columnofs[dc_x << 1];
++
++    // Looks like an attempt at dithering,
++    //  using the colormap #6 (of 0-31, a bit
++    //  brighter than average).
++    do 
++    {
++	// Lookup framebuffer, and retrieve
++	//  a pixel that is either one column
++	//  left or right of the current one.
++	// Add index from colormap to index.
++	dest[1] = *dest = colormaps[6*256+dest[fuzzoffset[fuzzpos]]];
++
++	// Clamp table lookup index.
++	if (++fuzzpos == FUZZTABLE)
++	    fuzzpos = 0;
++	
++	dest += SCREENWIDTH;
++    } while (count--);
++} 
++#endif
+  
+ 
+ //
+@@ -393,38 +385,8 @@ void R_DrawTranslatedColumn (void)
+     if (count < 0) 
+ 	return; 
+ 				 
+-#ifdef RANGECHECK 
+-    if ((unsigned)dc_x >= SCREENWIDTH
+-	|| dc_yl < 0
+-	|| dc_yh >= SCREENHEIGHT)
+-    {
+-	I_Error ( "R_DrawColumn: %i to %i at %i",
+-		  dc_yl, dc_yh, dc_x);
+-    }
+-    
+-#endif 
+-
+-
+-    // WATCOM VGA specific.
+-    /* Keep for fixing.
+-    if (detailshift)
+-    {
+-	if (dc_x & 1)
+-	    outp (SC_INDEX+1,12); 
+-	else
+-	    outp (SC_INDEX+1,3);
+-	
+-	dest = destview + dc_yl*80 + (dc_x>>1); 
+-    }
+-    else
+-    {
+-	outp (SC_INDEX+1,1<<(dc_x&3)); 
+-
+-	dest = destview + dc_yl*80 + (dc_x>>2); 
+-    }*/
++    RANGECHECK_COLUMN(dc_x, R_DrawTranslatedColumn)
+ 
+-    
+-    // FIXME. As above.
+     dest = ylookup[dc_yl] + columnofs[dc_x]; 
+ 
+     // Looks familiar.
+@@ -447,6 +409,38 @@ void R_DrawTranslatedColumn (void)
+ } 
+ 
+ 
++void R_DrawTranslatedColumnLow (void)
++{
++    int			count;
++    byte*		dest;
++    fixed_t		frac;
++    fixed_t		fracstep;
++ 
++    count = dc_yh - dc_yl;
++    if (count < 0) return;
++
++    RANGECHECK_COLUMN(dc_x*2, R_DrawTranslatedColumnLow)
++
++    dest = ylookup[dc_yl] + columnofs[dc_x << 1];
++
++    // Looks familiar.
++    fracstep = dc_iscale;
++    frac = dc_texturemid + (dc_yl-centery)*fracstep;
++
++    // Here we do an additional index re-mapping.
++    do 
++    {
++	// Translation tables are used
++	//  to map certain colorramps to other ones,
++	//  used with PLAY sprites.
++	// Thus the "green" ramp of the player 0 sprite
++	//  is mapped to gray, red, black/indigo. 
++	dest[1] = *dest = dc_colormap[dc_translation[dc_source[frac>>FRACBITS]]];
++	dest += SCREENWIDTH;
++
++	frac += fracstep;
++    } while (count--);
++}
+ 
+ 
+ //
+@@ -460,8 +454,12 @@ void R_InitTranslationTables (void)
+ {
+     int		i;
+ 	
++#ifdef EMBEDDED
++    translationtables = Z_Malloc (256*3, PU_STATIC, 0);
++#else
+     translationtables = Z_Malloc (256*3+255, PU_STATIC, 0);
+-    translationtables = (byte *)(( (int)translationtables + 255 )& ~255);
++    translationtables = (byte *)(( (intptr_t)translationtables + 255 )& ~255);
++#endif
+     
+     // translate just the 16 green colors
+     for (i=0 ; i<256 ; i++)
+@@ -511,10 +509,17 @@ fixed_t			ds_ystep;
+ // start of a 64*64 tile image 
+ byte*			ds_source;	
+ 
+-// just for profiling
+-int			dscount;
+ 
++#ifdef RANGECHECK
++#define RANGECHECK_SPAN(m, name) \
++if (ds_x2 < ds_x1 || ds_x1 < 0 || \
++        ds_x2*m >= SCREENWIDTH || (unsigned)ds_y > SCREENHEIGHT) \
++    I_Error(#name ": %i to %i at %i", ds_x1*m, ds_x2*m, ds_y);
++#else
++#define RANGECHECK_SPAN(m, name)
++#endif
+ 
++#ifndef USEASM
+ //
+ // Draws the actual span.
+ void R_DrawSpan (void) 
+@@ -524,19 +529,8 @@ void R_DrawSpan (void)
+     byte*		dest; 
+     int			count;
+     int			spot; 
+-	 
+-#ifdef RANGECHECK 
+-    if (ds_x2 < ds_x1
+-	|| ds_x1<0
+-	|| ds_x2>=SCREENWIDTH  
+-	|| (unsigned)ds_y>SCREENHEIGHT)
+-    {
+-	I_Error( "R_DrawSpan: %i to %i at %i",
+-		 ds_x1,ds_x2,ds_y);
+-    }
+-//	dscount++; 
+-#endif 
+ 
++    RANGECHECK_SPAN(1, R_DrawSpan)
+     
+     xfrac = ds_xfrac; 
+     yfrac = ds_yfrac; 
+@@ -646,29 +640,15 @@ void R_DrawSpanLow (void)
+     fixed_t		yfrac; 
+     byte*		dest; 
+     int			count;
+-    int			spot; 
+-	 
+-#ifdef RANGECHECK 
+-    if (ds_x2 < ds_x1
+-	|| ds_x1<0
+-	|| ds_x2>=SCREENWIDTH  
+-	|| (unsigned)ds_y>SCREENHEIGHT)
+-    {
+-	I_Error( "R_DrawSpan: %i to %i at %i",
+-		 ds_x1,ds_x2,ds_y);
+-    }
+-//	dscount++; 
+-#endif 
+-	 
++    int			spot;
++
++    RANGECHECK_SPAN(2, R_DrawSpanLow)
++
+     xfrac = ds_xfrac; 
+     yfrac = ds_yfrac; 
+ 
+     // Blocky mode, need to multiply by 2.
+-    ds_x1 <<= 1;
+-    ds_x2 <<= 1;
+-    
+-    dest = ylookup[ds_y] + columnofs[ds_x1];
+-  
++    dest = ylookup[ds_y] + columnofs[ds_x1 << 1];
+     
+     count = ds_x2 - ds_x1; 
+     do 
+@@ -676,14 +656,15 @@ void R_DrawSpanLow (void)
+ 	spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
+ 	// Lowres/blocky mode does it twice,
+ 	//  while scale is adjusted appropriately.
+-	*dest++ = ds_colormap[ds_source[spot]]; 
+-	*dest++ = ds_colormap[ds_source[spot]];
+-	
++	dest[1] = *dest = ds_colormap[ds_source[spot]];
++	dest += 2;
++
+ 	xfrac += ds_xstep; 
+ 	yfrac += ds_ystep; 
+ 
+     } while (count--); 
+ }
++#endif
+ 
+ //
+ // R_InitBuffer 
+@@ -717,6 +698,9 @@ R_InitBuffer
+     // Preclaculate all row offsets.
+     for (i=0 ; i<height ; i++) 
+ 	ylookup[i] = screens[0] + (i+viewwindowy)*SCREENWIDTH; 
++
++    // First pixel address
++    firstpix = ylookup[0] + columnofs[0];
+ } 
+  
+  
+diff --git a/r_draw.h b/r_draw.h
+index 534fffd..b53b747 100644
+--- a/r_draw.h
++++ b/r_draw.h
+@@ -39,6 +39,15 @@ extern fixed_t		dc_texturemid;
+ // first pixel in a column
+ extern byte*		dc_source;		
+ 
++#ifdef USEASM
++#define R_DrawColumn R_DrawColumnAsm
++#define R_DrawFuzzColumn R_DrawFuzzColumnAsm
++#define R_DrawSpan R_DrawSpanAsm
++
++#define R_DrawColumnLow R_DrawColumnLowAsm
++#define R_DrawFuzzColumnLow R_DrawFuzzColumnLowAsm
++#define R_DrawSpanLow R_DrawSpanLowAsm
++#endif
+ 
+ // The span blitting interface.
+ // Hook in assembler or system specific BLT
+diff --git a/r_main.c b/r_main.c
+index ad942c7..2c847a8 100644
+--- a/r_main.c
++++ b/r_main.c
+@@ -709,8 +709,8 @@ void R_ExecuteSetViewSize (void)
+     else
+     {
+ 	colfunc = basecolfunc = R_DrawColumnLow;
+-	fuzzcolfunc = R_DrawFuzzColumn;
+-	transcolfunc = R_DrawTranslatedColumn;
++	fuzzcolfunc = R_DrawFuzzColumnLow;
++	transcolfunc = R_DrawTranslatedColumnLow;
+ 	spanfunc = R_DrawSpanLow;
+     }
+ 
+diff --git a/r_things.c b/r_things.c
+index c201fff..8a50d67 100644
+--- a/r_things.c
++++ b/r_things.c
+@@ -210,7 +210,11 @@ void R_InitSpriteDefs (char** namelist)
+ 	memset (sprtemp,-1, sizeof(sprtemp));
+ 		
+ 	maxframe = -1;
++#ifdef EMBEDDED // unaligned read
++	memcpy(&intname, namelist[i], sizeof(int));
++#else
+ 	intname = *(int *)namelist[i];
++#endif
+ 	
+ 	// scan the lumps,
+ 	//  filling in the frames for whatever is found
+@@ -488,6 +492,10 @@ void R_ProjectSprite (mobj_t* thing)
+     
+     tz = gxt-gyt; 
+ 
++#if 0
++    sprdef = &sprites[thing->sprite];
++    printf("!!! R_ProjectSprite %x %x %x %x %x\n", tr_x, tr_y, thing->sprite, thing->frame, sprdef->numframes);
++#endif
+     // thing is behind view plane?
+     if (tz < MINZ)
+ 	return;
+diff --git a/s_sound.c b/s_sound.c
+index bcfb538..8a5bb27 100644
+--- a/s_sound.c
++++ b/s_sound.c
+@@ -364,7 +364,7 @@ S_StartSoundAtVolume
+   if (sfx->lumpnum < 0)
+     sfx->lumpnum = I_GetSfxLumpNum(sfx);
+ 
+-#ifndef SNDSRV
++#if 0
+   // cache data if necessary
+   if (!sfx->data)
+   {
+diff --git a/w_wad.c b/w_wad.c
+index 178f5cb..54037b3 100644
+--- a/w_wad.c
++++ b/w_wad.c
+@@ -28,14 +28,9 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
+ 
+ #ifdef NORMALUNIX
+ #include <ctype.h>
+-#include <sys/types.h>
+ #include <string.h>
+-#include <unistd.h>
+ #include <malloc.h>
+-#include <fcntl.h>
+-#include <sys/stat.h>
+ #include <alloca.h>
+-#define O_BINARY		0
+ #endif
+ 
+ #include "doomtype.h"
+@@ -71,15 +66,6 @@ void strupr (char* s)
+     while (*s) { *s = toupper(*s); s++; }
+ }
+ 
+-int filelength (int handle) 
+-{ 
+-    struct stat	fileinfo;
+-    
+-    if (fstat (handle,&fileinfo) == -1)
+-	I_Error ("Error fstating");
+-
+-    return fileinfo.st_size;
+-}
+ 
+ 
+ void
+@@ -143,12 +129,12 @@ void W_AddFile (char *filename)
+     wadinfo_t		header;
+     lumpinfo_t*		lump_p;
+     unsigned		i;
+-    int			handle;
++    FILE*		file;
+     int			length;
+     int			startlump;
+     filelump_t*		fileinfo;
+     filelump_t		singleinfo;
+-    int			storehandle;
++    FILE*		storehandle;
+     
+     // open the file and add to directory
+ 
+@@ -160,7 +146,7 @@ void W_AddFile (char *filename)
+ 	reloadlump = numlumps;
+     }
+ 		
+-    if ( (handle = open (filename,O_RDONLY | O_BINARY)) == -1)
++    if (!(file = fopen (filename, "rb")))
+     {
+ 	printf (" couldn't open %s\n",filename);
+ 	return;
+@@ -174,14 +160,16 @@ void W_AddFile (char *filename)
+ 	// single lump file
+ 	fileinfo = &singleinfo;
+ 	singleinfo.filepos = 0;
+-	singleinfo.size = LONG(filelength(handle));
++	fseek (file,0,SEEK_END);
++	singleinfo.size = ftell(file);
++	fseek (file,0,SEEK_SET);
+ 	ExtractFileBase (filename, singleinfo.name);
+ 	numlumps++;
+     }
+     else 
+     {
+ 	// WAD file
+-	read (handle, &header, sizeof(header));
++	fread (&header, 1, sizeof(header), file);
+ 	if (strncmp(header.identification,"IWAD",4))
+ 	{
+ 	    // Homebrew levels?
+@@ -196,9 +184,14 @@ void W_AddFile (char *filename)
+ 	header.numlumps = LONG(header.numlumps);
+ 	header.infotableofs = LONG(header.infotableofs);
+ 	length = header.numlumps*sizeof(filelump_t);
++#ifdef EMBEDDED	// save stack
++	fileinfo = NULL;
++	fseek (file, header.infotableofs, SEEK_SET);
++#else
+ 	fileinfo = alloca (length);
+-	lseek (handle, header.infotableofs, SEEK_SET);
+-	read (handle, fileinfo, length);
++	fseek (file, header.infotableofs, SEEK_SET);
++	fread (fileinfo, 1, length, file);
++#endif
+ 	numlumps += header.numlumps;
+     }
+ 
+@@ -211,8 +204,18 @@ void W_AddFile (char *filename)
+ 
+     lump_p = &lumpinfo[startlump];
+ 	
+-    storehandle = reloadname ? -1 : handle;
++    storehandle = reloadname ? NULL : file;
+ 	
++#ifdef EMBEDDED	// save stack
++    for (i=startlump ; i<numlumps ; i++,lump_p++) {
++	if (!fileinfo)
++	    fread (&singleinfo, 1, sizeof(filelump_t), file);
++	lump_p->handle = storehandle;
++	lump_p->position = LONG(singleinfo.filepos);
++	lump_p->size = LONG(singleinfo.size);
++	strncpy (lump_p->name, singleinfo.name, 8);
++    }
++#else
+     for (i=startlump ; i<numlumps ; i++,lump_p++, fileinfo++)
+     {
+ 	lump_p->handle = storehandle;
+@@ -220,9 +223,10 @@ void W_AddFile (char *filename)
+ 	lump_p->size = LONG(fileinfo->size);
+ 	strncpy (lump_p->name, fileinfo->name, 8);
+     }
++#endif
+ 	
+     if (reloadname)
+-	close (handle);
++	fclose (file);
+ }
+ 
+ 
+@@ -239,23 +243,28 @@ void W_Reload (void)
+     int			lumpcount;
+     lumpinfo_t*		lump_p;
+     unsigned		i;
+-    int			handle;
++    FILE*		file;
+     int			length;
+     filelump_t*		fileinfo;
+ 	
+     if (!reloadname)
+ 	return;
+ 		
+-    if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
++    if (!(file = fopen (reloadname, "rb")))
+ 	I_Error ("W_Reload: couldn't open %s",reloadname);
+ 
+-    read (handle, &header, sizeof(header));
++    fread (&header, 1, sizeof(header), file);
+     lumpcount = LONG(header.numlumps);
+     header.infotableofs = LONG(header.infotableofs);
+     length = lumpcount*sizeof(filelump_t);
++#ifdef EMBEDDED
++    fseek (file, header.infotableofs, SEEK_SET);
++    fileinfo = NULL;
++#else
+     fileinfo = alloca (length);
+-    lseek (handle, header.infotableofs, SEEK_SET);
+-    read (handle, fileinfo, length);
++    fseek (file, header.infotableofs, SEEK_SET);
++    fread (fileinfo, 1, length, file);
++#endif
+     
+     // Fill in lumpinfo
+     lump_p = &lumpinfo[reloadlump];
+@@ -267,11 +276,20 @@ void W_Reload (void)
+ 	if (lumpcache[i])
+ 	    Z_Free (lumpcache[i]);
+ 
++#ifdef EMBEDDED
++	{
++	    filelump_t singleinfo;
++	    fread (&singleinfo, 1, sizeof(filelump_t), file);
++	    lump_p->position = LONG(singleinfo.filepos);
++	    lump_p->size = LONG(singleinfo.size);
++	}
++#else
+ 	lump_p->position = LONG(fileinfo->filepos);
+ 	lump_p->size = LONG(fileinfo->size);
++#endif
+     }
+ 	
+-    close (handle);
++    fclose (file);
+ }
+ 
+ 
+@@ -372,7 +390,6 @@ int W_CheckNumForName (char* name)
+     v1 = name8.x[0];
+     v2 = name8.x[1];
+ 
+-
+     // scan backwards so patch lump files take precedence
+     lump_p = lumpinfo + numlumps;
+ 
+@@ -435,7 +452,7 @@ W_ReadLump
+ {
+     int		c;
+     lumpinfo_t*	l;
+-    int		handle;
++    FILE*	file;
+ 	
+     if (lump >= numlumps)
+ 	I_Error ("W_ReadLump: %i >= numlumps",lump);
+@@ -444,24 +461,24 @@ W_ReadLump
+ 	
+     // ??? I_BeginRead ();
+ 	
+-    if (l->handle == -1)
++    if (l->handle == NULL)
+     {
+ 	// reloadable file, so use open / read / close
+-	if ( (handle = open (reloadname,O_RDONLY | O_BINARY)) == -1)
++	if (!(file = fopen (reloadname,"rb")))
+ 	    I_Error ("W_ReadLump: couldn't open %s",reloadname);
+     }
+     else
+-	handle = l->handle;
++	file = l->handle;
+ 		
+-    lseek (handle, l->position, SEEK_SET);
+-    c = read (handle, dest, l->size);
++    fseek (file, l->position, SEEK_SET);
++    c = fread (dest, 1, l->size, file);
+ 
+     if (c < l->size)
+ 	I_Error ("W_ReadLump: only read %i of %i on lump %i",
+ 		 c,l->size,lump);	
+ 
+-    if (l->handle == -1)
+-	close (handle);
++    if (l->handle == NULL)
++	fclose (file);
+ 		
+     // ??? I_EndRead ();
+ }
+@@ -513,6 +530,7 @@ W_CacheLumpName
+ }
+ 
+ 
++#if 0
+ //
+ // W_Profile
+ //
+@@ -573,5 +591,6 @@ void W_Profile (void)
+     }
+     fclose (f);
+ }
++#endif
+ 
+ 
+diff --git a/w_wad.h b/w_wad.h
+index db1faaa..58ab058 100644
+--- a/w_wad.h
++++ b/w_wad.h
+@@ -23,6 +23,7 @@
+ #ifndef __W_WAD__
+ #define __W_WAD__
+ 
++#include "doomtype.h"
+ 
+ #ifdef __GNUG__
+ #pragma interface
+@@ -39,7 +40,7 @@ typedef struct
+     int			numlumps;
+     int			infotableofs;
+     
+-} wadinfo_t;
++} PACKED wadinfo_t;
+ 
+ 
+ typedef struct
+@@ -48,7 +49,7 @@ typedef struct
+     int			size;
+     char		name[8];
+     
+-} filelump_t;
++} PACKED filelump_t;
+ 
+ //
+ // WADFILE I/O related stuff.
+@@ -56,7 +57,7 @@ typedef struct
+ typedef struct
+ {
+     char	name[8];
+-    int		handle;
++    FILE*	handle;
+     int		position;
+     int		size;
+ } lumpinfo_t;
+diff --git a/z_zone.c b/z_zone.c
+index 4345485..9ce79bf 100644
+--- a/z_zone.c
++++ b/z_zone.c
+@@ -437,7 +437,7 @@ Z_ChangeTag2
+     if (block->id != ZONEID)
+ 	I_Error ("Z_ChangeTag: freed a pointer without ZONEID");
+ 
+-    if (tag >= PU_PURGELEVEL && (unsigned)block->user < 0x100)
++    if (tag >= PU_PURGELEVEL && (uintptr_t)block->user < 0x100)
+ 	I_Error ("Z_ChangeTag: an owner is required for purgable blocks");
+ 
+     block->tag = tag;

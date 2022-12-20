@@ -1,0 +1,712 @@
+#include "common.h"
+#include "syscode.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* from assembly code */
+void clean_dcache(void);
+uint32_t get_cpsr(void);
+void set_cpsr_c(uint32_t a);
+
+#define DBG_LOG(...) fprintf(stderr, __VA_ARGS__)
+#define ERR_EXIT(...) \
+	do { fprintf(stderr, "!!! " __VA_ARGS__); exit(1); } while (0)
+
+#define FATAL() ERR_EXIT("error at %s:%d\n", __FILE__, __LINE__)
+
+#if CHIP == 1 // SC6531E
+#define REG_ADI_FIFO_STS 0x82000004
+#define BIT_FIFO_EMPTY (1u << 21)
+#define BIT_FIFO_FULL (1u << 22)
+
+#define REG_ADI_RD_CMD 0x82000008
+#define REG_ADI_RD_DATA 0x8200000c
+
+#elif CHIP == 2 // SC6531DA
+#define REG_ADI_FIFO_STS 0x82000020
+#define BIT_FIFO_EMPTY (1u << 8)
+#define BIT_FIFO_FULL (1u << 9)
+
+#define REG_ADI_RD_CMD 0x82000018
+#define REG_ADI_RD_DATA 0x8200001c
+#endif
+#define BIT_RD_CMD_BUSY (1u << 31)
+
+#if 0 // simple code
+static uint32_t adi_read(uint32_t addr) {
+	uint32_t a;
+	MEM4(REG_ADI_RD_CMD) = addr & 0xfff;
+	while ((a = MEM4(REG_ADI_RD_DATA)) & BIT_RD_CMD_BUSY);
+	return a & 0xffff;
+}
+
+static void adi_write(uint32_t addr, uint32_t val) {
+	while (MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_FULL);
+	MEM4(addr) = val;
+	while (!(MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_EMPTY));
+}
+#else
+static uint32_t adi_read(uint32_t addr) {
+	uint32_t a, t0, t1;
+	// if ((addr ^ 0x82001000) >> 12) FATAL();
+	t0 = t1 = sys_timer_ms();
+	while (!(MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_EMPTY)) {
+		t1 = sys_timer_ms();
+		if (t1 - t0 > 60) FATAL();
+	}
+	MEM4(REG_ADI_RD_CMD) = addr &= 0xfff;
+	t0 = t1;
+	while ((a = MEM4(REG_ADI_RD_DATA)) & BIT_RD_CMD_BUSY) {
+		t1 = sys_timer_ms();
+		if (t1 - t0 > 60) FATAL();
+	}
+	if (a >> 16 != addr) FATAL();
+	return a & 0xffff;
+}
+
+static void adi_write(uint32_t addr, uint32_t val) {
+	uint32_t t0, t1;
+	t0 = t1 = sys_timer_ms();
+	while (MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_FULL) {
+		t1 = sys_timer_ms();
+		if (t1 - t0 > 60)	FATAL();
+	}
+	MEM4(addr) = val;
+	t0 = t1;
+	while (!(MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_EMPTY)) {
+		t1 = sys_timer_ms();
+		if (t1 - t0 > 60) FATAL();
+	}
+}
+#endif
+
+#if CHIP == 1 // SC6531E
+#define ANA_REG_BASE 0x82001400
+#define ANA_CHIP_ID_LOW (ANA_REG_BASE + 0x000)
+#define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x004)
+#define ANA_WHTLED_CTRL (ANA_REG_BASE + 0x13c)
+#elif CHIP == 2 // SC6531DA
+#define ANA_REG_BASE 0x82001000
+#define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x000)
+#define ANA_CHIP_ID_LOW (ANA_REG_BASE + 0x004)
+#define ANA_WHTLED_CTRL (ANA_REG_BASE + 0x220)
+#define ANA_LED_CTRL (ANA_REG_BASE + 0x320)
+#endif
+
+static void init_chip_id(void) {
+	uint32_t t0, t1;
+#if CHIP == 1
+	t1 = MEM4(0x8b00035c);	// 0x36320000
+	t0 = MEM4(0x8b000360);	// 0x53433635
+	t0 = (t0 >> 8) << 28 | (t0 << 28) >> 4;
+	t0 |= (t1 & 0xf000000) >> 4 | (t1 & 0xf0000);
+	t1 = MEM4(0x8b000364);	// 0x00000001
+	t0 |= t1;
+#elif CHIP == 2
+	t0 = MEM4(0x205003fc);
+#endif
+	sys_data.chip_id.num = t0;
+	DBG_LOG("chip_id: num = 0x%x\n", t0);
+
+	t1 = 0x7fffffff;
+	switch (t0) {
+	//case 0x65300000: t1 = 0x90001; break;
+	//case 0x6530c000: t1 = 0x90001; break;
+#if CHIP == 2
+	case 0x65310000: t1 = 0x90003; break; // SC6531
+	case 0x65310001: t1 = 0x90003; break; // SC6531BA
+#endif
+#if CHIP == 1
+	case 0x65620000: t1 = 0xa0001; break; // SC6531EFM
+	case 0x65620001: t1 = 0xa0002; break; // SC6531EFM_AB
+#endif
+	default: FATAL();
+	}
+
+	sys_data.chip_id.ver = t1;
+	DBG_LOG("chip_id: ver = 0x%x\n", t1);
+
+#if CHIP == 1
+	sys_data.chip_id.ahb = t0 = MEM4(0x20500168);
+	DBG_LOG("chip_id: ahb = 0x%x\n", t0);
+#endif
+
+	t0 = adi_read(ANA_CHIP_ID_HIGH) << 16;
+	t0 |= adi_read(ANA_CHIP_ID_LOW);
+	sys_data.chip_id.analog = t0;
+
+	DBG_LOG("chip_id: analog = 0x%x\n", t0);
+#if CHIP == 2
+	// 0x11310000: SR1131
+	// 0x11310001: SR1131BA
+#endif
+#if CHIP == 1
+	// 0x1161a000: SC1161
+#endif
+}
+
+static void pin_init(void) {
+	const volatile uint32_t *pinmap = pinmap_addr;
+#if CHIP == 1
+	// ANA_LDO_SF_REG0
+	uint32_t ldo_sf0 = adi_read(0x8200148c);
+#endif
+
+	for (;;) {
+		uint32_t addr = pinmap[0], val = pinmap[1];
+		pinmap += 2;
+		if (addr - 0x82001000 < 0x1000) {
+			adi_write(addr, val & 0xffff);
+		} else if (addr >> 12 == 0x8c000) {
+#if CHIP == 1
+			if (addr - 0x8c000114 <= 0x18) {
+				if (ldo_sf0 & 1 << 9)
+					val |= 0x200000;
+				else if (sys_data.chip_id.ver == 0xa0001)
+					val |= 0x280000;
+			}
+#endif
+			MEM4(addr) = val;
+		} else break;
+	}
+}
+
+void CHIP_FN(sys_brightness)(unsigned val) {
+	unsigned tmp;
+	if (val > 100) val = 100;
+
+#if CHIP == 1
+	val = (val * 16 + 50) / 100;
+	tmp = adi_read(ANA_WHTLED_CTRL) & ~0x1f;
+	if (!val) tmp |= 1; else val--;
+	adi_write(ANA_WHTLED_CTRL, tmp | val << 1);
+#elif CHIP == 2
+	val = (val * 32 + 50) / 100;
+	tmp = adi_read(ANA_WHTLED_CTRL) & ~0x5f;
+	if (val) val += 0x40 - 1;
+	tmp |= 0x1200; /* turn off flashlight */
+	adi_write(ANA_WHTLED_CTRL, tmp | val);
+#endif
+}
+
+#define LCM_REG_BASE 0x20800000
+
+#define AHB_CR(x) MEM4(0x20500000 + x)
+#define LCM_CR(x) MEM4(LCM_REG_BASE + x)
+#define LCDC_CR(x) MEM4(0x20d00000 + x)
+
+enum {
+	LCDC_CTRL = 0x00,
+	LCDC_DISP_SIZE = 0x04,
+	LCDC_LCM_START = 0x08,
+	LCDC_LCM_SIZE = 0x0c,
+	LCDC_BG_COLOR = 0x10,
+	LCDC_FIFO_STATUS = 0x14,
+
+	LCDC_OSD0_CTRL = 0x20,
+	LCDC_OSD0_BASE_ADDR = 0x24,
+	LCDC_OSD0_ALPHA_BASE_ADDR = 0x28,
+	LCDC_OSD0_SIZE_XY = 0x2c,
+	LCDC_OSD0_PITCH = 0x30,
+	LCDC_OSD0_DISP_XY = 0x34,
+
+	LCDC_OSD1_CTRL = 0x50,
+	LCDC_OSD1_BASE_ADDR = 0x54,
+	LCDC_OSD1_SIZE_XY = 0x5c,
+	LCDC_OSD1_PITCH = 0x60,
+	LCDC_OSD1_DISP_XY = 0x64,
+	LCDC_OSD1_ALPHA = 0x68,
+	LCDC_OSD1_GREY_RGB = 0x6c,
+	LCDC_OSD1_CK = 0x70,
+
+	LCDC_OSD4_CTRL = 0xe0,
+	LCDC_OSD4_LCM_ADDR = 0xe4,
+	LCDC_OSD4_DISP_XY = 0xe8,
+	LCDC_OSD4_SIZE_XY = 0xec,
+	LCDC_OSD4_PITCH = 0xf0,
+
+	LCDC_IRQ_EN = 0x110,
+	LCDC_IRQ_CLR = 0x114,
+	LCDC_IRQ_STATUS = 0x118,
+	LCDC_IRQ_RAW = 0x11c,
+};
+
+typedef struct {
+	uint32_t id, id_mask;
+	uint16_t cs, extra02; uint32_t extra04;
+	// dimensions
+	uint16_t width, height, dim08, dim0c, dim10;
+	struct { uint16_t /* ns */
+		rcss, /* read CS setup */
+		rlpw, /* read low pulse width */
+		rhpw, /* read high pulse width */
+		wcss, /* write CS setup */
+		wlpw, /* write low pulse width */
+		whpw; /* write high pulse width */
+	} mcu_timing;
+	uint16_t mac_arg;
+	const uint8_t *cmd_init;
+} lcd_config_t;
+
+static struct {
+	const lcd_config_t *lcd;
+	uint32_t cs, addr[2];
+} lcd_setup;
+
+// a0 = 0..3, a1 = 0..1
+static void lcm_config(unsigned a0, unsigned a1) {
+	uint32_t a = a0 << 26 | 0x60000000;
+	if (a1 > 1) FATAL();
+	lcd_setup.addr[0] = a;
+	lcd_setup.addr[1] = a | 0x20000;
+}
+
+static void lcm_select_cs(unsigned a0) {
+	uint32_t cs = lcd_setup.cs;
+	while (LCM_CR(0) & 2);
+	MEM4(LCM_REG_BASE + 0x10 + (cs << 4)) = a0 ? 1 : 0x28;
+}
+
+static void lcm_send(unsigned idx, unsigned val) {
+	//lcm_select_cs(1);
+	while (LCM_CR(0) & 2);
+	MEM2(lcd_setup.addr[idx]) = val;
+}
+
+static uint16_t lcm_recv(unsigned idx) {
+	//lcm_select_cs(1);
+	while (LCM_CR(0) & 2);
+	return MEM2(lcd_setup.addr[idx]);
+}
+
+static inline void lcm_send_cmd(unsigned val) { lcm_send(0, val); }
+static inline void lcm_send_data(unsigned val) { lcm_send(1, val); }
+
+static void lcm_wait(uint32_t delay, uint32_t method) {
+	uint32_t addr = 0x8b000224, t;
+	int i;
+	method &= 1;
+	for (i = 0; i < 3; i++) {
+		t = MEM4(addr) & ~method;
+		t |= method ^= 1;
+		MEM4(addr) = t;
+		sys_wait_ms(delay);
+	}
+}
+
+static uint32_t get_freq_1(void) {
+	static const unsigned tab[4] = {
+#if CHIP == 1 // SC6531E
+		26000000, 104000000, 208000000, 208000000
+#elif CHIP == 2 // SC6531DA
+		26000000, 208000000, 249600000, 312000000
+#endif
+	};
+	return tab[MEM4(0x8b00004c) & 3];
+}
+
+static uint32_t get_freq_2(void) {
+	if (MEM4(0x8b00004c) & 1 << 2) return 208000000 >> 1;
+	return get_freq_1() >> 1;
+}
+
+static void lcm_set_freq(uint32_t clk_rate, const lcd_config_t *lcd) {
+	unsigned sum; int t1, t2, t3;
+
+	if (clk_rate > 1000000) clk_rate /= 1000000;
+	LCM_CR(0) = 0x11110000;
+
+#define DBI_CYCLES(r, name, max) \
+	r = (clk_rate * lcd->mcu_timing.name - 1) / 1000 + 1; \
+	if (r > max) r = max;
+
+	DBI_CYCLES(t1, rcss, 6) sum = t1;
+	DBI_CYCLES(t2, rlpw, 14) sum += t2;
+	DBI_CYCLES(t3, rhpw, 14) sum += t3;
+	if (sum > 30) sum = 30;
+	sum = sum << 16 | t1 | 0x80;
+
+	DBI_CYCLES(t1, wcss, 6) sum |= t1 << 4;
+	DBI_CYCLES(t2, wlpw, 14) sum |= t2 << 8;
+	DBI_CYCLES(t3, whpw, 14)
+	t2 += t3 - 1 > t1 ? t3 - 1 : t1 + 1;
+	// can't happen: 14 + (max(14 - 1, 6 + 1)) < 30
+	//if (t3 > 30) t3 = 30;
+	sum |= t2 << 21;
+#undef DBI_CYCLES
+
+	while (LCM_CR(0) & 2);
+
+	t1 = lcd->dim10;
+	if (t1 == 2) t1 = 0x28;
+	else if (t1 == 0) t1 = 1;
+	else FATAL();
+
+	lcd_setup.lcd = lcd;
+	lcd_setup.cs = lcd->cs;
+
+	{
+		unsigned cs = lcd_setup.cs;
+		uint32_t addr = LCM_REG_BASE + 0x10 + (cs << 4);
+		MEM4(addr) = t1;
+		MEM4(addr + 4) = sum;
+	}
+}
+
+// ID0: LCD module's manufacturer ID
+// ID1: LCD module/driver version ID
+// ID2: LCD module/driver ID
+
+static unsigned lcd_getid(void) {
+	unsigned id = 0, i;
+#if 1
+	lcm_send_cmd(0x04);
+	lcm_recv(1); // dummy
+	for (i = 0; i < 3; i++)
+		id = id << 8 | (lcm_recv(1) & 0xff);
+#else
+	for (i = 0; i < 3; i++) {
+		lcm_send_cmd(0xda + i);
+		lcm_recv(1); // dummy
+		id = id << 8 | (lcm_recv(1) & 0xff);
+	}
+#endif
+	return id;
+}
+
+#define LCM_CMD(cmd, len) 0x80 | len, cmd
+#define LCM_DATA(...) len, __VA_ARGS__
+#define LCM_DELAY(delay) 0x40 | (delay >> 8 & 0x1f), (delay & 0xff)
+#define LCM_END 0
+
+#include "lcd_config.h"
+
+static void lcm_exec(const uint8_t *cmd) {
+	for (;;) {
+		uint32_t a, len;
+		a = *cmd++;
+		if (!a) break;
+		len = a & 0x1f;
+		a >>= 5;
+		if (a == 4) {
+			lcm_send_cmd(*cmd++);
+			a = 0;
+		}
+		if (a == 0) {
+			while (len--) lcm_send_data(*cmd++);
+		} else if (a == 2) {
+			sys_wait_ms(len << 8 | *cmd++);
+		} else FATAL();
+	}
+}
+
+#if 0
+static void lcd_set_rect(int x0, int y0, int x1, int y1) {
+	lcm_send_cmd(0x2a); // Column Address Set
+	lcm_send_data(x0 >> 8);
+	lcm_send_data(x0 & 0xff);
+	lcm_send_data(x1 >> 8);
+	lcm_send_data(x1 & 0xff);
+	lcm_send_cmd(0x2b); // Page Address Set
+	lcm_send_data(y0 >> 8);
+	lcm_send_data(y0 & 0xff);
+	lcm_send_data(y1 >> 8);
+	lcm_send_data(y1 & 0xff);
+	lcm_send_cmd(0x2c); // Memory Write
+}
+
+void lcm_send_rgb16(uint16_t *ptr, uint32_t size) {
+	uint32_t addr, tmp;
+	//lcm_select_cs(1);
+	addr = lcd_setup.addr[1];
+	while (size--) {
+		tmp = *ptr++;
+		while (LCM_CR(0) & 2);
+		MEM2(addr) = tmp >> 8;
+		while (LCM_CR(0) & 2);
+		MEM2(addr) = tmp & 0xff;
+	}
+}
+#endif
+
+static int is_whtled_on(void) {
+#if CHIP == 1
+	return (adi_read(ANA_WHTLED_CTRL) & 1) == 0;
+#elif CHIP == 2
+	return (adi_read(ANA_LED_CTRL) & 4) == 0;
+#endif
+}
+
+static void lcm_init(void) {
+	uint32_t id = 0, clk_rate;
+	int i, n = sizeof(lcd_config) / sizeof(*lcd_config);
+
+	// LCM enable
+#if CHIP == 1
+	AHB_CR(0x1080) = 0x40;
+#elif CHIP == 2
+	AHB_CR(0x60) = 0x40;
+#endif
+
+	LCM_CR(0) = 0;
+	LCM_CR(0x10) = 1;
+	LCM_CR(0x14) = 0xa50100;
+
+	if (!is_whtled_on()) lcm_wait(32, 0);
+
+	clk_rate = get_freq_2();
+	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
+
+	for (i = 0; i < n; i++) {
+		lcm_set_freq(clk_rate, lcd_config + i);
+		lcm_config(lcd_setup.lcd->cs, lcd_setup.lcd->extra02);
+		lcm_select_cs(1);
+		id = lcd_getid();
+		if ((id & lcd_setup.lcd->id_mask) == lcd_setup.lcd->id) break;
+	}
+	DBG_LOG("LCD: id = 0x%06x\n", id);
+	if (i == n) ERR_EXIT("unknown LCD\n");
+}
+
+void CHIP_FN(sys_start_refresh)(void) {
+	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
+	clean_dcache();
+	LCDC_CR(LCDC_IRQ_EN) |= mask;
+	LCDC_CR(LCDC_CTRL) |= 8;	// start refresh
+}
+
+void CHIP_FN(sys_wait_refresh)(void) {
+	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
+
+	if (!(LCDC_CR(LCDC_IRQ_EN) & mask)) return;
+
+	while ((LCDC_CR(LCDC_IRQ_RAW) & mask) == 0);
+	LCDC_CR(LCDC_IRQ_CLR) |= mask;
+}
+
+static void lcd_init(void) {
+	const lcd_config_t *lcd = lcd_setup.lcd;
+	unsigned w = lcd->width, h = lcd->height, x2, y2, w2, h2;
+	unsigned rotate, mac_arg;
+	const uint8_t rtab[4] = { 0, 0xa0, 0xc0, 0x60 };
+	static uint8_t cmd_init2[] = {
+		// MY, MX, MV, ML, RB, MH, 0, 0
+		LCM_CMD(0x36, 1), 0, // Memory Access Control
+		LCM_CMD(0x2a, 4), 0,0,0,0, // Column Address Set
+		LCM_CMD(0x2b, 4), 0,0,0,0, // Page Address Set
+		LCM_CMD(0x2c, 0), // Memory Write
+		LCM_END
+	};
+
+	rotate = sys_data.rotate & 3;
+	mac_arg = lcd->mac_arg;
+	mac_arg ^= rtab[rotate];
+	if (mac_arg & 0x20) {
+		unsigned t = w; w = h; h = t;
+	}
+	x2 = 0; w2 = w - 1;
+	y2 = 0; h2 = h - 1;
+	// fix for ST7735
+	if (lcd->id == 0x7c89f0) {
+		w -= x2 = w & 3;
+		h -= y2 = h & 3;
+	}
+	sys_data.display.w1 = w;
+	sys_data.display.h1 = h;
+
+	lcm_exec(lcd->cmd_init);
+#if 1
+	cmd_init2[2] = mac_arg;
+	cmd_init2[3 + 2] = x2 >> 8;
+	cmd_init2[3 + 3] = x2;
+	cmd_init2[3 + 4] = w2 >> 8;
+	cmd_init2[3 + 5] = w2;
+	cmd_init2[3 + 6 + 2] = y2 >> 8;
+	cmd_init2[3 + 6 + 3] = y2;
+	cmd_init2[3 + 6 + 4] = h2 >> 8;
+	cmd_init2[3 + 6 + 5] = h2;
+	lcm_exec(cmd_init2);
+#else
+	lcm_send_cmd(0x36); // Memory Access Control
+	lcm_send_data(mac_arg);
+	lcd_set_rect(x2, y2, w2, h2);
+#endif
+}
+
+static void lcdc_init(void) {
+	struct sys_display *disp = &sys_data.display;
+	unsigned w = disp->w1, h = disp->h1;
+	unsigned w2 = disp->w2, h2 = disp->h2;
+
+	// LCDC enable
+#if CHIP == 1
+	AHB_CR(0x1080) = 0x1000; // AHB_CTL0?
+	AHB_CR(0x1040) = 0x200; // AHB_SOFT_RST?
+	sys_wait_ms(10);
+	AHB_CR(0x2040) = 0x200;
+#elif CHIP == 2
+	AHB_CR(0x60) = 0x1000;
+	AHB_CR(0x20) = 0x200;
+	sys_wait_ms(10);
+	// DELAY(1000)
+	AHB_CR(0x30) = 0x200;
+	// DELAY(1000)
+#endif
+
+	LCDC_CR(LCDC_CTRL) |= 1; // lcd_enable = 1
+
+	MEM4(0x80000000 + 8) |= 0x400000;
+
+	LCDC_CR(LCDC_CTRL) |= 2; // fmark_mode = 1
+	LCDC_CR(LCDC_CTRL) &= ~4; // fmark_pol = 0
+	LCDC_CR(LCDC_BG_COLOR) = 0x000000;
+
+	LCDC_CR(LCDC_DISP_SIZE) = w | h << 16;
+	LCDC_CR(LCDC_LCM_START) = 0;
+	LCDC_CR(LCDC_LCM_SIZE) = w | h << 16;
+
+	lcm_select_cs(0);
+	LCDC_CR(LCDC_OSD4_CTRL) |= 0x20;
+	LCDC_CR(LCDC_OSD4_CTRL) |= (LCDC_CR(LCDC_OSD4_CTRL) & ~(3 << 6)) | 0 << 6;
+	LCDC_CR(LCDC_CTRL) &= ~(7 << 5);
+	LCDC_CR(LCDC_OSD4_LCM_ADDR) = lcd_setup.addr[1] >> 2;
+
+	CHIP_FN(sys_start_refresh)();
+	CHIP_FN(sys_wait_refresh)();
+	LCDC_CR(LCDC_IRQ_EN) &= ~1;
+
+	{
+		uint32_t a = LCDC_CR(LCDC_OSD0_CTRL);
+		int fmt = 5;
+		//a |= 1;
+		a &= ~2; // disable color key
+		a |= 4; // block alpha
+		a = (a & ~(15 << 4)) | fmt << 4; // format
+		a = (a & ~(3 << 8)) | 2 << 8; // little endian
+		LCDC_CR(LCDC_OSD0_CTRL) = a;
+	}
+
+	LCDC_CR(LCDC_OSD0_PITCH) = w2;
+
+	w2 = w2 > w ? w : w2;
+	h2 = h2 > h ? h : h2;
+	w2 &= ~1;	// must be aligned
+
+	//LCDC_CR(LCDC_OSD0_BASE_ADDR) = (uint32_t)base >> 2;
+	LCDC_CR(LCDC_OSD0_SIZE_XY) = w2 | h2 << 16;
+	LCDC_CR(LCDC_OSD0_DISP_XY) = ((w - w2) >> 1) | ((h - h2) >> 1) << 16;
+}
+
+void CHIP_FN(sys_framebuffer)(void *base) {
+	struct sys_display *disp = &sys_data.display;
+	unsigned w = disp->w1, w2 = disp->w2;
+	unsigned offset = (w2 - w) >> 1;
+
+	if (w2 < w) offset = 0;
+
+	LCDC_CR(LCDC_OSD0_BASE_ADDR) = ((uint32_t)base + offset * 2) >> 2;
+	LCDC_CR(LCDC_OSD0_CTRL) |= 1;
+}
+
+#define KEYPAD_CR(o) MEM4(0x87000000 + o)
+
+enum {
+	KPD_CTRL = 0x00,
+	KPD_INT_EN = 0x04,
+	KPD_INT_RAW_STATUS = 0x08,
+	KPD_INT_MASK_STATUS = 0x0c,
+	KPD_INT_CLR = 0x10,
+	KPD_POLARITY = 0x18,
+	KPD_DEBOUNCE_CNT = 0x1c,
+	KPD_CLK_DIVIDE_CNT = 0x28,
+	KPD_KEY_STATUS = 0x2c,
+};
+
+static void keypad_init(void) {
+	short *keymap = sys_data.keymap_addr;
+	int i, j, row = 0, col = 0, ctrl;
+	int nrow = _chip == 2 ? 8 : 5;
+	int ncol = _chip == 2 ? 5 : 8;
+
+	for (i = 0; i < ncol; i++)
+	for (j = 0; j < nrow; j++)
+		if (keymap[i * nrow + j] != -1)
+			col |= 1 << i, row |= 1 << j;
+
+	if (_chip == 2)
+		row &= 0xfc, col &= 0xfc;	// why?
+
+	//DBG_LOG("keypad: row_mask = 0x%02x, col_mask = 0x%02x\n", row, col);
+
+#if CHIP == 1
+	MEM4(0x8b0010a8) = 0x80040;
+	// 0x8b0020a8 - off
+#elif CHIP == 2
+	MEM4(0x8b0000a0) = 0x80040;
+	// 0x8b0000a4 - off
+#endif
+
+	KEYPAD_CR(KPD_INT_CLR) = 0xfff;
+	KEYPAD_CR(KPD_CLK_DIVIDE_CNT) = 1;
+	KEYPAD_CR(KPD_DEBOUNCE_CNT) = 16;
+	KEYPAD_CR(KPD_INT_EN) = 0xfff;
+	KEYPAD_CR(KPD_POLARITY) = 0xffff;
+
+	ctrl = KEYPAD_CR(KPD_CTRL);
+	//DBG_LOG("keypad: ctrl = %08x\n", ctrl);
+	ctrl |= 1; // enable
+	ctrl &= ~2; // sleep
+	ctrl |= 4; // long
+	ctrl |=	row << 16 | col << 8;
+	KEYPAD_CR(KPD_CTRL) = ctrl;
+}
+
+int CHIP_FN(sys_event)(int *rkey) {
+	static int static_i = 0;
+	static uint32_t event;
+	static uint32_t status;
+	int i = static_i;
+
+	if (!sys_data.keymap_addr) return EVENT_END;
+
+	if (!i) {
+		event = KEYPAD_CR(KPD_INT_RAW_STATUS);
+		status = KEYPAD_CR(KPD_KEY_STATUS);
+		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
+	}
+
+	if ((event & 0xff) && !(status & 8))
+	for (; i < 8; i++) {
+		if ((event >> i) & 1) {
+			uint32_t k = status >> ((i & 3) * 8);
+			k = (k & 0x70) >> 1 | (k & 7);
+			k = sys_data.keytrn[k];
+			if (k) {
+				*rkey = k;
+				static_i = i + 1;
+				return i < 4 ? EVENT_KEYDOWN : EVENT_KEYUP;
+			}
+		}
+	}
+	static_i = 0;
+	return EVENT_END;
+}
+
+void CHIP_FN(sys_init)(void) {
+	init_chip_id();
+	pin_init();
+	lcm_init();
+	lcd_init();
+	lcd_appinit();
+	lcdc_init();
+	if (sys_data.keymap_addr)
+		keytrn_init();
+}
+
+void CHIP_FN(sys_start)(void) {
+	CHIP_FN(sys_brightness)(sys_data.brightness);
+	if (sys_data.keymap_addr)
+		keypad_init();
+}
