@@ -66,7 +66,6 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 		init_sc6531da();
 #if !CHIP
-		_chip = 2;
 #if !TWO_STAGE
 		chip_fn[0] = chip_fn[1];
 #endif
@@ -83,6 +82,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 
 	memset(image_addr + image_size, 0, bss_size);
+
+#if !CHIP
+	_chip = fw_addr == 0x30000000 ? 2 : 1;
+#endif
 
 	usb_init();
 	usb_write(fdl_ack, sizeof(fdl_ack));

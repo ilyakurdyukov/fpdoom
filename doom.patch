@@ -2165,7 +2165,7 @@ index 22fd6ed..53c0a35 100644
  	    newweapon = wp_chainsaw;
  	}
 diff --git a/r_data.c b/r_data.c
-index acabd53..3ffbb00 100644
+index acabd53..ead82a0 100644
 --- a/r_data.c
 +++ b/r_data.c
 @@ -44,6 +44,17 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
@@ -2173,7 +2173,7 @@ index acabd53..3ffbb00 100644
  #include  <alloca.h>
  #endif
 +#ifdef EMBEDDED
-+extern char __stack_top[1];
++#define __stack_top 0x40000000
 +static inline void _alloca_check(void *p, size_t size) {
 +    size_t avail = (intptr_t)p - ((intptr_t)__stack_top + 0x800);
 +    if ((intptr_t)(avail | size) < 0 || avail < size)

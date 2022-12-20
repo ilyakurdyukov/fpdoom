@@ -20,14 +20,14 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 	uint32_t ram_addr = fw_addr + 0x04000000;
 	uint32_t ram_size = RAM_SIZE;
 
+	memset(image_addr + image_size, 0, bss_size);
+
 #if !CHIP
 	if (fw_addr == 0x30000000) {
 		_chip = 2;
 		chip_fn[0] = chip_fn[1];
 	}
 #endif
-
-	memset(image_addr + image_size, 0, bss_size);
 
 	// usb_init();
 	_debug_msg("doom_main");

@@ -69,7 +69,6 @@ DOOM_CFLAGS += -Wno-unused-parameter -Wno-unused -Wno-missing-field-initializers
 
 # Clang's LTO doesn't work with the GCC toolchain
 ifeq ($(findstring -gcc-toolchain,$(notdir $(CC))),)
-# have issues with that
 #CFLAGS += -flto
 endif
 

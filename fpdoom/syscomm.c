@@ -96,7 +96,7 @@ uint32_t sys_wait_ms(uint32_t delay) {
 struct sys_data sys_data;
 
 #if !CHIP
-int _chip = 1;
+int _chip;
 
 struct chip_fn2 chip_fn[2] = {
 #define X(pref) { \
