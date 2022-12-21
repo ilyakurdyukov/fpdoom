@@ -132,7 +132,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		argc = _argv_init(&argv, 0);
 #if TWO_STAGE
 		argc1 = argc;
-		addr = (char*)entry2->image_start + entry2->image_size + entry2->bss_size;
+		addr = (char*)entry2 + entry2->image_size + entry2->bss_size;
 		size = ram_addr + ram_size - (uint32_t)addr;
 #endif
 		printf("malloc heap: %u bytes\n", size);
