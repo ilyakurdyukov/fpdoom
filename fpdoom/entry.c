@@ -36,6 +36,17 @@ void lcd_appinit(void) {
 	disp->h2 = h;
 }
 
+static uint32_t get_ram_size(uint32_t addr) {
+	/* simple check for 4/8 MB */
+	uint32_t size = RAM_SIZE;
+	uint32_t v0 = 0, v1 = 0x12345678;
+	MEM4(addr) = v0;
+	MEM4(addr + size) = v1;
+	if (MEM4(addr) == v0 && MEM4(addr + size) == v1)
+		size <<= 1;
+	return size;
+}
+
 #if TWO_STAGE
 struct entry2 {
 	uint32_t code[3];
@@ -52,8 +63,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
 	int argc; char **argv = NULL;
 	uint32_t fw_addr = (uint32_t)image_addr & 0xf0000000;
-	uint32_t ram_addr = fw_addr + 0x04000000;
-	uint32_t ram_size = RAM_SIZE;
+	uint32_t ram_addr = fw_addr + 0x04000000, ram_size;
 #if TWO_STAGE
 	int argc1;
 	struct sys_data *sys_data_copy;
@@ -87,6 +97,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	_chip = fw_addr == 0x30000000 ? 2 : 1;
 #endif
 
+	ram_size = get_ram_size(ram_addr);
+
 	usb_init();
 	usb_write(fdl_ack, sizeof(fdl_ack));
 
@@ -117,7 +129,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	}
 #endif
 #if INIT_MMU
-		ram_size -= 0x4000; // MMU table
+	ram_size -= 0x4000; // MMU table
 #endif
 	{
 		char *addr = image_addr + image_size + bss_size;
