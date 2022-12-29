@@ -33,7 +33,7 @@ OBJS2 = $(SRCS2:%=$(OBJDIR)/%.o)
 endif
 
 LDSCRIPT = sc6531e_fdl.ld
-NAME = doom
+NAME = fpdoom
 
 ifdef TOOLCHAIN
 CC = "$(TOOLCHAIN)"-gcc

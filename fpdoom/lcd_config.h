@@ -320,7 +320,7 @@ static const lcd_config_t lcd_config[] = {
 #if CHIP == 2
 /* Joy's S21 */
 
-	// GlaxyCore GC9106 (untested)
+	// GlaxyCore GC9106
 	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, 0xd0, cmd9106_init },
 	// GlaxyCore GC9108
 	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, 0xd0, cmd9108_init },

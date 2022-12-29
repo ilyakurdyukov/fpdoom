@@ -75,7 +75,7 @@ void keytrn_init(void) {
 	// no center key
 	if (rkeymap[KEYPAD_CENTER] == 64) {
 		KEY(UP) = KEY_RCTRL;	/* fire */
-		KEY(DOWN) = ' ';	/* use */
+		KEY(DOWN) = KEY_RCTRL;	/* fire */
 	} else {
 		KEY(CENTER) = KEY_RCTRL;	/* fire */
 	}

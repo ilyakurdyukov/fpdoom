@@ -75,7 +75,9 @@ extern struct sys_data {
 	int brightness;
 	uint16_t keytrn[65];
 	/* key << 4 | screen */
-	char rotate;
+	uint8_t rotate, lcd_cs;
+	uint16_t mac;
+	uint32_t spi;
 } sys_data;
 
 extern struct chip_fn2 chip_fn[];

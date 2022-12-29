@@ -35,3 +35,18 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 2. Message `!!! unknown LCD`, but some number shown in `LCD: id = 0x`. I can add support for this LCD if you send me a firmware dump from your phone.
 3. Message `!!! keymap not found`, means the firmware scan algorithm can't find the keymap, so you can't use the keypad, only watch replays. I can extract the keymap if you send me a firmware dump. I can also add code that asks you to press the requested keys to create the keymap if this becomes a common problem.
 
+### List of tested models
+
+| # | Name            |   Chip   |      LCD       | Boot Key |
+|---|-----------------|----------|----------------|----------|
+| 1 | F+ F256         | SC6531E  | GC9306 240x320 | *        |
+| 2 | Digma Linx B241 | SC6531E  | ST7789 240x320 | center   |
+| 3 | F+ Ezzy 4       | SC6531E  | GC9106 128x160 | 1        |
+| 4 | Joy's S21       | SC6531DA | GC9108 128x160 | 0        |
+| 5 | Vertex M115     | SC6531DA | ST7735 128x128 | up       |
+| 6 | Vertex С323     | SC6531DA | GC9106 128x160 | 0        |
+| 7 | Nobby 170B      | SC6531E  | GC9106 128x160 | #        |
+
+* Vertex M115, Nobby 170B: need keymap file
+* Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
+

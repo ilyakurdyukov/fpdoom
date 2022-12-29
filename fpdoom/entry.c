@@ -152,6 +152,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 
 	sys_data.brightness = 50;
 	// sys_data.rotate = 0x00;
+	// sys_data.lcd_cs = 0;
+	// sys_data.mac = 0;
+	// sys_data.spi = 0;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -165,9 +168,22 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			if (*next == ',') key = atoi(next + 1);
 			sys_data.rotate = (key & 3) << 4 | (scr & 3);
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--cs")) {
+			unsigned a = atoi(argv[1]);
+			if (a < 4) sys_data.lcd_cs = a;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--spi")) {
+			unsigned a = atoi(argv[1]);
+			if (a < 2) sys_data.spi = (0x68 + a) << 24;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--mac")) {
+			unsigned a = strtol(argv[1], NULL, 0);
+			if (a < 0x100) sys_data.mac = a | 0x100;
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
 			if (f) {
+				printf("keymap loaded from file\n");
 				sys_data.keymap_addr = (short*)sys_data.keytrn;
 				memset(sys_data.keytrn, -1, 64 * 2);
 				fread(sys_data.keytrn, 1, 64 * 2, f);
