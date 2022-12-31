@@ -50,3 +50,20 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 * Vertex M115, Nobby 170B: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 
+### Game controls
+
+| Key(s)         | Action             |
+|----------------|--------------------|
+| Left Soft Key  | use                |
+| Right Soft Key | open/close menu    |
+| Direction Pad  | movement           |
+| D-pad Center   | fire               |
+| Dial Key       | run on/off         |
+| 2, 4, 5, 6     | up/left/down/right |
+| 1, 3           | strafe left/right  |
+| 7, 9           | prev/next weapon   |
+
+* D-pad and keys 1-9 are rotated with the `--rotate` option (with screen or separately).
+* For phones without D-pad Center key (Nobby 170B) - up/down keys are used for fire.
+* If you don't like the controls - you can change it in [keytrn.c](fpdoom/keytrn.c).
+
