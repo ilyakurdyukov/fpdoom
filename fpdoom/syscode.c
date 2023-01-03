@@ -251,6 +251,7 @@ typedef struct {
 		wlpw, /* write low pulse width */
 		whpw; /* write high pulse width */
 	} mcu_timing;
+	struct { uint32_t freq; } spi;
 	uint16_t mac_arg;
 	const uint8_t *cmd_init;
 } lcd_config_t;
@@ -491,7 +492,8 @@ static void lcm_init(void) {
 	for (i = 0; i < n; i++)
 		if ((id & lcd_config[i].id_mask) == lcd_config[i].id) break;
 
-	if (i == n) ERR_EXIT("unknown LCD\n");
+	if (i == n || !lcd_config[i].mcu_timing.rcss)
+		ERR_EXIT("unknown LCD\n");
 
 	lcm_set_freq(cs, clk_rate, lcd_config + i);
 	lcm_config_addr(cs);

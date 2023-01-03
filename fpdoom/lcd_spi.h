@@ -123,8 +123,21 @@ static void lcdc_init(void);
 
 #define SPI_ID(spi) ((spi) >> 24 & 1)
 
+#if CHIP == 2
+static void spi_pin_grp_select(uint32_t spi, unsigned pin_gid) {
+	uint32_t tmp = MEM4(0x8b0001e0);
+	unsigned shl = SPI_ID(spi) ? 4 : 29;
+	if (!pin_gid) FATAL();	// TODO
+	tmp = (tmp & ~(3 << shl)) | pin_gid << shl;
+	MEM4(0x8b0001e0) = tmp;
+	DELAY(100)
+}
+#endif
+
 static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	uint32_t id, cs = 0;
+
+	(void)clk_rate;
 
 	if (!SPI_ID(spi))
 		AHB_PWR_ON(0x4000); // SPI0 enable
@@ -132,9 +145,13 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		AHB_PWR_ON(0x80000); // SPI1 enable
 	DELAY(100)
 
+#if CHIP == 2
+	spi_pin_grp_select(spi, 1);
+#endif
+
 	{
-		// 0 -> 2; 1 -> 1; 2,3 -> 1<<13
-		uint32_t mode = 2;
+		uint32_t mode = 0;
+		mode = (mode & 1 ? 1 : 2) | (mode & 2 ? 1 << 13 : 0);
 		MEM4(spi + SPI_INT_EN) = 0;
 		MEM4(spi + SPI_CTL0) = 0xf00 | mode | 8 << 2;
 		MEM4(spi + SPI_CTL1) = MEM4(spi + SPI_CTL1) & ~0x3000;
@@ -150,22 +167,32 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	spi_set_spi_cd_bit(spi, 0);
 	spi_select_cs(spi, cs, 1);
 
-	id = (spi_send_recv(spi, 0xda << 8, 1, 0) & 0xff) << 16;
-	id |= (spi_send_recv(spi, 0xdb << 8, 1, 0) & 0xff) << 8;
-	id |= spi_send_recv(spi, 0xdc << 8, 1, 0) & 0xff;
-	printf("SPI: lcd_id = %08x\n", id);
-	DBG_LOG("LCD(SPI%u): id = 0x%06x\n", SPI_ID(spi), id);
+	id = sys_data.lcd_id;
+	if (!id) {
+		id = (spi_send_recv(spi, 0xda << 8, 1, 0) & 0xff) << 16;
+		id |= (spi_send_recv(spi, 0xdb << 8, 1, 0) & 0xff) << 8;
+		id |= spi_send_recv(spi, 0xdc << 8, 1, 0) & 0xff;
+		DBG_LOG("LCD(SPI%u): id = 0x%06x\n", SPI_ID(spi), id);
+	}
 
 	{
 		int i, n = sizeof(lcd_config) / sizeof(*lcd_config);
 		for (i = 0; i < n; i++)
 			if ((id & lcd_config[i].id_mask) == lcd_config[i].id) break;
-		if (i == n || id != 0x9106) ERR_EXIT("unknown LCD\n");
+		if (i == n || !lcd_config[i].spi.freq)
+			ERR_EXIT("unknown LCD\n");
 		lcd_setup.lcd = lcd_config + i;
 	}
+
 	{
-		unsigned freq = 39000000, clkd;
-		clkd = (clk_rate + freq - 1) / freq - 1;
+#if CHIP == 1
+		unsigned spi_freq = 104000000;
+#elif CHIP == 2
+		unsigned spi_freq = !SPI_ID(spi) ? 78000000 : 48000000;
+#endif
+		unsigned freq = lcd_setup.lcd->spi.freq, clkd;
+		clkd = spi_freq / (freq << 1);
+		if (clkd) clkd--;
 		spi_set_clkd(spi, clkd);
 	}
 	spi_set_chnl_len(spi, 8);

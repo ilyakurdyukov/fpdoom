@@ -78,6 +78,7 @@ extern struct sys_data {
 	uint8_t rotate, lcd_cs;
 	uint16_t mac;
 	uint32_t spi;
+	uint32_t lcd_id;
 } sys_data;
 
 extern struct chip_fn2 chip_fn[];

@@ -243,7 +243,6 @@ static const uint8_t cmd9106_init[] = {
 
 static const uint8_t cmd9108_init[] = {
 	LCM_DELAY(120),
-	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
 	LCM_CMD(0xb3, 1), 0x03,
@@ -259,10 +258,39 @@ static const uint8_t cmd9108_init[] = {
 	// Set Gamma 2
 	LCM_CMD(0xf1, 14), 0x00,0x1e,0x25,0x30,
 		0x97,0x03,0x03,0x00, 0x00,0x07,0x07,0x15, 0x14,0x0f,
-	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
-	//LCM_CMD(0xff, 0), // ???
 	LCM_CMD(0x35, 1), 0x00,
 	LCM_CMD(0x44, 1), 0x00,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd9307_init[] = {
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x86, 1), 0x98,
+	LCM_CMD(0x89, 1), 0x03,
+	LCM_CMD(0x8b, 1), 0x80,
+	LCM_CMD(0x8d, 1), 0x22,
+	LCM_CMD(0xe8, 2), 0x13,0x00,
+	LCM_CMD(0xc3, 1), 0x27,
+	LCM_CMD(0xc4, 1), 0x18,
+	LCM_CMD(0xc9, 1), 0x1f,
+	LCM_CMD(0xc5, 1), 0x0f,
+	LCM_CMD(0xc6, 1), 0x10,
+	LCM_CMD(0xc7, 1), 0x10,
+	LCM_CMD(0xc8, 1), 0x10,
+	LCM_CMD(0xff, 1), 0x62,
+	LCM_CMD(0x99, 1), 0x3e,
+	LCM_CMD(0x9d, 1), 0x4b,
+	LCM_CMD(0x8e, 1), 0x0f,
+	LCM_CMD(0xf0, 6), 0x8f,0x16,0x06,0x06,0x06,0x3c,
+	LCM_CMD(0xf2, 6), 0x8f,0x13,0x06,0x06,0x07,0x3b,
+	LCM_CMD(0xf1, 6), 0x52,0xbc,0x8f,0x35,0x38,0x4f,
+	LCM_CMD(0xf3, 6), 0x54,0xbc,0x8f,0x33,0x3c,0x4f,
 	LCM_CMD(0x11, 0), // Sleep Out Mode
 	LCM_DELAY(120),
 	LCM_CMD(0x29, 0), // Display ON
@@ -301,34 +329,39 @@ static const lcd_config_t lcd_config[] = {
 /* F+ F256 */
 
 	// Sitronix ST7789
-	{ 0x858552, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 60,  80,  90, 60, 80, 80 }, 0x00, cmd8585_init },
+	{ 0x858552, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 60,  80,  90, 60, 80, 80 }, { 0 },  0x00, cmd8585_init },
 	// GlaxyCore GC9305 (untested)
-	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, 0x48, cmd9305_init },
+	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0x48, cmd9305_init },
 	// GlaxyCore GC9306
-	{ 0x009306, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, 0x48, cmd9306_init },
+	{ 0x009306, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 0 },  0x48, cmd9306_init },
 	// GlaxyCore GC9300 (untested)
-	{ 0x009300, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, 0x48, cmd9300_init },
+	{ 0x009300, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 0 },  0x48, cmd9300_init },
 
 /* F+ Ezzy 4 */
 
 	// GlaxyCore GC9102 (untested)
- 	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, 0xd0, cmd9102_init },
+ 	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 0 },  0xd0, cmd9102_init },
 	// GlaxyCore GC9106
- 	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, 0xd0, cmd9106_init },
+ 	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 39000000 },  0xd0, cmd9106_init },
 #endif
 
 #if CHIP == 2
 /* Joy's S21 */
 
 	// GlaxyCore GC9106
-	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, 0xd0, cmd9106_init },
+	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
 	// GlaxyCore GC9108
-	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, 0xd0, cmd9108_init },
+	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9108_init },
 
 /* Vector M115 */
 
 	// Sitronix ST7735S
-	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, 0xc8, cmd7735_init },
+	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7735_init },
+
+/* DZ09 */
+
+	// GlaxyCore GC9307
+	{ 0x009307, 0xffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init },
 #endif
 };
 
