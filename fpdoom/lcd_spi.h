@@ -106,7 +106,12 @@ static void spi_send(unsigned idx, unsigned data) {
 static void spi_refresh_init(uint32_t spi) {
 	MEM4(spi + SPI_CTL7) |= 0x80;	// SPI_TX_HLD_EN
 	spi_set_spi_cd_bit(spi, 1);
-	spi_set_chnl_len(spi, 16);
+	if (sys_data.spi_mode < 3) {
+		MEM4(spi + SPI_CTL7) |= 1 << 14;	// RGB565_EN
+		spi_set_chnl_len(spi, 17);
+	} else {
+		spi_set_chnl_len(spi, 16);
+	}
 }
 
 static void spi_refresh_next(uint32_t spi) {
@@ -160,7 +165,7 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	}
 
 	spi_set_clkd(spi, 15);
-	spi_set_mode(spi, 6);
+	spi_set_mode(spi, sys_data.spi_mode < 3 ? 5 : 6);
 	spi_set_chnl_len(spi, 16);
 	spi_set_s3w_rd_strt(spi, 7);
 	spi_set_rtx_mode(spi, 3);
@@ -196,6 +201,6 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		spi_set_clkd(spi, clkd);
 	}
 	spi_set_chnl_len(spi, 8);
-	spi_set_mode(spi, 3);
+	spi_set_mode(spi, sys_data.spi_mode);
 }
 

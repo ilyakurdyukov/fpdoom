@@ -155,6 +155,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
 	// sys_data.spi = 0;
+	sys_data.spi_mode = 3;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -176,6 +177,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			unsigned a = atoi(argv[1]);
 			if (a < 2) sys_data.spi = (0x68 + a) << 24;
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--spi_mode")) {
+			unsigned a = atoi(argv[1]);
+			if (a - 1 < 4) sys_data.spi_mode = a;
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			sys_data.lcd_id = strtol(argv[1], NULL, 0);
 			argc -= 2; argv += 2;
@@ -193,6 +198,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 				fclose(f);
 			}
 			argc -= 2; argv += 2;
+		} else if (!memcmp(argv[0], "--", 2) && argv[0][2]) {
+			printf("!!! unknown option \"%s\"\n", argv[0]);
+			exit(1);
 		} else break;
 	}
 

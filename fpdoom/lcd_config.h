@@ -213,6 +213,18 @@ static const uint8_t cmd9106_init[] = {
 	//LCM_DELAY(120),
 	LCM_END
 };
+
+static const uint8_t cmd9316_init[] = {
+	//LCM_DELAY(120),
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0xd8, // Memory Access Control
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x26, 1), 0x01, // Gamma Set
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
 #endif
 
 #if CHIP == 2
@@ -340,9 +352,13 @@ static const lcd_config_t lcd_config[] = {
 /* F+ Ezzy 4 */
 
 	// GlaxyCore GC9102 (untested)
- 	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 0 },  0xd0, cmd9102_init },
+	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 0 },  0xd0, cmd9102_init },
 	// GlaxyCore GC9106
- 	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 39000000 },  0xd0, cmd9106_init },
+	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 39000000 },  0xd0, cmd9106_init },
+
+/* Nokia TA-1174 */
+
+	{ 0x009316, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd9316_init },
 #endif
 
 #if CHIP == 2

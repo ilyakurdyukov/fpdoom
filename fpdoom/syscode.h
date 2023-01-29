@@ -76,6 +76,7 @@ extern struct sys_data {
 	uint16_t keytrn[65];
 	/* key << 4 | screen */
 	uint8_t rotate, lcd_cs;
+	uint8_t spi_mode;
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;
