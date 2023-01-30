@@ -198,7 +198,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 				fclose(f);
 			}
 			argc -= 2; argv += 2;
-		} else if (!memcmp(argv[0], "--", 2) && argv[0][2]) {
+		} else if (!strcmp(argv[0], "--")) {
+			argc -= 1; argv += 1;
+			break;
+		} else if (argv[0][0] == '-') {
 			printf("!!! unknown option \"%s\"\n", argv[0]);
 			exit(1);
 		} else break;
