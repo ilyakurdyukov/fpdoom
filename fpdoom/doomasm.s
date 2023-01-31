@@ -344,16 +344,13 @@ CODE32_FN I_FinishUpdateCopyAsm
 	ldr	r3, [r3]
 	ldr	r5, [r5]
 	mov	r2, #SCREENHEIGHT
+	ldr	r6, =0x1fe
 1:	mov	r1, #SCREENWIDTH
 2:	ldr	r9, [r3], #4
-	and	r0, r9, #0xff
-	and	r7, r9, #0xff00
-	and	r8, r9, #0xff0000
-	lsr	r9, #24
-	lsl	r0, #1
-	lsr	r7, #8 - 1
-	lsr	r8, #16 - 1
-	lsl	r9, #1
+	and	r0, r6, r9, lsl #1
+	and	r7, r6, r9, lsr #7
+	and	r8, r6, r9, lsr #15
+	and	r9, r6, r9, lsr #23
 	ldrh	r0, [r4, r0]
 	ldrh	r7, [r4, r7]
 	ldrh	r8, [r4, r8]
@@ -368,7 +365,7 @@ CODE32_FN I_FinishUpdateCopyAsm
 	pop	{r4-r9,pc}
 
 CODE32_FN I_FinishUpdateHalfAsm
-	push	{r4-r10,lr}
+	push	{r4-r9,lr}
 	ldr	r3, =screens
 	ldr	r4, =colors
 	ldr	r5, =imagedata
@@ -377,7 +374,7 @@ CODE32_FN I_FinishUpdateHalfAsm
 	mov	r12, #SCREENWIDTH
 	mov	r2, #SCREENHEIGHT
 	ldr	lr, =0x00400802
-	ldr	r10, =0xf81f07e0
+	ldr	r6, =0xf81f07e0
 1:	mov	r1, r12
 2:	ldrh	r8, [r3, r12]
 	ldrh	r0, [r3], #2
@@ -395,7 +392,7 @@ CODE32_FN I_FinishUpdateHalfAsm
 	and	r7, lr, r0, lsr #2
 	add	r0, lr
 	add	r0, r7
-	and	r0, r10
+	and	r0, r6
 	orr	r0, r0, r0, lsr #16
 	strh	r0, [r5], #2
 	subs	r1, #2
@@ -403,5 +400,5 @@ CODE32_FN I_FinishUpdateHalfAsm
 	add	r3, r12
 	subs	r2, #2
 	bhi	1b
-	pop	{r4-r10,pc}
+	pop	{r4-r9,pc}
 
