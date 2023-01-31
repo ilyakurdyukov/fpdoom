@@ -808,7 +808,7 @@ index 1b67d51..b66a996 100644
  
  void I_BeginRead(void)
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..e4d2762 100644
+index 9b311b3..a1a1646 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -973,7 +973,7 @@ index 9b311b3..e4d2762 100644
 +    CHIP_FN2(sys_wait_refresh)();
 +    if (sys_data.display.w2 == 160)
 +	I_FinishUpdateHalf();
-+    if (sys_data.display.w2 == 480)
++    else if (sys_data.display.w2 == 480)
 +	I_FinishUpdate15();
 +    else
 +	I_FinishUpdateCopy();
