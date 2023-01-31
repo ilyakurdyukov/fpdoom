@@ -14,11 +14,22 @@ int _argv_init(char ***argvp, int skip);
 
 int main(int argc, char **argv);
 
+static uint32_t get_ram_size(uint32_t addr) {
+	/* simple check for 4/8 MB */
+	uint32_t size = RAM_SIZE;
+	uint32_t v0 = 0, v1 = 0x12345678;
+	MEM4(addr) = v0;
+	MEM4(addr + size) = v1;
+	if (MEM4(addr) == v0 && MEM4(addr + size) == v1)
+		size <<= 1;
+	return size;
+}
+
 void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int arg_skip) {
 	int argc; char **argv = NULL;
 	uint32_t fw_addr = (uint32_t)image_addr & 0xf0000000;
 	uint32_t ram_addr = fw_addr + 0x04000000;
-	uint32_t ram_size = RAM_SIZE;
+	uint32_t ram_size = get_ram_size(ram_addr);
 
 	memset(image_addr + image_size, 0, bss_size);
 

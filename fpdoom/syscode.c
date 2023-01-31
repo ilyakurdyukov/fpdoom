@@ -87,13 +87,21 @@ static void adi_write(uint32_t addr, uint32_t val) {
 #define ANA_CHIP_ID_LOW (ANA_REG_BASE + 0x000)
 #define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x004)
 #define ANA_WHTLED_CTRL (ANA_REG_BASE + 0x13c)
+#define ANA_CHGR_CTRL0 (ANA_REG_BASE + 0x150)
 #elif CHIP == 2 // SC6531DA
 #define ANA_REG_BASE 0x82001000
 #define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x000)
 #define ANA_CHIP_ID_LOW (ANA_REG_BASE + 0x004)
+#define ANA_CHGR_CTRL0 (ANA_REG_BASE + 0x200)
 #define ANA_WHTLED_CTRL (ANA_REG_BASE + 0x220)
 #define ANA_LED_CTRL (ANA_REG_BASE + 0x320)
 #endif
+
+#define AHB_CR(x) MEM4(0x20500000 + (x))
+#define AHB_PWR_ON(x) AHB_CR(_chip == 2 ? 0x60 : 0x1080) = (x)
+#define AHB_PWR_OFF(x) AHB_CR(_chip == 2 ? 0x70 : 0x2080) = (x)
+#define APB_PWR_ON(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa0 : 0x10a8)) = (x)
+#define APB_PWR_OFF(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa4 : 0x20a8)) = (x)
 
 static void init_chip_id(void) {
 	uint32_t t0, t1;
@@ -147,6 +155,57 @@ static void init_chip_id(void) {
 #endif
 }
 
+#define gpio_get(id, off) gpio_set(id, off, -1)
+static int gpio_set(unsigned id, unsigned off, int state) {
+	uint32_t addr, tmp, shl = id & 0xf;
+#if CHIP == 1
+	if (id >= 0x4c) FATAL();
+	addr = 0x8a000000 + ((id >> 4) << 7);
+#elif CHIP == 2
+	if (id >= 0x90) FATAL();
+	addr = id >> 7 ?
+		(0x82001780 - (8 << 6)) + ((id >> 4) << 6) :
+		0x8a000000 + ((id >> 4) << 7);
+#endif
+	addr += off;
+#if CHIP == 2
+	if (id >> 7) tmp = adi_read(addr);
+	else
+#endif
+	tmp = MEM4(addr);
+	if (state < 0) return tmp >> shl & 1;
+	tmp &= ~(1u << shl);
+	tmp |= state << shl;
+#if CHIP == 2
+	if (id >> 7) adi_write(addr, tmp);
+	else
+#endif
+	MEM4(addr) = tmp;
+	return 0;
+}
+
+static void gpio_init(void *ptr) {
+	struct {
+		int16_t id, val; uint32_t x04, x08;
+	} *tab = ptr;
+	int i;
+
+	APB_PWR_ON(0x800080);	// GPIO_D
+
+	for (i = 0; tab[i].id != -1; i++) {
+		int a = tab[i].id;
+		gpio_set(a, 4, 1);	// GPIODMSK
+		if (!tab[i].x04) {
+			gpio_set(a, 8, 1); // GPIODIR
+			gpio_set(a, 0x18, 0);	// GPIOIE
+			if (tab[i].val != -1)
+				gpio_set(a, 0, (tab[i].val & 0xff) != 0); // GPIODATA
+		} else {
+			gpio_set(a, 8, 0); // GPIODIR
+		}
+	}
+}
+
 static void pin_init(void) {
 	const volatile uint32_t *pinmap = pinmap_addr;
 #if CHIP == 1
@@ -171,36 +230,37 @@ static void pin_init(void) {
 			MEM4(addr) = val;
 		} else break;
 	}
+	if (sys_data.gpio_init)
+		gpio_init((void*)pinmap);
 }
 
 void CHIP_FN(sys_brightness)(unsigned val) {
-	unsigned tmp;
+	unsigned tmp, val2;
 	if (val > 100) val = 100;
 
 #if CHIP == 1
-	val = (val * 16 + 50) / 100;
+	val2 = val = (val * 16 + 50) / 100;
 	tmp = adi_read(ANA_WHTLED_CTRL) & ~0x1f;
 	if (!val) tmp |= 1; else val--;
 	adi_write(ANA_WHTLED_CTRL, tmp | val << 1);
 #elif CHIP == 2
-	val = (val * 32 + 50) / 100;
+	val2 = val = (val * 32 + 50) / 100;
 	tmp = adi_read(ANA_WHTLED_CTRL) & ~0x5f;
 	if (val) val += 0x40 - 1;
 	tmp |= 0x1200; /* turn off flashlight */
 	adi_write(ANA_WHTLED_CTRL, tmp | val);
 #endif
+	if (sys_data.bl_gpio != 0xff) {
+		int id = sys_data.bl_gpio;
+		// check GPIODMSK and GPIODIR
+		if (!gpio_get(id, 4) || !gpio_get(id, 8)) FATAL();
+		gpio_set(id, 0, val2 != 0); // GPIODATA
+	}
 }
 
 #define LCM_REG_BASE 0x20800000
-
-#define AHB_CR(x) MEM4(0x20500000 + (x))
 #define LCM_CR(x) MEM4(LCM_REG_BASE + (x))
 #define LCDC_CR(x) MEM4(0x20d00000 + (x))
-
-#define AHB_PWR_ON(x) AHB_CR(_chip == 2 ? 0x60 : 0x1080) = x
-#define AHB_PWR_OFF(x) AHB_CR(_chip == 2 ? 0x70 : 0x2080) = x
-#define APB_PWR_ON(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa0 : 0x10a8)) = x
-#define APB_PWR_OFF(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa4 : 0x20a8)) = x
 
 enum {
 	LCDC_CTRL = 0x00,
@@ -723,6 +783,15 @@ int CHIP_FN(sys_event)(int *rkey) {
 }
 
 void CHIP_FN(sys_init)(void) {
+
+#if CHIP == 1
+	{
+		unsigned sh = 1;	// CHGR_PD
+		uint32_t val = adi_read(ANA_CHGR_CTRL0) & ~(1 << sh);
+		adi_write(ANA_CHGR_CTRL0, val | sys_data.charger_pd << sh);
+	}
+#endif
+
 	init_chip_id();
 	pin_init();
 	lcm_init();

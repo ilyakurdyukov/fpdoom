@@ -77,6 +77,9 @@ extern struct sys_data {
 	/* key << 4 | screen */
 	uint8_t rotate, lcd_cs;
 	uint8_t spi_mode;
+	uint8_t charger_pd;
+	uint8_t gpio_init;
+	uint8_t bl_gpio;
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;

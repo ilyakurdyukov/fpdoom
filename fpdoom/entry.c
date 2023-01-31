@@ -24,7 +24,7 @@ void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w1, h = disp->h1;
 	switch (w) {
-	case 240: case 320:
+	case 240: case 320: case 480:
 		w = 320; h = 200; break;
 	case 128: case 160:
 		w = 160; h = 100; break;
@@ -155,7 +155,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
 	// sys_data.spi = 0;
+	// sys_data.charger_pd = 0;
+	// sys_data.gpio_init = 0;
 	sys_data.spi_mode = 3;
+	sys_data.bl_gpio = 0xff;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -187,6 +190,16 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--mac")) {
 			unsigned a = strtol(argv[1], NULL, 0);
 			if (a < 0x100) sys_data.mac = a | 0x100;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--gpio_init")) {
+			sys_data.gpio_init = 1;
+			argc -= 1; argv += 1;
+		} else if (argc >= 2 && !strcmp(argv[0], "--bl_gpio")) {
+			sys_data.gpio_init = 1;
+			sys_data.bl_gpio = atoi(argv[1]);
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
+			sys_data.charger_pd = !atoi(argv[1]);
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
