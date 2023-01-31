@@ -23,8 +23,11 @@ int main(int argc, char **argv);
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w1, h = disp->h1;
+	if (sys_data.width) w = sys_data.width, h = 0;
 	switch (w) {
-	case 240: case 320: case 480:
+	case 480:
+		w = 480; h = 300; break;
+	case 240: case 320:
 		w = 320; h = 200; break;
 	case 128: case 160:
 		w = 160; h = 100; break;
@@ -164,6 +167,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
 			unsigned a = atoi(argv[1]);
 			if (a <= 100) sys_data.brightness = a;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--width")) {
+			sys_data.width = atoi(argv[1]);
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--rotate")) {
 			char *next;
