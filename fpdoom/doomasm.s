@@ -402,3 +402,128 @@ CODE32_FN I_FinishUpdateHalfAsm
 	bhi	1b
 	pop	{r4-r9,pc}
 
+.macro READ2X2
+	ldrh	r8, [r3, r12]
+	ldrh	r0, [r3], #2
+	lsr	r9, r8, #8
+	lsr	r7, r0, #8
+	and	r0, #0xff
+	and	r8, #0xff
+	ldr	r0, [r4, r0, lsl #2]
+	ldr	r7, [r4, r7, lsl #2]
+	ldr	r8, [r4, r8, lsl #2]
+	ldr	r9, [r4, r9, lsl #2]
+.endm
+
+.macro SCALE15X_12 r0, r1, lsl, lsr
+	add	r11, \r0, \r1
+	and	r6, r11, lr, lsl #1
+	add	r6, r6, r11, lsl #1
+	and	r11, r10, \r0, lsl #2
+	orr	r11, r11, r11, \lsl #16
+	and	r6, r10
+	\lsr	r11, #16
+	orr	r6, r6, r6, \lsr #16
+	orr	r11, r11, r6, \lsl #16
+.endm
+
+CODE32_FN I_FinishUpdate15Asm
+	push	{r4-r11,lr}
+	ldr	r3, =screens
+	ldr	r4, =colors
+	ldr	r5, =imagedata
+	ldr	r3, [r3]
+	ldr	r5, [r5]
+	mov	r12, #SCREENWIDTH
+	mov	r2, #SCREENHEIGHT
+	ldr	lr, =0x00400802
+	ldr	r10, =0xf81f07e0
+1:	mov	r1, r12
+2:
+	READ2X2
+	SCALE15X_12 r0, r7, lsl, lsr
+	str	r11, [r5], #4
+
+	and	r6, r10, r7, lsl #2
+	orr	r6, r6, r6, lsr #16
+	strh	r6, [r5], #2
+
+	add	r7, r9
+	add	r11, r0, r8
+	and	r6, r11, lr, lsl #1
+	add	r6, r6, r11, lsl #1
+	and	r6, r10
+	orr	r6, r6, r6, lsl #16
+	add	r11, r7
+	and	r0, lr, r11, lsr #2
+	add	r11, r0
+	add	r11, lr
+	and	r11, r10
+	orr	r11, r11, r11, lsr #16
+	lsl	r11, #16
+	orr	r11, r11, r6, lsr #16
+	add	r0, r5, #480 * 2
+	str	r11, [r0, #-6]
+
+	and	r6, r7, lr, lsl #1
+	add	r6, r6, r7, lsl #1
+	and	r6, r10
+	orr	r6, r6, r6, lsr #16
+	strh	r6, [r0, #-2]
+	add	r0, #480 * 2
+
+	SCALE15X_12 r8, r9, lsl, lsr
+	str	r11, [r0, #-6]
+
+	and	r6, r10, r9, lsl #2
+	orr	r6, r6, r6, lsr #16
+	strh	r6, [r0, #-2]
+
+	READ2X2
+
+	and	r6, r10, r0, lsl #2
+	orr	r6, r6, r6, lsr #16
+	strh	r6, [r5], #2
+
+	SCALE15X_12 r7, r0, lsr, lsl
+	str	r11, [r5], #4
+
+	add	r11, r0, r8
+	and	r6, r11, lr, lsl #1
+	add	r6, r6, r11, lsl #1
+	and	r6, r10
+	orr	r6, r6, r6, lsr #16
+	add	r0, r5, #480 * 2
+	strh	r6, [r0, #-6]
+
+	add	r7, r9
+	add	r11, r7
+	and	r6, lr, r11, lsr #2
+	add	r11, r6
+	add	r11, lr
+	and	r11, r10
+	orr	r11, r11, r11, lsl #16
+	lsr	r11, #16
+	and	r6, r7, lr, lsl #1
+	add	r6, r6, r7, lsl #1
+	and	r6, r10
+	orr	r6, r6, r6, lsr #16
+	orr	r11, r11, r6, lsl #16
+	str	r11, [r0, #-4]
+	add	r0, #480 * 2
+
+	and	r6, r10, r8, lsl #2
+	orr	r6, r6, r6, lsr #16
+	strh	r6, [r0, #-6]
+
+	SCALE15X_12 r9, r8, lsr, lsl
+	str	r11, [r0, #-4]
+
+	subs	r1, #4
+	bhi	2b
+	add	r3, r12
+	mov	r5, r0
+	subs	r2, #2
+	bhi	1b
+	pop	{r4-r11,pc}
+
