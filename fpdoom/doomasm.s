@@ -336,8 +336,21 @@ CODE32_FN R_DrawSpanLowAsm
 	bhs	1b
 9:	pop	{r4-r7,pc}
 
+.macro UPDATE_COPY4 r0, r7, r8, r9
+	and	\r0, r6, \r9, lsl #1
+	and	\r7, r6, \r9, lsr #7
+	and	\r8, r6, \r9, lsr #15
+	and	\r9, r6, \r9, lsr #23
+	ldrh	\r0, [r4, \r0]
+	ldrh	\r7, [r4, \r7]
+	ldrh	\r8, [r4, \r8]
+	ldrh	\r9, [r4, \r9]
+	orr	\r0, \r0, \r7, lsl #16
+	orr	\r7, \r8, \r9, lsl #16
+.endm
+
 CODE32_FN I_FinishUpdateCopyAsm
-	push	{r4-r9,lr}
+	push	{r4-r11,lr}
 	ldr	r3, =screens
 	ldr	r4, =colors
 	ldr	r5, =imagedata
@@ -346,23 +359,15 @@ CODE32_FN I_FinishUpdateCopyAsm
 	mov	r2, #SCREENHEIGHT
 	ldr	r6, =0x1fe
 1:	mov	r1, #SCREENWIDTH
-2:	ldr	r9, [r3], #4
-	and	r0, r6, r9, lsl #1
-	and	r7, r6, r9, lsr #7
-	and	r8, r6, r9, lsr #15
-	and	r9, r6, r9, lsr #23
-	ldrh	r0, [r4, r0]
-	ldrh	r7, [r4, r7]
-	ldrh	r8, [r4, r8]
-	ldrh	r9, [r4, r9]
-	orr	r0, r0, r7, lsl #16
-	orr	r8, r8, r9, lsl #16
-	stmia	r5!, {r0,r8}
-	subs	r1, #4
+2:	ldmia	r3!, {r9,r11}
+	UPDATE_COPY4 r0, r7, r8, r9
+	UPDATE_COPY4 r8, r9, r10, r11
+	stmia	r5!, {r0,r7,r8,r9}
+	subs	r1, #8
 	bhi	2b
 	subs	r2, #1
 	bhi	1b
-	pop	{r4-r9,pc}
+	pop	{r4-r11,pc}
 
 CODE32_FN I_FinishUpdateHalfAsm
 	push	{r4-r9,lr}
