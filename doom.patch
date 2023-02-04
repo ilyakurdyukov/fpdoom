@@ -808,7 +808,7 @@ index 1b67d51..b66a996 100644
  
  void I_BeginRead(void)
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..b730c95 100644
+index 9b311b3..eb45a07 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -1148,19 +1148,22 @@ index 9b311b3..b730c95 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +960,11 @@ void I_InitGraphics(void)
+@@ -716,6 +960,14 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
 +#ifdef EMBEDDED
-+    imagedata = malloc(sys_data.display.w2 * sys_data.display.h2 * 2);
++    {
++	char *p = malloc(sys_data.display.w2 * sys_data.display.h2 * 2 + 15);
++	imagedata = (void*)(p + (-(intptr_t)p & 15));
++    }
 +    CHIP_FN2(sys_framebuffer)(imagedata);
 +    CHIP_FN2(sys_start)();
 +#else
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1161,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1164,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1172,7 +1175,7 @@ index 9b311b3..b730c95 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1297,6 @@ Expand4
+@@ -1046,5 +1300,6 @@ Expand4
  	xline += step;
      } while (y--);
  }
@@ -2923,6 +2926,20 @@ index bcfb538..8a5bb27 100644
    // cache data if necessary
    if (!sfx->data)
    {
+diff --git a/v_video.c b/v_video.c
+index 9b30e64..d1f849d 100644
+--- a/v_video.c
++++ b/v_video.c
+@@ -486,7 +486,8 @@ void V_Init (void)
+ 		
+     // stick these in low dos memory on PCs
+ 
+-    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4);
++    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4 + 15);
++    base += -(intptr_t)base & 15;
+ 
+     for (i=0 ; i<4 ; i++)
+ 	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
 diff --git a/w_wad.c b/w_wad.c
 index 178f5cb..54037b3 100644
 --- a/w_wad.c
