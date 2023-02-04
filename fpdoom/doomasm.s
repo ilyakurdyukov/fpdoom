@@ -370,27 +370,45 @@ CODE32_FN I_FinishUpdateCopyAsm
 	pop	{r4-r11,pc}
 
 CODE32_FN I_FinishUpdateHalfAsm
-	push	{r4-r9,lr}
+	push	{r4-r11,lr}
 	ldr	r3, =screens
 	ldr	r4, =colors
 	ldr	r5, =imagedata
 	ldr	r3, [r3]
 	ldr	r5, [r5]
 	mov	r12, #SCREENWIDTH
-	mov	r2, #SCREENHEIGHT
+	mov	r1, #SCREENHEIGHT
 	ldr	lr, =0x00400802
 	ldr	r6, =0xf81f07e0
-1:	mov	r1, r12
-2:	ldrh	r8, [r3, r12]
-	ldrh	r0, [r3], #2
-	lsr	r9, r8, #8
-	lsr	r7, r0, #8
-	and	r0, #0xff
-	and	r8, #0xff
-	ldr	r0, [r4, r0, lsl #2]
-	ldr	r7, [r4, r7, lsl #2]
-	ldr	r8, [r4, r8, lsl #2]
-	ldr	r9, [r4, r9, lsl #2]
+	mov	r2, #0x3fc
+1:	sub	r1, r1, r12, lsl #16
+2:	ldr	r11, [r3, r12]
+	ldr	r10, [r3], #4
+	and	r8, r2, r11, lsl #2
+	and	r9, r2, r11, lsr #6
+	and	r0, r2, r10, lsl #2
+	and	r7, r2, r10, lsr #6
+	ldr	r0, [r4, r0]
+	ldr	r7, [r4, r7]
+	ldr	r8, [r4, r8]
+	ldr	r9, [r4, r9]
+	add	r0, r7
+	add	r8, r9
+	add	r0, r8
+	and	r7, lr, r0, lsr #2
+	add	r0, lr
+	add	r0, r7
+	and	r0, r6
+	and	r8, r2, r11, lsr #14
+	and	r9, r2, r11, lsr #22
+	orr	r11, r0, r0, lsl #16
+	lsr	r11, #16
+	and	r0, r2, r10, lsr #14
+	and	r7, r2, r10, lsr #22
+	ldr	r0, [r4, r0]
+	ldr	r7, [r4, r7]
+	ldr	r8, [r4, r8]
+	ldr	r9, [r4, r9]
 	add	r0, r7
 	add	r8, r9
 	add	r0, r8
@@ -399,25 +417,27 @@ CODE32_FN I_FinishUpdateHalfAsm
 	add	r0, r7
 	and	r0, r6
 	orr	r0, r0, r0, lsr #16
-	strh	r0, [r5], #2
-	subs	r1, #2
-	bhi	2b
+	orr	r0, r11, r0, lsl #16
+	str	r0, [r5], #4
+	adds	r1, #4 << 16
+	bmi	2b
 	add	r3, r12
-	subs	r2, #2
+	subs	r1, #2
 	bhi	1b
-	pop	{r4-r9,pc}
+	pop	{r4-r11,pc}
 
 .macro READ2X2
+	mov	r6, #0x3fc
 	ldrh	r8, [r3, r12]
 	ldrh	r0, [r3], #2
-	lsr	r9, r8, #8
-	lsr	r7, r0, #8
-	and	r0, #0xff
-	and	r8, #0xff
-	ldr	r0, [r4, r0, lsl #2]
-	ldr	r7, [r4, r7, lsl #2]
-	ldr	r8, [r4, r8, lsl #2]
-	ldr	r9, [r4, r9, lsl #2]
+	and	r9, r6, r8, lsr #6
+	and	r7, r6, r0, lsr #6
+	and	r0, r6, r0, lsl #2
+	and	r8, r6, r8, lsl #2
+	ldr	r0, [r4, r0]
+	ldr	r7, [r4, r7]
+	ldr	r8, [r4, r8]
+	ldr	r9, [r4, r9]
 .endm
 
 .macro SCALE15X_12 r0, r1, lsl, lsr
@@ -440,18 +460,18 @@ CODE32_FN I_FinishUpdate15Asm
 	ldr	r3, [r3]
 	ldr	r5, [r5]
 	mov	r12, #SCREENWIDTH
-	mov	r2, #SCREENHEIGHT
+	mov	r1, #SCREENHEIGHT
 	ldr	lr, =0x00400802
 	ldr	r10, =0xf81f07e0
-1:	mov	r1, r12
+1:	sub	r1, r1, r12, lsl #16
 2:
 	READ2X2
 	SCALE15X_12 r0, r7, lsl, lsr
 	str	r11, [r5], #4
 
-	and	r6, r10, r7, lsl #2
-	orr	r6, r6, r6, lsr #16
-	strh	r6, [r5], #2
+	and	r2, r10, r7, lsl #2
+	orr	r2, r2, r2, lsr #16
+	lsl	r2, #16
 
 	add	r7, r9
 	add	r11, r0, r8
@@ -467,28 +487,35 @@ CODE32_FN I_FinishUpdate15Asm
 	orr	r11, r11, r11, lsr #16
 	lsl	r11, #16
 	orr	r11, r11, r6, lsr #16
-	add	r0, r5, #480 * 2
-	str	r11, [r0, #-6]
+	str	r11, [r5, #480 * 2 - 4]
 
 	and	r6, r7, lr, lsl #1
 	add	r6, r6, r7, lsl #1
 	and	r6, r10
-	orr	r6, r6, r6, lsr #16
-	strh	r6, [r0, #-2]
-	add	r0, #480 * 2
+	orr	r6, r6, r6, lsl #16
+	orr	r2, r2, r6, lsr #16
 
 	SCALE15X_12 r8, r9, lsl, lsr
-	str	r11, [r0, #-6]
+	str	r11, [r5, #480 * 4 - 4]
 
 	and	r6, r10, r9, lsl #2
-	orr	r6, r6, r6, lsr #16
-	strh	r6, [r0, #-2]
+	orr	r11, r6, r6, lsl #16
 
 	READ2X2
 
+	and	r6, r10, r8, lsl #2
+	orr	r6, r6, r6, lsr #16
+	lsl	r6, #16
+	orr	r6, r6, r11, lsr #16
+	str	r6, [r5, #480 * 4]
+
 	and	r6, r10, r0, lsl #2
 	orr	r6, r6, r6, lsr #16
-	strh	r6, [r5], #2
+	lsl	r6, #16
+	orr	r6, r6, r2, lsr #16
+	str	r6, [r5], #4
+	lsl	r2, #16
+	orr	r2, r2, r11, lsr #16
 
 	SCALE15X_12 r7, r0, lsr, lsl
 	str	r11, [r5], #4
@@ -498,8 +525,9 @@ CODE32_FN I_FinishUpdate15Asm
 	add	r6, r6, r11, lsl #1
 	and	r6, r10
 	orr	r6, r6, r6, lsr #16
-	add	r0, r5, #480 * 2
-	strh	r6, [r0, #-6]
+	lsl	r6, #16
+	orr	r6, r6, r2, lsr #16
+	str	r6, [r5, #480 * 2 - 8]
 
 	add	r7, r9
 	add	r11, r7
@@ -514,21 +542,16 @@ CODE32_FN I_FinishUpdate15Asm
 	and	r6, r10
 	orr	r6, r6, r6, lsr #16
 	orr	r11, r11, r6, lsl #16
-	str	r11, [r0, #-4]
-	add	r0, #480 * 2
-
-	and	r6, r10, r8, lsl #2
-	orr	r6, r6, r6, lsr #16
-	strh	r6, [r0, #-6]
+	str	r11, [r5, #480 * 2 - 4]
 
 	SCALE15X_12 r9, r8, lsr, lsl
-	str	r11, [r0, #-4]
+	str	r11, [r5, #480 * 4 - 4]
 
-	subs	r1, #4
-	bhi	2b
+	adds	r1, #4 << 16
+	bmi	2b
 	add	r3, r12
-	mov	r5, r0
-	subs	r2, #2
+	add	r5, #480 * 4
+	subs	r1, #2
 	bhi	1b
 	pop	{r4-r11,pc}
 
