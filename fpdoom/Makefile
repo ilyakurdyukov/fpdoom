@@ -1,4 +1,4 @@
-# 0 - detect, 1 - SC6531E, 2 - SC6531DA
+# 0 - detect, 1 - SC6531E, 2 - SC6531DA, 3 - SC6530
 CHIP = 0
 TWO_STAGE = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
@@ -100,10 +100,10 @@ $(OBJDIR)/%.o: $(DOOM_DIR)/%.c | $(OBJDIR)
 	$(call compile_fn,$(DOOM_CFLAGS))
 
 $(OBJDIR)/chip1_%.o: %.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=1)
+	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
 
 $(OBJDIR)/chip2_%.o: %.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=2)
+	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
 $(OBJDIR)/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@

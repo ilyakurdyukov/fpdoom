@@ -1,6 +1,6 @@
 ## FPDoom: Doom for feature phones
 
-Currently only for feature phones based on the SC6531(E/DA) chipset.
+Currently only for feature phones based on the SC6530/SC6531(E/DA) chipset.
 
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, USE AT YOUR OWN RISK!
 
@@ -48,7 +48,8 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 |  7 | Nobby 170B      | SC6531E  | GC9106 128x160 | #        |
 |  8 | SW DZ09         | SC6531DA | GC9307 240x240 |          |
 |  9 | Nokia TA-1174   | SC6531E  | ???    128x160 | 7        |
-| 10 | BQ 3586         | SC6531E  | R61529 320x480 | #        |
+| 10 | BQ 3586         | SC6531H  | R61529 320x480 | #        |
+| 11 | Samsung B310E   | SC6530C  | ST7735 128x160 | center   |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`

@@ -3,6 +3,7 @@
 
 #include "common.h"
 
+void usb_init_base(void);
 void usb_init(void);
 int usb_getchar(int wait);
 int usb_read(void *dst, unsigned len, int wait);

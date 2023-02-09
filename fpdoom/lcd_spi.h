@@ -192,7 +192,7 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	{
 #if CHIP == 1
 		unsigned spi_freq = 104000000;
-#elif CHIP == 2
+#elif CHIP == 2 || CHIP == 3
 		unsigned spi_freq = !SPI_ID(spi) ? 78000000 : 48000000;
 #endif
 		unsigned freq = lcd_setup.lcd->spi.freq, clkd;

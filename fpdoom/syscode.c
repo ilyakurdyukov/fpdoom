@@ -16,6 +16,12 @@ void set_cpsr_c(uint32_t a);
 
 #define FATAL() ERR_EXIT("error at %s:%d\n", __FILE__, __LINE__)
 
+#if defined(CHIP_AUTO) && CHIP == 2
+#define IS_SC6530 ((int32_t)(MEM4(0x205003fc) << 15) >= 0)
+#else
+#define IS_SC6530 (CHIP == 3)
+#endif
+
 #if CHIP == 1 // SC6531E
 #define REG_ADI_FIFO_STS 0x82000004
 #define BIT_FIFO_EMPTY (1u << 21)
@@ -24,7 +30,7 @@ void set_cpsr_c(uint32_t a);
 #define REG_ADI_RD_CMD 0x82000008
 #define REG_ADI_RD_DATA 0x8200000c
 
-#elif CHIP == 2 // SC6531DA
+#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
 #define REG_ADI_FIFO_STS 0x82000020
 #define BIT_FIFO_EMPTY (1u << 8)
 #define BIT_FIFO_FULL (1u << 9)
@@ -62,7 +68,11 @@ static uint32_t adi_read(uint32_t addr) {
 		t1 = sys_timer_ms();
 		if (t1 - t0 > 60) FATAL();
 	}
+#if CHIP == 1
 	if (a >> 16 != addr) FATAL();
+#else
+	if ((a >> 16 & 0x1fff) != addr) FATAL();
+#endif
 	return a & 0xffff;
 }
 
@@ -88,7 +98,7 @@ static void adi_write(uint32_t addr, uint32_t val) {
 #define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x004)
 #define ANA_WHTLED_CTRL (ANA_REG_BASE + 0x13c)
 #define ANA_CHGR_CTRL0 (ANA_REG_BASE + 0x150)
-#elif CHIP == 2 // SC6531DA
+#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
 #define ANA_REG_BASE 0x82001000
 #define ANA_CHIP_ID_HIGH (ANA_REG_BASE + 0x000)
 #define ANA_CHIP_ID_LOW (ANA_REG_BASE + 0x004)
@@ -98,10 +108,10 @@ static void adi_write(uint32_t addr, uint32_t val) {
 #endif
 
 #define AHB_CR(x) MEM4(0x20500000 + (x))
-#define AHB_PWR_ON(x) AHB_CR(_chip == 2 ? 0x60 : 0x1080) = (x)
-#define AHB_PWR_OFF(x) AHB_CR(_chip == 2 ? 0x70 : 0x2080) = (x)
-#define APB_PWR_ON(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa0 : 0x10a8)) = (x)
-#define APB_PWR_OFF(x) MEM4(0x8b000000 + (_chip == 2 ? 0xa4 : 0x20a8)) = (x)
+#define AHB_PWR_ON(x) AHB_CR(_chip != 1 ? 0x60 : 0x1080) = (x)
+#define AHB_PWR_OFF(x) AHB_CR(_chip != 1 ? 0x70 : 0x2080) = (x)
+#define APB_PWR_ON(x) MEM4(0x8b000000 + (_chip != 1 ? 0xa0 : 0x10a8)) = (x)
+#define APB_PWR_OFF(x) MEM4(0x8b000000 + (_chip != 1 ? 0xa4 : 0x20a8)) = (x)
 
 static void init_chip_id(void) {
 	uint32_t t0, t1;
@@ -112,21 +122,20 @@ static void init_chip_id(void) {
 	t0 |= (t1 & 0xf000000) >> 4 | (t1 & 0xf0000);
 	t1 = MEM4(0x8b000364);	// 0x00000001
 	t0 |= t1;
-#elif CHIP == 2
+#elif CHIP == 2 || CHIP == 3
 	t0 = MEM4(0x205003fc);
 #endif
 	sys_data.chip_id.num = t0;
-	DBG_LOG("chip_id: num = 0x%x\n", t0);
+	DBG_LOG("chip_id: %s = 0x%x\n", "num", t0);
 
 	t1 = 0x7fffffff;
 	switch (t0) {
-	//case 0x65300000: t1 = 0x90001; break;
-	//case 0x6530c000: t1 = 0x90001; break;
-#if CHIP == 2
+#if CHIP == 2 || CHIP == 3
+	case 0x65300000: t1 = 0x90001; break; // SC6530
+	case 0x6530c000: t1 = 0x90001; break; // SC6530C
 	case 0x65310000: t1 = 0x90003; break; // SC6531
 	case 0x65310001: t1 = 0x90003; break; // SC6531BA
-#endif
-#if CHIP == 1
+#elif CHIP == 1
 	case 0x65620000: t1 = 0xa0001; break; // SC6531EFM
 	case 0x65620001: t1 = 0xa0002; break; // SC6531EFM_AB
 #endif
@@ -134,23 +143,23 @@ static void init_chip_id(void) {
 	}
 
 	sys_data.chip_id.ver = t1;
-	DBG_LOG("chip_id: ver = 0x%x\n", t1);
+	DBG_LOG("chip_id: %s = 0x%x\n", "ver", t1);
 
 #if CHIP == 1
-	sys_data.chip_id.ahb = t0 = MEM4(0x20500168);
-	DBG_LOG("chip_id: ahb = 0x%x\n", t0);
+	t0 = MEM4(0x20500168);
+	DBG_LOG("chip_id: %s = 0x%x\n", "ahb", t0);
 #endif
 
 	t0 = adi_read(ANA_CHIP_ID_HIGH) << 16;
 	t0 |= adi_read(ANA_CHIP_ID_LOW);
-	sys_data.chip_id.analog = t0;
-
-	DBG_LOG("chip_id: analog = 0x%x\n", t0);
-#if CHIP == 2
+	sys_data.chip_id.adi = t0;
+	DBG_LOG("chip_id: %s = 0x%x\n", "adi", t0);
+#if CHIP == 2 || CHIP == 3
+	// 0x11300000: SR1130
+	// 0x1130c000: SR1130C
 	// 0x11310000: SR1131
 	// 0x11310001: SR1131BA
-#endif
-#if CHIP == 1
+#elif CHIP == 1
 	// 0x1161a000: SC1161
 #endif
 }
@@ -161,14 +170,14 @@ static int gpio_set(unsigned id, unsigned off, int state) {
 #if CHIP == 1
 	if (id >= 0x4c) FATAL();
 	addr = 0x8a000000 + ((id >> 4) << 7);
-#elif CHIP == 2
-	if (id >= 0x90) FATAL();
+#elif CHIP == 2 || CHIP == 3
+	if (id >= (IS_SC6530 ? 0xa0 : 0x90)) FATAL();
 	addr = id >> 7 ?
 		(0x82001780 - (8 << 6)) + ((id >> 4) << 6) :
 		0x8a000000 + ((id >> 4) << 7);
 #endif
 	addr += off;
-#if CHIP == 2
+#if CHIP == 2 || CHIP == 3
 	if (id >> 7) tmp = adi_read(addr);
 	else
 #endif
@@ -176,7 +185,7 @@ static int gpio_set(unsigned id, unsigned off, int state) {
 	if (state < 0) return tmp >> shl & 1;
 	tmp &= ~(1u << shl);
 	tmp |= state << shl;
-#if CHIP == 2
+#if CHIP == 2 || CHIP == 3
 	if (id >> 7) adi_write(addr, tmp);
 	else
 #endif
@@ -247,7 +256,7 @@ void CHIP_FN(sys_brightness)(unsigned val) {
 	val2 = val = (val * 32 + 50) / 100;
 	tmp = adi_read(ANA_WHTLED_CTRL) & ~0x5f;
 	if (val) val += 0x40 - 1;
-	tmp |= 0x1200; /* turn off flashlight */
+	tmp |= IS_SC6530 ? 0x1100 : 0x1200; /* turn off flashlight */
 	adi_write(ANA_WHTLED_CTRL, tmp | val);
 #endif
 	if (sys_data.bl_gpio != 0xff) {
@@ -360,20 +369,32 @@ static void lcm_wait(uint32_t delay, uint32_t method) {
 	}
 }
 
-static uint32_t get_freq_1(void) {
+static uint32_t get_cpu_freq(void) {
 	static const unsigned tab[4] = {
 #if CHIP == 1 // SC6531E
 		26000000, 104000000, 208000000, 208000000
-#elif CHIP == 2 // SC6531DA
+#elif CHIP == 2 || CHIP == 3 // SC6531DA
 		26000000, 208000000, 249600000, 312000000
 #endif
 	};
+
+	if (IS_SC6530) {
+		static const unsigned tab[4] = {
+			26000000, 208000000, 104000000, 156000000
+		};
+		return tab[MEM4(0x8b000040) & 3];
+	}
 	return tab[MEM4(0x8b00004c) & 3];
 }
 
-static uint32_t get_freq_2(void) {
+static uint32_t get_ahb_freq(void) {
+	if (IS_SC6530) {
+		uint32_t freq = get_cpu_freq();
+		if (MEM4(0x8b000040) & 1 << 2) freq >>= 1;
+		return freq;
+	}
 	if (MEM4(0x8b00004c) & 1 << 2) return 208000000 >> 1;
-	return get_freq_1() >> 1;
+	return get_cpu_freq() >> 1;
 }
 
 // worst timings
@@ -518,7 +539,7 @@ void lcm_send_rgb16(uint16_t *ptr, uint32_t size) {
 static int is_whtled_on(void) {
 #if CHIP == 1
 	return (adi_read(ANA_WHTLED_CTRL) & 1) == 0;
-#elif CHIP == 2
+#elif CHIP == 2 || CHIP == 3
 	return (adi_read(ANA_LED_CTRL) & 4) == 0;
 #endif
 }
@@ -535,7 +556,7 @@ static void lcm_init(void) {
 
 	if (!is_whtled_on()) lcm_wait(32, 0);
 
-	clk_rate = get_freq_2();
+	clk_rate = get_ahb_freq();
 	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
 
 	if (sys_data.spi) {
@@ -635,9 +656,9 @@ static void lcdc_init(void) {
 
 	AHB_PWR_ON(0x1000);	// LCDC enable
 	// AHB_SOFT_RST?
-	AHB_CR(_chip == 2 ? 0x20 : 0x1040) = 0x200;
+	AHB_CR(_chip != 1 ? 0x20 : 0x1040) = 0x200;
 	sys_wait_ms(10);
-	AHB_CR(_chip == 2 ? 0x30 : 0x2040) = 0x200;
+	AHB_CR(_chip != 1 ? 0x30 : 0x2040) = 0x200;
 
 	LCDC_CR(LCDC_CTRL) |= 1; // lcdc_enable = 1
 
@@ -721,15 +742,15 @@ enum {
 static void keypad_init(void) {
 	short *keymap = sys_data.keymap_addr;
 	int i, j, row = 0, col = 0, ctrl;
-	int nrow = _chip == 2 ? 8 : 5;
-	int ncol = _chip == 2 ? 5 : 8;
+	int nrow = _chip != 1 ? 8 : 5;
+	int ncol = _chip != 1 ? 5 : 8;
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++)
 		if (keymap[i * nrow + j] != -1)
 			col |= 1 << i, row |= 1 << j;
 
-	if (_chip == 2)
+	if (_chip != 1)
 		row &= 0xfc, col &= 0xfc;	// why?
 
 	//DBG_LOG("keypad: row_mask = 0x%02x, col_mask = 0x%02x\n", row, col);
@@ -786,7 +807,7 @@ void CHIP_FN(sys_init)(void) {
 
 #if CHIP == 1
 	{
-		unsigned sh = 1;	// CHGR_PD
+		unsigned sh = 0;	// CHGR_PD
 		uint32_t val = adi_read(ANA_CHGR_CTRL0) & ~(1 << sh);
 		adi_write(ANA_CHGR_CTRL0, val | sys_data.charger_pd << sh);
 	}

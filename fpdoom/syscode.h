@@ -7,7 +7,7 @@
 #if CHIP
 #if CHIP == 1
 #define FIRMWARE_ADDR 0x10000000
-#elif CHIP == 2
+#elif CHIP == 2 || CHIP == 3
 #define FIRMWARE_ADDR 0x30000000
 #endif
 #define RAM_ADDR (FIRMWARE_ADDR + 0x4000000)
@@ -16,11 +16,13 @@
 #define RAM_SIZE (4 << 20)
 
 #if !CHIP
-#define CHIP_FN(name) (_chip == 2 ? sc6531da_##name : sc6531e_##name)
+#define CHIP_FN(name) (_chip != 1 ? sc6531da_##name : sc6531e_##name)
 #elif CHIP == 1 // SC6531E
 #define CHIP_FN(name) sc6531e_##name
 #elif CHIP == 2 // SC6531DA
 #define CHIP_FN(name) sc6531da_##name
+#elif CHIP == 3 // SC6530
+#define CHIP_FN(name) sc6530_##name
 #else
 #error
 #endif
@@ -70,7 +72,7 @@ extern uint32_t *pinmap_addr;
 
 extern struct sys_data {
 	short *keymap_addr;
-	struct { uint32_t num, ver, ahb, analog; } chip_id;
+	struct { uint32_t num, ver, adi; } chip_id;
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	int brightness;
 	uint16_t keytrn[65];

@@ -151,6 +151,61 @@ CODE32_FN sc6531da_init_smc_asm
 sc6531da_init_smc_asm_end:
 	.global sc6531da_init_smc_asm_end
 
+CODE32_FN sc6530_init_smc_asm
+	push	{r4-r9,lr}
+	adr	r6, 1f
+	ldmia	r6!, {r0-r3}
+
+	mov	r7, #0x20000000
+	mov	r4, #0
+	str	r0, [r7]
+	str	r4, [r7, #0x04]
+	str	r4, [r7, #0x20]
+	str	r1, [r7, #0x24]
+	str	r2, [r7, #0x28]
+	str	r3, [r7, #0x2c]
+	mov	r0, #100
+	bl	3f
+
+	ldmia	r6!, {r0-r3,r5}
+	str	r0, [r7]
+	str	r3, [r7, #0x04]
+	eor	r8, r0, #0x100
+
+	ldr	r0, [r7, #0x24]
+	orr	r0, #0x20000
+	str	r0, [r7, #0x24]
+	strh	r4, [r5, r1]
+	bl	2f
+	strh	r4, [r5, r2]
+	bl	2f
+	ldr	r0, [r7, #0x24]
+	bic	r0, #0x20000
+	str	r0, [r7, #0x24]
+	bl	2f
+
+	ldmia	r6!, {r0-r2}
+	str	r0, [r7, #0x24]
+	str	r1, [r7, #0x28]
+	str	r2, [r7, #0x2c]
+	str	r8, [r7]
+	str	r3, [r7, #0x04]
+	mov	r0, #100
+	bl	3f
+	pop	{r4-r9,pc}
+
+2:	mov	r0, #10
+3:	subs	r0, #1
+	bne	3b
+	bx	lr
+
+1:	.long	0x22220000, 0x00924ff0, 0x0151ffff, 0x00a0744f
+	.long	0x222211e0, 0x10323e, 0x20, 0x8080, 0x34000000
+	.long	0x00ac1fff, 0x015115ff, 0x00501015
+
+sc6530_init_smc_asm_end:
+	.global sc6530_init_smc_asm_end
+
 CODE32_FN abs
 	tst	r0, r0
 	rsbmi	r0, #0

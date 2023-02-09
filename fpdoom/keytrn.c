@@ -39,8 +39,8 @@ void keytrn_init(void) {
 		{ "\005\004\007\006987654321" },
 		{ "\006\007\005\004741852963" } };
 	uint8_t rkeymap[64];
-	int nrow = _chip == 2 ? 8 : 5;
-	int ncol = _chip == 2 ? 6 : 8;
+	int nrow = _chip != 1 ? 8 : 5;
+	int ncol = _chip != 1 ? 6 : 8;
 
 	memset(rkeymap, 64, sizeof(rkeymap));
 

@@ -35,9 +35,11 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 
 #if !CHIP
 	if (fw_addr == 0x30000000) {
-		_chip = 2;
+		uint32_t t0 = MEM4(0x205003fc);
+		_chip = (int32_t)(t0 << 15) < 0 ? 2 : 3;
 		chip_fn[0] = chip_fn[1];
-	}
+	} else _chip = 1;
+	usb_init_base();
 #endif
 
 	// usb_init();

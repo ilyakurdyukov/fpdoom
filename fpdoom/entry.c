@@ -3,8 +3,12 @@
 #include "usbio.h"
 #include "syscode.h"
 
+#define SMC_INIT_BUF 0x40007000
 #if !CHIP || CHIP == 2
 #include "init_sc6531da.h"
+#endif
+#if !CHIP || CHIP == 3
+#include "init_sc6530.h"
 #endif
 
 #include <stdio.h>
@@ -71,19 +75,23 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	int argc1;
 	struct sys_data *sys_data_copy;
 #endif
+#if !CHIP
+	uint32_t chip = 1;
+#endif
 
 	// SC6531E is initialized by FDL1
-#if !CHIP || CHIP == 2
 #if !CHIP
 	if (fw_addr == 0x30000000) {
-#endif
-		init_sc6531da();
-#if !CHIP
-#if !TWO_STAGE
+		uint32_t t0 = MEM4(0x205003fc);
+		chip = (int32_t)(t0 << 15) < 0 ? 2 : 3;
+		if (chip == 2) init_sc6531da();
+		if (chip == 3) init_sc6530();
 		chip_fn[0] = chip_fn[1];
-#endif
 	}
-#endif
+#elif CHIP == 2
+	init_sc6531da();
+#elif CHIP == 3
+	init_sc6530();
 #endif
 
 #if TWO_STAGE
@@ -97,7 +105,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	memset(image_addr + image_size, 0, bss_size);
 
 #if !CHIP
-	_chip = fw_addr == 0x30000000 ? 2 : 1;
+	_chip = chip;
 #endif
 
 	ram_size = get_ram_size(ram_addr);

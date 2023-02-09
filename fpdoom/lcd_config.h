@@ -272,7 +272,7 @@ static const uint8_t cmd1529_init[] = {
 };
 #endif
 
-#if CHIP == 2
+#if CHIP == 2 || CHIP == 3
 static const uint8_t cmd9106_init[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
@@ -354,20 +354,22 @@ static const uint8_t cmd9307_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd7735_init[] = {
+static const uint8_t cmd7C89F0_init[] = {
 	//LCM_DELAY(120),
 	LCM_CMD(0x11, 0), // Sleep Out Mode
 	LCM_DELAY(120),
+	// Frame Rate Control 1-3
 	LCM_CMD(0xb1, 3), 0x01,0x08,0x05,
 	LCM_CMD(0xb2, 3), 0x01,0x08,0x05,
 	LCM_CMD(0xb3, 6), 0x01,0x08,0x05,0x05,0x08,0x05,
-	LCM_CMD(0xb4, 1), 0x03,
+	LCM_CMD(0xb4, 1), 0x03,	// Display Inversion Control
+	// Power Control 1-5
 	LCM_CMD(0xc0, 3), 0x28,0x08,0x04,
 	LCM_CMD(0xc1, 1), 0xc0,
 	LCM_CMD(0xc2, 2), 0x0d,0x00,
 	LCM_CMD(0xc3, 2), 0x8d,0x2a,
 	LCM_CMD(0xc4, 2), 0x8d,0xee,
-	LCM_CMD(0xc5, 1), 0x14,
+	LCM_CMD(0xc5, 1), 0x14, // VCOM Control 1
 	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
 	// Set Gamma 1
 	LCM_CMD(0xe0, 16), 0x07,0x18,0x0c,0x15,
@@ -377,6 +379,59 @@ static const uint8_t cmd7735_init[] = {
 		0x35,0x30,0x2a,0x2d, 0x2c,0x29,0x31,0x3b, 0x00,0x02,0x03,0x12,
 	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
 	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd5CC0F1_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	// Frame Rate Control 1
+	LCM_CMD(0xb1, 3), 0x04,0x10,0x10,
+	LCM_CMD(0xb4, 1), 0x03,	// Display Inversion Control
+	LCM_CMD(0xb6, 2), 0x17,0x00, // Display Function Setting
+	// Power Control 1-3
+	LCM_CMD(0xc0, 3), 0xa4,0x04,0x04,
+	LCM_CMD(0xc1, 1), 0xc0,
+	LCM_CMD(0xc2, 2), 0x0a,0x00,
+	LCM_CMD(0xc5, 1), 0x0f, // VCOM Control 1
+	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x02,0x1f,0x0b,0x12,
+		0x36,0x33,0x2d,0x31, 0x2f,0x2c,0x33,0x3b, 0x00,0x02,0x01,0x02,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x02,0x1f,0x0b,0x12,
+		0x36,0x32,0x2d,0x30, 0x2f,0x2c,0x33,0x3b, 0x00,0x01,0x00,0x02,
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_DELAY(120),
+	LCM_END
+};
+
+static const uint8_t cmd5CA1F1_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	// Frame Rate Control 1-3
+	LCM_CMD(0xb1, 3), 0x0f,0x04,0x04,
+	LCM_CMD(0xb2, 3), 0x05,0x3a,0x3a,
+	LCM_CMD(0xb3, 6), 0x05,0x3a,0x3a,0x05,0x3a,0x3a,
+	LCM_CMD(0xb4, 1), 0x00,	// Display Inversion Control
+	// Power Control 1-5
+	LCM_CMD(0xc0, 3), 0xc3,0x06,0x44,
+	LCM_CMD(0xc1, 1), 0xc2,
+	LCM_CMD(0xc2, 2), 0x0d,0x00,
+	LCM_CMD(0xc3, 2), 0xdb,0x2a,
+	LCM_CMD(0xc4, 2), 0x8b,0xee,
+	LCM_CMD(0xc5, 1), 0x0d, // VCOM Control 1
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x13,0x14,0x06,0x11,
+		0x29,0x26,0x21,0x26, 0x25,0x26,0x2e,0x3b, 0x00,0x03,0x02,0x06,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x02,0x25,0x06,0x11,
+		0x29,0x26,0x21,0x26, 0x26,0x26,0x2e,0x3b, 0x00,0x03,0x02,0x06,
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_DELAY(120),
 	LCM_END
 };
 #endif
@@ -403,6 +458,7 @@ static const lcd_config_t lcd_config[] = {
 
 /* Nokia TA-1174 */
 
+	// 0x1c80f3
 	{ 0x009316, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd9316_init },
 
 /* BQ 3586 Tank Max */
@@ -411,7 +467,7 @@ static const lcd_config_t lcd_config[] = {
 	{ 0x01221529, 0xffffffff, 0, 0, 1,  320, 480, 1, 0, 2,  { 170, 170, 250, 8, 15, 15 }, { 0 }, 0x00, cmd1529_init },
 #endif
 
-#if CHIP == 2
+#if CHIP == 2 || CHIP == 3
 /* Joy's S21 */
 
 	// GlaxyCore GC9106
@@ -421,13 +477,20 @@ static const lcd_config_t lcd_config[] = {
 
 /* Vector M115 */
 
-	// Sitronix ST7735S
-	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7735_init },
+	// Sitronix ST7735S CTC
+	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7C89F0_init },
 
 /* DZ09 */
 
 	// GlaxyCore GC9307
 	{ 0x009307, 0xffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init },
+
+/* Samsung B310E */
+
+	// Sitronix ST7735 DTC (untested)
+	{ 0x5cc0f1, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 5, 15, 40 }, { 0 }, 0xc8, cmd5CC0F1_init },
+	// Sitronix ST7735 TNM
+	{ 0x5ca1f1, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 5, 15, 40 }, { 0 }, 0x00, cmd5CA1F1_init },
 #endif
 };
 
