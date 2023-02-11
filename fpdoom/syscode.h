@@ -96,7 +96,7 @@ void keytrn_init(void);
 void lcd_appinit(void);
 
 uint8_t* framebuffer_init(void);
-extern void (*app_pal_update)(uint8_t *pal, void *dest, uint8_t *gamma);
+extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 extern void (*app_scr_update)(uint8_t *src, void *dest);
 
 #endif // SYSCODE_H

@@ -7,7 +7,7 @@
 #define SCREENWIDTH 320
 #define SCREENHEIGHT 200
 
-void (*app_pal_update)(uint8_t *pal, void *dest, uint8_t *gamma);
+void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
 
 #define PAL_UPDATE(load, process) \
@@ -15,8 +15,8 @@ void (*app_scr_update)(uint8_t *src, void *dest);
 		r = load; g = load; b = load; process; \
 	}
 
-void pal_update16_asm(uint8_t *pal, void *dest, uint8_t *gamma);
-void pal_update16_ref(uint8_t *pal, void *dest, uint8_t *gamma) {
+void pal_update16_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
+void pal_update16_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 	int i, r, g, b;
 	uint16_t *d = (uint16_t*)dest - 256;
 	if (!gamma)
@@ -27,8 +27,8 @@ void pal_update16_ref(uint8_t *pal, void *dest, uint8_t *gamma) {
 				*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3)
 }
 
-void pal_update32_asm(uint8_t *pal, void *dest, uint8_t *gamma);
-void pal_update32_ref(uint8_t *pal, void *dest, uint8_t *gamma) {
+void pal_update32_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
+void pal_update32_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 	int i, r, g, b;
 	uint32_t *d = (uint32_t*)dest - 256;
 	if (!gamma)
@@ -39,8 +39,8 @@ void pal_update32_ref(uint8_t *pal, void *dest, uint8_t *gamma) {
 				*d++ = r << 22 | b << 11 | g << 1)
 }
 
-void pal_update32_8d9_asm(uint8_t *pal, void *dest, uint8_t *gamma);
-void pal_update32_8d9_ref(uint8_t *pal, void *dest, uint8_t *gamma) {
+void pal_update32_8d9_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
+void pal_update32_8d9_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 	int i, r, g, b;
 	uint32_t *d = (uint32_t*)dest - 256 * 2;
 #define X(i) ((i) * 8 + 4) / 9

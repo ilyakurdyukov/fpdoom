@@ -810,20 +810,20 @@ void CHIP_FN(sys_init)(void) {
 	// will allow to remove the battery after boot
 	if (!IS_SC6530 && sys_data.charge >= 2) {
 		// CHGR_CTRL0:CHGR_CC_EN = 1
-		adi_write(CHGR_CTRL0, adi_read(CHGR_CTRL0) | 1);
+		adi_write(ANA_CHGR_CTRL0, adi_read(ANA_CHGR_CTRL0) | 1);
 		// CHGR_CTRL0:CHGR_CC_I = 300mA
-		adi_write(CHGR_CTRL0, (adi_read(CHGR_CTRL0) & ~(0xf << 4)) | 0 << 4);
+		adi_write(ANA_CHGR_CTRL0, (adi_read(ANA_CHGR_CTRL0) & ~(0xf << 4)) | 0 << 4);
 		// CHGR_CTRL0:CHGR_PD = 1
-		adi_write(CHGR_CTRL0, adi_read(CHGR_CTRL0) | 1 << 8);
+		adi_write(ANA_CHGR_CTRL0, adi_read(ANA_CHGR_CTRL0) | 1 << 8);
 		sys_wait_ms(10);
 		// CHGR_CTRL0:CHGR_PD = 0
-		adi_write(CHGR_CTRL0, adi_read(CHGR_CTRL0) & ~(1 << 8));
+		adi_write(ANA_CHGR_CTRL0, adi_read(ANA_CHGR_CTRL0) & ~(1 << 8));
 		// CHGR_CTRL0:RECHG = 1
-		adi_write(CHGR_CTRL0, adi_read(CHGR_CTRL0) | 1 << 12);
+		adi_write(ANA_CHGR_CTRL0, adi_read(ANA_CHGR_CTRL0) | 1 << 12);
 	} else
 #endif
 	if (sys_data.charge >= 0) {
-		unsigned charger_pd = charge < 1;
+		unsigned charger_pd = sys_data.charge < 1;
 		unsigned sh = _chip == 1 ? 0 : 8;	// CHGR_PD
 		uint32_t val = adi_read(ANA_CHGR_CTRL0) & ~(1 << sh);
 		adi_write(ANA_CHGR_CTRL0, val | charger_pd << sh);
