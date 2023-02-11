@@ -174,8 +174,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
 	// sys_data.spi = 0;
-	// sys_data.charger_pd = 0;
 	// sys_data.gpio_init = 0;
+	sys_data.charge = -1;
 	sys_data.spi_mode = 3;
 	sys_data.bl_gpio = 0xff;
 
@@ -222,7 +222,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			sys_data.bl_gpio = atoi(argv[1]);
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
-			sys_data.charger_pd = !atoi(argv[1]);
+			sys_data.charge = atoi(argv[1]);
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
