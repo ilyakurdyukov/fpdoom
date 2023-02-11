@@ -807,8 +807,20 @@ index 1b67d51..b66a996 100644
  }
  
  void I_BeginRead(void)
+diff --git a/i_system.h b/i_system.h
+index 8954140..d814a9f 100644
+--- a/i_system.h
++++ b/i_system.h
+@@ -86,6 +86,7 @@ byte* I_AllocLow (int length);
+ void I_Tactile (int on, int off, int total);
+ 
+ 
++__attribute__((noreturn))
+ void I_Error (char *error, ...);
+ 
+ 
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..eb45a07 100644
+index 9b311b3..a8b4fcd 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -827,31 +839,19 @@ index 9b311b3..eb45a07 100644
  #include <signal.h>
  
  #include "doomstat.h"
-@@ -59,6 +61,23 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+@@ -59,6 +61,11 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
  
  #define POINTER_WARP_COUNTDOWN	1
  
 +#ifdef EMBEDDED
 +#include "../syscode.h"
 +
-+#ifdef USEASM
-+#define I_FinishUpdateCopy I_FinishUpdateCopyAsm
-+#define I_FinishUpdateHalf I_FinishUpdateHalfAsm
-+#define I_FinishUpdate15 I_FinishUpdate15Asm
-+#define I_SetPalette16 I_SetPalette16Asm
-+#endif
-+void I_FinishUpdateCopy (void);
-+void I_FinishUpdateHalf (void);
-+void I_FinishUpdate15 (void);
-+void I_SetPalette16 (byte* palette);
-+void I_SetPalette32 (byte* palette);
-+
-+void*	imagedata=NULL;
++byte*	imagedata=NULL;
 +#else
  Display*	X_display=0;
  Window		X_mainWindow;
  Colormap	X_cmap;
-@@ -82,6 +101,7 @@ int		X_shmeventtype;
+@@ -82,6 +89,7 @@ int		X_shmeventtype;
  // Needs an invisible mouse cursor at least.
  boolean		grabMouse;
  int		doPointerWarp = POINTER_WARP_COUNTDOWN;
@@ -859,7 +859,7 @@ index 9b311b3..eb45a07 100644
  
  // Blocky mode,
  // replace each 320x200 pixel with multiply*multiply pixels.
-@@ -89,6 +109,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+@@ -89,6 +97,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
  // to use ....
  static int	multiply=1;
  
@@ -949,7 +949,7 @@ index 9b311b3..eb45a07 100644
  
  //
  //  Translates the key currently in X_event
-@@ -272,7 +375,7 @@ void I_GetEvent(void)
+@@ -272,7 +363,7 @@ void I_GetEvent(void)
  	break;
  	
        default:
@@ -958,7 +958,7 @@ index 9b311b3..eb45a07 100644
  	break;
      }
  
-@@ -336,6 +439,7 @@ void I_StartTic (void)
+@@ -336,6 +427,7 @@ void I_StartTic (void)
      mousemoved = false;
  
  }
@@ -966,24 +966,19 @@ index 9b311b3..eb45a07 100644
  
  
  //
-@@ -373,6 +477,16 @@ void I_FinishUpdate (void)
+@@ -373,6 +465,11 @@ void I_FinishUpdate (void)
      
      }
  
 +#ifdef EMBEDDED
 +    CHIP_FN2(sys_wait_refresh)();
-+    if (sys_data.display.w2 == 160)
-+	I_FinishUpdateHalf();
-+    else if (sys_data.display.w2 == 480)
-+	I_FinishUpdate15();
-+    else
-+	I_FinishUpdateCopy();
++    app_scr_update(screens[0], imagedata);
 +    CHIP_FN2(sys_start_refresh)();
 +#else
      // scales the screen size before blitting it
      if (multiply == 2)
      {
-@@ -518,6 +632,7 @@ void I_FinishUpdate (void)
+@@ -518,6 +615,7 @@ void I_FinishUpdate (void)
  
      }
  
@@ -991,140 +986,20 @@ index 9b311b3..eb45a07 100644
  }
  
  
-@@ -533,6 +648,132 @@ void I_ReadScreen (byte* scr)
+@@ -533,6 +631,12 @@ void I_ReadScreen (byte* scr)
  //
  // Palette stuff.
  //
 +#ifdef EMBEDDED
-+union {
-+    short c16[256];
-+    unsigned c32[256];
-+} colors;
-+
-+#ifndef USEASM
-+void I_FinishUpdateCopy (void) {
-+    byte *s = screens[0];
-+    short *d = (short*)imagedata;
-+    int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-+    for (y = 0; y < h; y++)
-+    for (x = 0; x < w; x++)
-+	*d++ = colors.c16[*s++];
-+}
-+
-+void I_SetPalette16 (byte* palette) {
-+    int i, r, g, b;
-+    short *d = colors.c16;
-+    byte *tab = gammatable[usegamma];
-+    if (!usegamma)
-+    for (i = 0; i < 256; i++) {
-+	r = *palette++;
-+	g = *palette++;
-+	b = *palette++;
-+	*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3;
-+    }
-+    else
-+    for (i = 0; i < 256; i++) {
-+	r = tab[*palette++];
-+	g = tab[*palette++];
-+	b = tab[*palette++];
-+	*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3;
-+    }
-+}
-+
-+// 00rrrrrr rr000bbb bbbbb00g ggggggg0
-+// rrrrr000 000bbbbb 00000ggg ggg00000
-+// rounding half to even
-+
-+void I_FinishUpdateHalf (void) {
-+    byte *s = screens[0];
-+    short *d = (short*)imagedata;
-+    int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-+    unsigned a, b = 0x00400802;
-+    for (y = 0; y < h; y += 2, s += w)
-+    for (x = 0; x < w; x += 2, s += 2) {
-+	a = colors.c32[s[0]] + colors.c32[s[1]];
-+	a += colors.c32[s[w]] + colors.c32[s[w + 1]];
-+	a += (b & a >> 2) + b;
-+	a &= 0xf81f07e0;
-+	*d++ = a | a >> 16;
-+    }
-+}
-+
-+void I_FinishUpdate15 (void) {
-+    byte *s = screens[0];
-+    short *d = (short*)imagedata;
-+    int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-+    int w2 = SCREENWIDTH * 3 / 2;
-+    uint32_t a, a0, a1, a2, a3;
-+    uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
-+    for (y = 0; y < h; y += 2, s += w, d += w2 * 2)
-+    for (x = 0; x < w; x += 2, s += 2, d += 3) {
-+	a0 = colors.c32[s[0]];
-+	a1 = colors.c32[s[1]];
-+	a2 = colors.c32[s[w]];
-+	a3 = colors.c32[s[w + 1]];
-+
-+#define X1(a0, o) \
-+  a = a0 << 2 & m; \
-+  d[o] = a | a >> 16;
-+
-+#define X2(a0, a1, o) \
-+  a = a0 + a1; \
-+  a = (b & a) + (a << 1); \
-+  a &= m; \
-+  d[o] = a | a >> 16;
-+
-+	X1(a0, 0)
-+	X2(a0, a1, 1)
-+	X1(a1, 2)
-+
-+	X2(a0, a2, w2)
-+	a = a0 + a1 + a2 + a3;
-+	a += ((b & a >> 1) + b) >> 1;
-+	a &= m;
-+	d[w2 + 1] = a | a >> 16;
-+	X2(a1, a3, w2 + 2)
-+
-+	X1(a2, w2 * 2)
-+	X2(a2, a3, w2 * 2 + 1)
-+	X1(a3, w2 * 2 + 2)
-+#undef X1
-+#undef X2
-+    }
-+}
-+#endif
-+
-+void I_SetPalette32 (byte* palette) {
-+    int i, r, g, b;
-+    unsigned *d = colors.c32;
-+    byte *tab = gammatable[usegamma];
-+    if (!usegamma)
-+    for (i = 0; i < 256; i++) {
-+	r = *palette++;
-+	g = *palette++;
-+	b = *palette++;
-+	*d++ = r << 22 | b << 11 | g << 1;
-+    }
-+    else
-+    for (i = 0; i < 256; i++) {
-+	r = tab[*palette++];
-+	g = tab[*palette++];
-+	b = tab[*palette++];
-+	*d++ = r << 22 | b << 11 | g << 1;
-+    }
-+}
-+
 +void I_SetPalette (byte* palette) {
-+    if (sys_data.display.w2 != 320) // 160, 480
-+	I_SetPalette32(palette);
-+    else
-+	I_SetPalette16(palette);
++    byte *tab = gammatable[usegamma];
++    app_pal_update(palette, imagedata, usegamma ? tab : NULL);
 +}
 +#else
  static XColor	colors[256];
  
  void UploadNewPalette(Colormap cmap, byte *palette)
-@@ -688,6 +929,7 @@ void grabsharedmemory(int size)
+@@ -688,6 +792,7 @@ void grabsharedmemory(int size)
    fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
  	  (int) (image->data));
  }
@@ -1132,7 +1007,7 @@ index 9b311b3..eb45a07 100644
  
  void I_InitGraphics(void)
  {
-@@ -699,6 +941,7 @@ void I_InitGraphics(void)
+@@ -699,6 +804,7 @@ void I_InitGraphics(void)
      int			x=0;
      int			y=0;
      
@@ -1140,7 +1015,7 @@ index 9b311b3..eb45a07 100644
      // warning: char format, different type arg
      char		xsign=' ';
      char		ysign=' ';
-@@ -708,6 +951,7 @@ void I_InitGraphics(void)
+@@ -708,6 +814,7 @@ void I_InitGraphics(void)
      XSetWindowAttributes attribs;
      XGCValues		xgcvalues;
      int			valuemask;
@@ -1148,22 +1023,19 @@ index 9b311b3..eb45a07 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +960,14 @@ void I_InitGraphics(void)
+@@ -716,6 +823,11 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
 +#ifdef EMBEDDED
-+    {
-+	char *p = malloc(sys_data.display.w2 * sys_data.display.h2 * 2 + 15);
-+	imagedata = (void*)(p + (-(intptr_t)p & 15));
-+    }
++    imagedata = framebuffer_init();
 +    CHIP_FN2(sys_framebuffer)(imagedata);
 +    CHIP_FN2(sys_start)();
 +#else
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1164,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1024,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1175,7 +1047,7 @@ index 9b311b3..eb45a07 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1300,6 @@ Expand4
+@@ -1046,5 +1160,6 @@ Expand4
  	xline += step;
      } while (y--);
  }
@@ -1295,7 +1167,7 @@ index 7cd7c66..e0e54cf 100644
  fixed_t FixedDiv	(fixed_t a, fixed_t b);
  fixed_t FixedDiv2	(fixed_t a, fixed_t b);
 diff --git a/m_menu.c b/m_menu.c
-index 4d415ae..e4153de 100644
+index 4d415ae..9d53dbd 100644
 --- a/m_menu.c
 +++ b/m_menu.c
 @@ -25,10 +25,6 @@
@@ -1392,8 +1264,18 @@ index 4d415ae..e4153de 100644
  }
  
  
+@@ -1494,6 +1479,9 @@ boolean M_Responder (event_t* ev)
+     // Take care of any messages that need input
+     if (messageToPrint)
+     {
++#ifdef EMBEDDED
++	if (ch == KEY_ENTER) ch = 'y';
++#endif
+ 	if (messageNeedsInput == true &&
+ 	    !(ch == ' ' || ch == 'n' || ch == 'y' || ch == KEY_ESCAPE))
+ 	    return false;
 diff --git a/m_misc.c b/m_misc.c
-index 0df4fe5..de3a52e 100644
+index 0df4fe5..1444611 100644
 --- a/m_misc.c
 +++ b/m_misc.c
 @@ -27,12 +27,7 @@
@@ -1503,14 +1385,17 @@ index 0df4fe5..de3a52e 100644
  #ifdef LINUX
      {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
      {"mousetype", (int*)&mousetype, (int)"microsoft"},
-@@ -275,6 +259,7 @@ default_t	defaults[] =
+@@ -275,8 +259,9 @@ default_t	defaults[] =
      {"joyb_strafe",&joybstrafe,1},
      {"joyb_use",&joybuse,3},
      {"joyb_speed",&joybspeed,2},
 +#endif
  
-     {"screenblocks",&screenblocks, 9},
+-    {"screenblocks",&screenblocks, 9},
++    {"screenblocks",&screenblocks, 10},
      {"detaillevel",&detailLevel, 0},
+ 
+     {"snd_channels",&numChannels, 3},
 @@ -285,6 +270,7 @@ default_t	defaults[] =
  
      {"usegamma",&usegamma, 0},

@@ -25,22 +25,29 @@ int _argv_init(char ***argvp, int skip);
 int main(int argc, char **argv);
 
 void lcd_appinit(void) {
+	static const uint16_t dim[] = {
+		320, 200,  160, 100,  480, 300,
+		160, 128
+	};
 	struct sys_display *disp = &sys_data.display;
-	int w = disp->w1, h = disp->h1;
-	if (sys_data.width) w = sys_data.width, h = 0;
-	switch (w) {
-	case 480:
-		w = 480; h = 300; break;
-	case 240: case 320:
-		w = 320; h = 200; break;
-	case 128: case 160:
-		w = 160; h = 100; break;
-	default:
-		fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
-		exit(1);
+	int mode = sys_data.scaler - 1;
+	if (mode < 0) {
+		int w = disp->w1, h = disp->h1;
+		switch (w) {
+		case 480:
+			mode = 2; break;
+		case 240: case 320:
+			mode = 0; break;
+		case 128: case 160:
+			mode = 1; break;
+		default:
+			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
+			exit(1);
+		}
 	}
-	disp->w2 = w;
-	disp->h2 = h;
+	sys_data.scaler = mode;
+	disp->w2 = dim[mode * 2];
+	disp->h2 = dim[mode * 2 + 1];
 }
 
 static uint32_t get_ram_size(uint32_t addr) {
@@ -162,6 +169,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	}
 
 	sys_data.brightness = 50;
+	// sys_data.scaler = 0;
 	// sys_data.rotate = 0x00;
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
@@ -176,8 +184,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			unsigned a = atoi(argv[1]);
 			if (a <= 100) sys_data.brightness = a;
 			argc -= 2; argv += 2;
-		} else if (argc >= 2 && !strcmp(argv[0], "--width")) {
-			sys_data.width = atoi(argv[1]);
+		} else if (argc >= 2 && !strcmp(argv[0], "--scaler")) {
+			unsigned mode = atoi(argv[1]) + 1;
+			if (mode < 1 + 4) sys_data.scaler = mode;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--rotate")) {
 			char *next;

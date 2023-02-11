@@ -3,7 +3,7 @@ CHIP = 0
 TWO_STAGE = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 OBJDIR = obj$(CHIP)
-SRCS = asmcode usbio common libc syscomm doomasm keytrn
+SRCS = asmcode usbio common libc syscomm doomasm keytrn scr_update
 ifeq ($(CHIP), 0)
 SRCS += chip1_syscode chip2_syscode
 else

@@ -76,7 +76,7 @@ extern struct sys_data {
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	int brightness;
 	uint16_t keytrn[65];
-	uint16_t width;
+	uint8_t scaler;
 	/* key << 4 | screen */
 	uint8_t rotate, lcd_cs;
 	uint8_t spi_mode;
@@ -94,5 +94,9 @@ extern struct chip_fn2 chip_fn[];
 
 void keytrn_init(void);
 void lcd_appinit(void);
+
+uint8_t* framebuffer_init(void);
+extern void (*app_pal_update)(uint8_t *pal, void *dest, uint8_t *gamma);
+extern void (*app_scr_update)(uint8_t *src, void *dest);
 
 #endif // SYSCODE_H
