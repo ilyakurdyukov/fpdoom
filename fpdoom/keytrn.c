@@ -38,55 +38,64 @@ void keytrn_init(void) {
 		{ "\007\006\004\005369258147" },
 		{ "\005\004\007\006987654321" },
 		{ "\006\007\005\004741852963" } };
-	uint8_t rkeymap[64];
+	uint8_t keymap_new[64];
+	uint16_t rkeymap[64];
 	int nrow = _chip != 1 ? 8 : 5;
 	int ncol = _chip != 1 ? 6 : 8;
+	int have_center = 0;
+	static const uint8_t keys[] = {
+#define KEY(name, val) KEYPAD_##name, val,
+		KEY(UP, KEY_UPARROW)
+		KEY(LEFT, KEY_LEFTARROW)
+		KEY(RIGHT, KEY_RIGHTARROW)
+		KEY(DOWN, KEY_DOWNARROW)
+		KEY(2, KEY_UPARROW)
+		KEY(4, KEY_LEFTARROW)
+		KEY(6, KEY_RIGHTARROW)
+		KEY(5, KEY_DOWNARROW)
+		KEY(LSOFT, KEY_ENTER)
+		KEY(RSOFT, KEY_ESCAPE)
+		KEY(CENTER, KEY_RCTRL) /* fire */
+		KEY(DIAL, KEY_RSHIFT) /* run toggle */
+		KEY(1, ',') /* strafe left */
+		KEY(3, '.') /* strafe right */
+		//KEY(8, ' ') /* use */
+		KEY(7, '[') /* prev weapon */
+		KEY(9, ']') /* next weapon */
+		//KEY(0, KEY_TAB) /* map */
+#undef KEY
+	};
 
-	memset(rkeymap, 64, sizeof(rkeymap));
+	memset(keymap_new, 0, 64);
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++) {
 		unsigned a = keymap[i * nrow + j];
-		if (a < sizeof(rkeymap)) {
-			if (a - KEYPAD_UP < 4)
-				a = num_turn[rotate][a - KEYPAD_UP];
-			else if (a - KEYPAD_1 < 9)
-				a = num_turn[rotate][a - KEYPAD_1 + 4];
-			rkeymap[a] = j * 8 + i;
-		}
+		if (a - KEYPAD_UP < 4)
+			a = num_turn[rotate][a - KEYPAD_UP];
+		else if (a - KEYPAD_1 < 9)
+			a = num_turn[rotate][a - KEYPAD_1 + 4];
+		if (a > 0xff) a = 0xff;
+		keymap_new[j * 8 + i] = a;
+		if (a == KEYPAD_CENTER) have_center = 1;
 	}
 
-	memset(sys_data.keytrn, 0, 65 * 2);
+	memset(rkeymap, 0, sizeof(rkeymap));
 
-#define KEY(name) sys_data.keytrn[rkeymap[KEYPAD_##name]]
-	KEY(UP) = KEY_UPARROW;
-	KEY(LEFT) = KEY_LEFTARROW;
-	KEY(RIGHT) = KEY_RIGHTARROW;
-	KEY(DOWN) = KEY_DOWNARROW;
+	for (i = 0; i < sizeof(keys); i += 2)
+		rkeymap[keys[i]] = keys[i + 1];
 
-	KEY(2) = KEY_UPARROW;
-	KEY(4) = KEY_LEFTARROW;
-	KEY(6) = KEY_RIGHTARROW;
-	KEY(5) = KEY_DOWNARROW;
-
-	KEY(LSOFT) = KEY_ENTER;
-	KEY(RSOFT) = KEY_ESCAPE;
-
+#define KEY(name) rkeymap[KEYPAD_##name]
 	// no center key
-	if (rkeymap[KEYPAD_CENTER] == 64) {
+	if (!have_center) {
 		KEY(UP) = KEY_RCTRL;	/* fire */
 		KEY(DOWN) = KEY_RCTRL;	/* fire */
-	} else {
-		KEY(CENTER) = KEY_RCTRL;	/* fire */
 	}
-	KEY(DIAL) = KEY_RSHIFT;	/* run toggle */
-
-	KEY(1) = ',';	/* strafe left */
-	KEY(3) = '.';	/* strafe right */
-
-	//KEY(8) = ' ';	/* use */
-	KEY(7) = '['; /* prev weapon */
-	KEY(9) = ']'; /* next weapon */
 #undef KEY
+
+	for (i = 0; i < 64; i++) {
+		unsigned a = keymap_new[i];
+		sys_data.keytrn[i] = a < 64 ? rkeymap[a] : 0;
+	}
 }
 

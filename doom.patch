@@ -734,7 +734,7 @@ index a327bfa..89ae9a0 100644
  }
 +#endif
 diff --git a/i_system.c b/i_system.c
-index 1b67d51..b66a996 100644
+index 1b67d51..dd9d5d1 100644
 --- a/i_system.c
 +++ b/i_system.c
 @@ -30,7 +30,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -761,17 +761,33 @@ index 1b67d51..b66a996 100644
  
  
  void
-@@ -87,16 +95,25 @@ byte* I_ZoneBase (int*	size)
+@@ -87,16 +95,41 @@ byte* I_ZoneBase (int*	size)
  //
  int  I_GetTime (void)
  {
 +#ifdef EMBEDDED
-+    unsigned t = sys_timer_ms();
++    static unsigned last1 = 0, last2 = 0;
++    unsigned t1 = sys_timer_ms();
++    unsigned t2, t3, t4 = last2;
++
++    t2 = t1 - last1;
++    if (t2 >= 1000) {
++	if (t2 < 2000) {
++	    t2 -= 1000;
++	    t4 += TICRATE;
++	} else {
++	    // slow path
++	    t3 = t2 / 1000;
++	    t2 -= t3 * 1000;
++	    t4 += t3 * TICRATE;
++	}
++	last2 = t4;
++	last1 = t1 - t2;
++    }
 +#if TICRATE == 35
-+    return (((t * 0xf5c28f5dULL) >> 35) + t) >> 5;
++    return t4 + (t2 * 0x11eb9 >> 21);
 +#else
-+    unsigned sec = t / 1000, ms = t - sec * 1000;
-+    return sec * TICRATE + ms * TICRATE / 1000;
++    return t4 + (t2 * TICRATE) / 1000;
 +#endif
 +#else
      struct timeval	tp;
@@ -789,7 +805,7 @@ index 1b67d51..b66a996 100644
  }
  
  
-@@ -125,15 +142,11 @@ void I_Quit (void)
+@@ -125,15 +158,11 @@ void I_Quit (void)
  
  void I_WaitVBL(int count)
  {
@@ -2826,7 +2842,7 @@ index 9b30e64..d1f849d 100644
      for (i=0 ; i<4 ; i++)
  	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
 diff --git a/w_wad.c b/w_wad.c
-index 178f5cb..54037b3 100644
+index 178f5cb..81ac4e2 100644
 --- a/w_wad.c
 +++ b/w_wad.c
 @@ -28,14 +28,9 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
@@ -2903,48 +2919,48 @@ index 178f5cb..54037b3 100644
  	if (strncmp(header.identification,"IWAD",4))
  	{
  	    // Homebrew levels?
-@@ -196,9 +184,14 @@ void W_AddFile (char *filename)
+@@ -195,10 +183,16 @@ void W_AddFile (char *filename)
+ 	}
  	header.numlumps = LONG(header.numlumps);
  	header.infotableofs = LONG(header.infotableofs);
- 	length = header.numlumps*sizeof(filelump_t);
 +#ifdef EMBEDDED	// save stack
-+	fileinfo = NULL;
-+	fseek (file, header.infotableofs, SEEK_SET);
++#define TEMP_LUMPS 16
++	length = header.numlumps > TEMP_LUMPS ? TEMP_LUMPS : header.numlumps;
++	length *= sizeof(filelump_t);
 +#else
+ 	length = header.numlumps*sizeof(filelump_t);
++#endif
  	fileinfo = alloca (length);
 -	lseek (handle, header.infotableofs, SEEK_SET);
 -	read (handle, fileinfo, length);
 +	fseek (file, header.infotableofs, SEEK_SET);
 +	fread (fileinfo, 1, length, file);
-+#endif
  	numlumps += header.numlumps;
      }
  
-@@ -211,8 +204,18 @@ void W_AddFile (char *filename)
+@@ -211,10 +205,19 @@ void W_AddFile (char *filename)
  
      lump_p = &lumpinfo[startlump];
  	
 -    storehandle = reloadname ? -1 : handle;
 +    storehandle = reloadname ? NULL : file;
  	
-+#ifdef EMBEDDED	// save stack
-+    for (i=startlump ; i<numlumps ; i++,lump_p++) {
-+	if (!fileinfo)
-+	    fread (&singleinfo, 1, sizeof(filelump_t), file);
-+	lump_p->handle = storehandle;
-+	lump_p->position = LONG(singleinfo.filepos);
-+	lump_p->size = LONG(singleinfo.size);
-+	strncpy (lump_p->name, singleinfo.name, 8);
-+    }
-+#else
      for (i=startlump ; i<numlumps ; i++,lump_p++, fileinfo++)
      {
- 	lump_p->handle = storehandle;
-@@ -220,9 +223,10 @@ void W_AddFile (char *filename)
- 	lump_p->size = LONG(fileinfo->size);
- 	strncpy (lump_p->name, fileinfo->name, 8);
-     }
++#ifdef EMBEDDED	// save stack
++	if (i > startlump && !((i - startlump) & (TEMP_LUMPS - 1)))
++	{
++	    length = numlumps - i;
++	    if (length > TEMP_LUMPS) length = TEMP_LUMPS;
++	    fileinfo -= TEMP_LUMPS;
++	    fread (fileinfo, 1, length * sizeof(filelump_t), file);
++	}
 +#endif
+ 	lump_p->handle = storehandle;
+ 	lump_p->position = LONG(fileinfo->filepos);
+ 	lump_p->size = LONG(fileinfo->size);
+@@ -222,7 +225,7 @@ void W_AddFile (char *filename)
+     }
  	
      if (reloadname)
 -	close (handle);
@@ -2952,7 +2968,7 @@ index 178f5cb..54037b3 100644
  }
  
  
-@@ -239,23 +243,28 @@ void W_Reload (void)
+@@ -239,23 +242,28 @@ void W_Reload (void)
      int			lumpcount;
      lumpinfo_t*		lump_p;
      unsigned		i;
@@ -2986,7 +3002,7 @@ index 178f5cb..54037b3 100644
      
      // Fill in lumpinfo
      lump_p = &lumpinfo[reloadlump];
-@@ -267,11 +276,20 @@ void W_Reload (void)
+@@ -267,11 +275,20 @@ void W_Reload (void)
  	if (lumpcache[i])
  	    Z_Free (lumpcache[i]);
  
@@ -3008,7 +3024,7 @@ index 178f5cb..54037b3 100644
  }
  
  
-@@ -372,7 +390,6 @@ int W_CheckNumForName (char* name)
+@@ -372,7 +389,6 @@ int W_CheckNumForName (char* name)
      v1 = name8.x[0];
      v2 = name8.x[1];
  
@@ -3016,7 +3032,7 @@ index 178f5cb..54037b3 100644
      // scan backwards so patch lump files take precedence
      lump_p = lumpinfo + numlumps;
  
-@@ -435,7 +452,7 @@ W_ReadLump
+@@ -435,7 +451,7 @@ W_ReadLump
  {
      int		c;
      lumpinfo_t*	l;
@@ -3025,7 +3041,7 @@ index 178f5cb..54037b3 100644
  	
      if (lump >= numlumps)
  	I_Error ("W_ReadLump: %i >= numlumps",lump);
-@@ -444,24 +461,24 @@ W_ReadLump
+@@ -444,24 +460,24 @@ W_ReadLump
  	
      // ??? I_BeginRead ();
  	
@@ -3057,7 +3073,7 @@ index 178f5cb..54037b3 100644
  		
      // ??? I_EndRead ();
  }
-@@ -513,6 +530,7 @@ W_CacheLumpName
+@@ -513,6 +529,7 @@ W_CacheLumpName
  }
  
  
@@ -3065,7 +3081,7 @@ index 178f5cb..54037b3 100644
  //
  // W_Profile
  //
-@@ -573,5 +591,6 @@ void W_Profile (void)
+@@ -573,5 +590,6 @@ void W_Profile (void)
      }
      fclose (f);
  }
