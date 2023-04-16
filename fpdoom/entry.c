@@ -58,6 +58,7 @@ static uint32_t get_ram_size(uint32_t addr) {
 	MEM4(addr + size) = v1;
 	if (MEM4(addr) == v0 && MEM4(addr + size) == v1)
 		size <<= 1;
+	MEM4(addr) = size;
 	return size;
 }
 
