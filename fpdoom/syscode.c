@@ -783,6 +783,7 @@ int CHIP_FN(sys_event)(int *rkey) {
 	if (!i) {
 		event = KEYPAD_CR(KPD_INT_RAW_STATUS);
 		status = KEYPAD_CR(KPD_KEY_STATUS);
+		if (!(event & 0xff)) return EVENT_END;
 		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
 	}
 
