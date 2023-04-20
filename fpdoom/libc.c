@@ -27,6 +27,11 @@ int puts(const char *str) {
 	return putchar('\n');
 }
 
+int fputs(const char *str, FILE *f) {
+	size_t len = strlen(str);
+	return fwrite(str, 1, len, f) != len ? EOF : 0;
+}
+
 void exit(int code) {
 	fprintf(stderr, "!!! exit(%d)\n", code);
 	for (;;);
@@ -373,7 +378,7 @@ long ftell(FILE *f) {
 	union { uint8_t u8[4]; uint16_t u16[2]; uint32_t u32[1]; } buf;
 	unsigned tmp; long ret;
 
-	if (!f) return EOF;
+	if (!f) return -1;
 	if (f->flags & _IO_WRITE) fflush(f);
 
 	tmp = CMD_FTELL | f->handle << 8;

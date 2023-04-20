@@ -1,6 +1,9 @@
 #include "common.h"
 #include <stdlib.h>
 
+#define FN_ALIAS(fn, copy) \
+	__asm__("\t.global " #copy "\n\t.set " #copy ", " #fn);
+
 #if 0
 unsigned fastchk16(unsigned crc, const void *src, int len) {
 	uint8_t *s = (uint8_t*)src;
@@ -16,7 +19,6 @@ unsigned fastchk16(unsigned crc, const void *src, int len) {
 }
 #endif
 
-#if 1
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 uint16_t swap_be16(uint16_t v) {
 	return v >> 8 | v << 8;
@@ -55,6 +57,15 @@ void *memset(void *dst, int c, size_t len) {
 	return dst;
 }
 #endif
+
+void *memmove(void *dst, const void *src, size_t len) {
+	uint8_t *d = (uint8_t*)dst;
+	const uint8_t *s = (const uint8_t*)src;
+	if ((uintptr_t)d - (uintptr_t)s >= len)
+		return memcpy(dst, src, len);
+	while (len--) d[len] = s[len];
+	return dst;
+}
 
 size_t strlen(const char *src) {
 	const char *s = src;
@@ -160,6 +171,20 @@ int memcmp(const void *src1, const void *src2, size_t len) {
 	return a;
 }
 
+char* strchr(const char *str, int ch) {
+	char a;
+	for (; (a = *str); str++)
+		if (a == ch) return (char*)str;
+	return NULL;
+}
+
+char* strrchr(const char *str, int ch) {
+	char a, *found = NULL;
+	for (; (a = *str); str++)
+		if (a == ch) found = (char*)str;
+	return found;
+}
+
 int toupper(int ch) {
 	if ((unsigned)(ch - 'a') <= 'z' - 'a')
 		ch -= 'a' - 'A';
@@ -209,5 +234,36 @@ long strtol(const char *s, char **end, int base) {
 int atoi(const char *s) {
 	return strtol(s, 0, 10);
 }
+
+FN_ALIAS(atoi, atol)
+
+char* strdup(const char *str) {
+	size_t n = strlen(str) + 1;
+	char *p = malloc(n);
+	return p ? memcpy(p, str, n) : p;
+}
+
+
+#if RAND_MAX & (RAND_MAX + 1)
+#error
 #endif
+
+#if RAND_MAX == 0x7fff
+#define RAND_BITS 15
+#elif RAND_MAX == 0x7fffffff
+#define RAND_BITS 31
+#else
+#error
+#endif
+
+static uint64_t rand_seed = 0;
+
+void srand(unsigned seed) {
+	rand_seed = seed;
+}
+
+int rand(void) {
+	uint64_t m = 0x6765c793fa10079d; // 5^27
+	return (rand_seed = rand_seed * m + 1) >> (64 - RAND_BITS);
+}
 
