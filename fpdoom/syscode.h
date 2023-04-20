@@ -33,6 +33,7 @@ void enable_mmu(uint32_t *table, uint32_t domain);
 void scan_firmware(intptr_t fw_addr);
 unsigned sys_timer_ms(void);
 unsigned sys_wait_ms(unsigned delay);
+int sys_getkeymap(uint8_t *dest);
 
 enum {
 	EVENT_KEYDOWN, EVENT_KEYUP, EVENT_END, EVENT_QUIT
@@ -98,5 +99,14 @@ void lcd_appinit(void);
 uint8_t* framebuffer_init(void);
 extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 extern void (*app_scr_update)(uint8_t *src, void *dest);
+
+#define KEYPAD_ENUM(M) \
+	M(0x01, DIAL) \
+	M(0x04, UP) M(0x05, DOWN) M(0x06, LEFT) M(0x07, RIGHT) \
+	M(0x08, LSOFT) M(0x09, RSOFT) \
+	M(0x0d, CENTER) \
+	M(0x23, HASH) M(0x2a, STAR) M(0x2b, PLUS) \
+	M(0x30, 0) M(0x31, 1) M(0x32, 2) M(0x33, 3) M(0x34, 4) \
+	M(0x35, 5) M(0x36, 6) M(0x37, 7) M(0x38, 8) M(0x39, 9)
 
 #endif // SYSCODE_H

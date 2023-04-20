@@ -93,6 +93,38 @@ uint32_t sys_wait_ms(uint32_t delay) {
 	return delay;
 }
 
+#define X(num, name) KEYPAD_##name = num,
+enum { KEYPAD_ENUM(X) };
+#undef X
+
+int sys_getkeymap(uint8_t *dest) {
+	short *keymap = sys_data.keymap_addr;
+	int i, j, rotate = sys_data.rotate >> 4 & 3;
+	static const unsigned char num_turn[4][4 + 9] = {
+		{ "\004\005\006\007123456789" },
+		{ "\007\006\004\005369258147" },
+		{ "\005\004\007\006987654321" },
+		{ "\006\007\005\004741852963" } };
+	int nrow = _chip != 1 ? 8 : 5;
+	int ncol = _chip != 1 ? 6 : 8;
+	int flags = 0;
+
+	memset(dest, 0, 64);
+
+	for (i = 0; i < ncol; i++)
+	for (j = 0; j < nrow; j++) {
+		unsigned a = keymap[i * nrow + j];
+		if (a - KEYPAD_UP < 4)
+			a = num_turn[rotate][a - KEYPAD_UP];
+		else if (a - KEYPAD_1 < 9)
+			a = num_turn[rotate][a - KEYPAD_1 + 4];
+		if (a > 0xff) a = 0xff;
+		dest[j * 8 + i] = a;
+		if (a == KEYPAD_CENTER) flags = 1;
+	}
+	return flags;
+}
+
 struct sys_data sys_data;
 
 #if !CHIP

@@ -32,7 +32,7 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #endif
 
 	// usb_init();
-	_debug_msg("doom_main");
+	_debug_msg("entry2");
 	{
 		char *addr = image_addr + image_size + bss_size;
 		size_t size = ram_addr + ram_size - (uint32_t)addr;

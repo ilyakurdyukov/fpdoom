@@ -24,32 +24,6 @@ int _argv_init(char ***argvp, int skip);
 
 int main(int argc, char **argv);
 
-void lcd_appinit(void) {
-	static const uint16_t dim[] = {
-		320, 200,  160, 100,  480, 300,
-		160, 128
-	};
-	struct sys_display *disp = &sys_data.display;
-	int mode = sys_data.scaler - 1;
-	if (mode < 0) {
-		int w = disp->w1, h = disp->h1;
-		switch (w) {
-		case 480:
-			mode = 2; break;
-		case 240: case 320:
-			mode = 0; break;
-		case 128: case 160:
-			mode = 1; break;
-		default:
-			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
-			exit(1);
-		}
-	}
-	sys_data.scaler = mode;
-	disp->w2 = dim[mode * 2];
-	disp->h2 = dim[mode * 2 + 1];
-}
-
 static uint32_t get_ram_size(uint32_t addr) {
 	/* simple check for 4/8 MB */
 	uint32_t size = RAM_SIZE;
@@ -127,9 +101,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		if (buf[0] == HOST_CONNECT) break;
 	}
 #if TWO_STAGE
-	_debug_msg("doom_init");
+	_debug_msg("entry1");
 #else
-	_debug_msg("doom");
+	_debug_msg("entry");
 #endif
 #if INIT_MMU
 	{
@@ -186,8 +160,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			if (a <= 100) sys_data.brightness = a;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--scaler")) {
-			unsigned mode = atoi(argv[1]) + 1;
-			if (mode < 1 + 4) sys_data.scaler = mode;
+			sys_data.scaler = atoi(argv[1]) + 1;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--rotate")) {
 			char *next;

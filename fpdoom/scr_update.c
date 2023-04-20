@@ -203,7 +203,7 @@ void scr_update_3d2_crop_ref(uint8_t *src, void *dest) {
 		scr_update_1d2_local_ref(s - 40, d, c32 + 256, 32);
 }
 
-#if 1
+#ifdef USEASM
 #define SEL(name) name##_asm
 #else
 #define SEL(name) name##_ref
@@ -212,7 +212,7 @@ void scr_update_3d2_crop_ref(uint8_t *src, void *dest) {
 uint8_t* framebuffer_init(void) {
 	static const uint8_t pal_size[] = { 2, 4, 4, 8 };
 	static const struct {
-		void (*pal_update)(uint8_t *pal, void *dest, uint8_t *gamma);
+		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
 	} fn[] = {
 		{ SEL(pal_update16), SEL(scr_update_1d1) },
@@ -234,3 +234,28 @@ uint8_t* framebuffer_init(void) {
 	return dest;
 }
 
+void lcd_appinit(void) {
+	static const uint16_t dim[] = {
+		320, 200,  160, 100,  480, 300,
+		160, 128
+	};
+	struct sys_display *disp = &sys_data.display;
+	unsigned mode = sys_data.scaler - 1;
+	if (mode > 3) {
+		int w = disp->w1, h = disp->h1;
+		switch (w) {
+		case 480:
+			mode = 2; break;
+		case 240: case 320:
+			mode = 0; break;
+		case 128: case 160:
+			mode = 1; break;
+		default:
+			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
+			exit(1);
+		}
+	}
+	sys_data.scaler = mode;
+	disp->w2 = dim[mode * 2];
+	disp->h2 = dim[mode * 2 + 1];
+}

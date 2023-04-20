@@ -774,22 +774,26 @@ static void keypad_init(void) {
 
 int CHIP_FN(sys_event)(int *rkey) {
 	static int static_i = 0;
-	static uint32_t event;
-	static uint32_t status;
+	static uint32_t static_ev, static_st;
+	uint32_t event, status;
 	int i = static_i;
 
 	if (!sys_data.keymap_addr) return EVENT_END;
-
+	event = static_ev;
+	status = static_st;
 	if (!i) {
 		event = KEYPAD_CR(KPD_INT_RAW_STATUS);
 		status = KEYPAD_CR(KPD_KEY_STATUS);
-		if (!(event & 0xff)) return EVENT_END;
+		event &= 0xff;
+		if (!event) return EVENT_END;
 		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
+		if (status & 8) return EVENT_END;
+		static_ev = event;
+		static_st = status;
 	}
 
-	if ((event & 0xff) && !(status & 8))
 	for (; i < 8; i++) {
-		if ((event >> i) & 1) {
+		if (event >> i & 1) {
 			uint32_t k = status >> ((i & 3) * 8);
 			k = (k & 0x70) >> 1 | (k & 7);
 			k = sys_data.keytrn[k];
