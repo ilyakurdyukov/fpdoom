@@ -26,6 +26,7 @@ int putchar(int);
 int fgetc(FILE*);
 int fputc(int, FILE*);
 int puts(const char*);
+int fputs(const char*, FILE*);
 
 FILE *fopen(const char*, const char*);
 int fseek(FILE*, long, int);
