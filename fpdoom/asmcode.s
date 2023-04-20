@@ -68,7 +68,9 @@ CODE32_FN __gnu_thumb1_case_si
 	add	r12, lr, #2
 	and	r12, #-4
 	ldr	lr, [r12, r0, lsl #2]
-	add	pc, lr, r12
+	add	r12, #1
+	add	lr, r12
+	bx	lr
 
 CODE32_FN sc6531da_init_smc_asm
 	push	{r4-r7,lr}
