@@ -3,6 +3,7 @@
 #include "syscode.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #define SCREENWIDTH 320
 #define SCREENHEIGHT 200
