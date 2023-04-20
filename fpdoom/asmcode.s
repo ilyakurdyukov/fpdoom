@@ -64,6 +64,12 @@ CODE32_FN __gnu_thumb1_case_shi
 	add	lr, lr, r12, lsl #1
 	bx	lr
 
+CODE32_FN __gnu_thumb1_case_si
+	add	r12, lr, #2
+	and	r12, #-4
+	ldr	lr, [r12, r0, lsl #2]
+	add	pc, lr, r12
+
 CODE32_FN sc6531da_init_smc_asm
 	push	{r4-r7,lr}
 	// sc6531da_init_smc_1
@@ -206,11 +212,7 @@ CODE32_FN sc6530_init_smc_asm
 sc6530_init_smc_asm_end:
 	.global sc6530_init_smc_asm_end
 
-CODE32_FN abs
-	tst	r0, r0
-	rsbmi	r0, #0
-	bx	lr
-
+.if 1
 CODE32_FN memcpy
 	mov	r12, r0
 	orr	r3, r0, r1
@@ -232,6 +234,7 @@ CODE32_FN memcpy
 	.global __aeabi_memcpy4
 	.set __aeabi_memcpy, memcpy
 	.set __aeabi_memcpy4, memcpy
+.endif
 
 .if 0
 CODE32_FN memmove
@@ -278,6 +281,11 @@ CODE32_FN memset
 	bhs	2b
 	mov	r0, r3
 	bx	lr
+
+CODE32_FN __aeabi_memclr4
+	mov	r2, r1
+	mov	r1, #0
+	b	memset
 .endif
 
 CODE32_FN usb_send_asm
@@ -437,6 +445,87 @@ CODE32_FN __aeabi_idivmod
 	.set __aeabi_uidiv, __aeabi_uidivmod
 	.set __aeabi_idiv, __aeabi_idivmod
 
+// r1:r0, r3:r2 = r1:r0 / r3:r2, r1:r0 % r3:r2
+CODE32_FN __aeabi_uldivmod
+.if DIV_CHECK
+	orrs	r12, r2, r3
+	bleq	_sig_intdiv
+.endif
+	push	{r4-r6,lr}
+	clz	r6, r2
+	cmp	r3, #0
+	add	r6, #32
+	clzne	r6, r3
+
+	clz	r4, r0
+	cmp	r1, 0
+	add	r4, #32
+	clzne	r4, r1
+
+	subs	r6, r4
+	mov	r4, #0
+	mov	r5, #0
+	bls	9f
+
+	# llsl(r3:r2, r6)
+	rsbs	r12, r6, #32
+	lsl	r3, r6
+	orr	r3, r3, r2, lsr r12
+	sub	r12, r6, #32
+	movmi	r3, r2, lsl r12
+	lsl	r2, r6
+
+1:	subs	r12, r0, r2
+	sbcs	lr, r1, r3
+	movhs	r0, r12
+	movhs	r1, lr
+	adcs	r4, r4
+	adc	r5, r5
+	lsrs	r3, #1
+	rrx	r2, r2
+	subs	r6, #1
+	bne	1b
+9:	subs	r2, r0, r2
+	sbcs	r3, r1, r3
+	movlo	r2, r0
+	movlo	r3, r1
+	adcs	r0, r4, r4
+	adc	r1, r5, r5
+	pop	{r4-r6,pc}
+
+// r0, r2 = r0 / r2, r0 % r2
+CODE32_FN __aeabi_ldivmod
+	push	{r4,lr}
+	lsr	r4, r3, #31
+	asr	r12, r3, #31
+	eors	r4, r4, r1, asr #31
+	eor	r2, r12
+	eor	r3, r12
+	subs	r2, r12
+	sbc	r3, r12
+	eor	r0, r0, r4, asr #31
+	eor	r1, r1, r4, asr #31
+	subs	r0, r0, r4, asr #31
+	sbc	r1, r1, r4, asr #31
+	bl	__aeabi_uldivmod
+.if DIV_CHECK
+	// r1 < 0 && (a1 ^ a3) >= 0
+	bics	r12, r1, r4, lsl #31
+	blmi	_sig_intovf
+.endif
+	// -rem (a1 < 0)
+	eor	r2, r2, r4, asr #31
+	eor	r3, r3, r4, asr #31
+	subs	r2, r2, r4, asr #31
+	sbc	r3, r3, r4, asr #31
+	// -quo (a1 ^ a3 < 0)
+	ror	r4, #1
+	eor	r0, r0, r4, asr #31
+	eor	r1, r1, r4, asr #31
+	subs	r0, r0, r4, asr #31
+	sbc	r1, r1, r4, asr #31
+	pop	{r4,pc}
+
 // r1:r0 = r1:r0 * r3:r2
 CODE32_FN __aeabi_lmul
 	mul	r3, r0, r3
@@ -444,4 +533,27 @@ CODE32_FN __aeabi_lmul
 	umull	r0, r1, r2, r0
 	add	r1, r3
 	bx	lr
+
+CODE32_FN __clzsi2
+	clz	r0, r0
+	bx	lr
+
+.macro SHIFT64 a, b, asr, lsr, lsl
+	rsbs	r3, r2, #32
+	\lsr	\a, r2
+	orr	\a, \a, \b, \lsl r3
+	sub	r3, r2, #32
+	movmi	\a, \b, \asr r3
+	\asr	\b, r2
+	bx	lr
+.endm
+
+CODE32_FN __aeabi_lasr
+	SHIFT64 r0, r1, asr, lsr, lsl
+
+CODE32_FN __aeabi_llsr
+	SHIFT64 r0, r1, lsr, lsr, lsl
+
+CODE32_FN __aeabi_llsl
+	SHIFT64 r1, r0, lsl, lsl, lsr
 
