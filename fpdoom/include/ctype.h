@@ -13,6 +13,10 @@ static inline int isalnum(int c) {
 	return isalpha(c) || isdigit(c);
 }
 
+static inline int isprint(int c) {
+	return (unsigned)c - 0x20 < 0x5f;
+}
+
 static inline int toupper(int c) {
 	return (unsigned)c - 'a' < 26 ? c - 32 : c;
 }

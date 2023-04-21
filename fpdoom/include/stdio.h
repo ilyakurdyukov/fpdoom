@@ -27,6 +27,7 @@ int fgetc(FILE*);
 int fputc(int, FILE*);
 int puts(const char*);
 int fputs(const char*, FILE*);
+char *fgets(char*, int, FILE*);
 
 FILE *fopen(const char*, const char*);
 int fseek(FILE*, long, int);
@@ -53,4 +54,9 @@ int vprintf(const char*, va_list);
 int vsprintf(char*, const char*, va_list);
 int vsnprintf(char*, size_t, const char*, va_list);
 int vfprintf(FILE*, const char*, va_list);
+
+__attribute__((__format__(__scanf__, 2, 3)))
+int sscanf(const char *, const char *, ...);
+__attribute__((__format__(__scanf__, 2, 3)))
+int fscanf(FILE*, const char*, ...);
 #endif

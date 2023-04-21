@@ -267,3 +267,46 @@ int rand(void) {
 	return (rand_seed = rand_seed * m + 1) >> (64 - RAND_BITS);
 }
 
+
+void qsort(void *arr, size_t n, size_t size,
+		int (*cmp)(const void*, const void*)) {
+	size_t j, k; char *a = arr, t, *p, *pi, *pj;
+	while (n > 1) {
+		/* partition */
+		j = n--; p = a + n / 2 * size;
+		pi = a - size; pj = a + j * size;
+		for (;;) {
+			while (cmp(pi += size, p) < 0);
+			do j--; while (cmp(pj -= size, p) > 0);
+			if (pi >= pj) break;
+			p = p == pi ? pj : p == pj ? pi : p;
+#if 1
+			if (((intptr_t)pi | size) % sizeof(int) == 0)
+			for (k = 0; k < size; k += sizeof(int)) {
+				int t = *(int*)&pi[k];
+				*(int*)&pi[k] = *(int*)&pj[k];
+				*(int*)&pj[k] = t;
+			}
+			else
+#endif
+			for (k = 0; k < size; k++)
+				t = pi[k], pi[k] = pj[k], pj[k] = t;
+		}
+		n -= j++;
+		qsort(a, j, size, cmp);
+		a = pj + size;
+	}
+}
+
+void* bsearch(const void *key, const void *a, size_t n,
+		size_t size, int (*cmp)(const void*, const void*)) {
+	while (n) {
+		const char *p = (const char*)a + (n >> 1) * size;
+		int c = cmp(key, p);
+		if (!c) return (void*)p;
+		if (c > 0) n--, a = p + size;
+		n >>= 1;
+	}
+	return NULL;
+}
+

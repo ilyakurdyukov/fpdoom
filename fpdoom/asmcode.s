@@ -284,10 +284,13 @@ CODE32_FN memset
 	mov	r0, r3
 	bx	lr
 
-CODE32_FN __aeabi_memclr4
+CODE32_FN __aeabi_memclr
 	mov	r2, r1
 	mov	r1, #0
 	b	memset
+
+	.global __aeabi_memclr4
+	.set __aeabi_memclr4, __aeabi_memclr
 .endif
 
 CODE32_FN usb_send_asm
