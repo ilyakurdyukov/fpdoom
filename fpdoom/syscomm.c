@@ -17,6 +17,7 @@ void scan_firmware(intptr_t fw_addr) {
 	int i, j; short *keymap = NULL;
 	uint32_t *pinmap = NULL;
 	uint32_t time0 = sys_timer_ms();
+	int flags = 3;
 
 	for (i = 0; i < FIRMWARE_SIZE - 0x1000; i += 4) {
 		volatile short *s = (short*)(fw_addr + i);
@@ -24,31 +25,54 @@ void scan_firmware(intptr_t fw_addr) {
 		if (MEM4(s) == 0x53505244 && MEM4(s + 8) == 0x4e504143) break;
 
 		// keymap filter
+		if (flags & 1)
 		if (MEM4(s + 38) == 0xffffffff) {
 			uint32_t mask0 = 0, mask1 = 0, empty = 0, tmp;
-			j = 0;
-			for (;;) {
-				int a = s[j++];
-				empty -= a >> 31;	// should be around 17
-				if (a != -1) {
-					if ((unsigned)(a - 1) > (unsigned)0x39 - 1) break;
-					tmp = 1u << (a & 31);
-					if (a & 32) {
-						if (mask1 & tmp) break;
-						mask1 |= tmp;
-					} else {
-						if (mask0 & tmp) break;
-						mask0 |= tmp;
+
+#define CHECK_KEY \
+	empty -= a >> 31; \
+	if (a != -1) { \
+		if ((unsigned)(a - 1) > (unsigned)0x39 - 1) break; \
+		tmp = 1u << (a & 31); \
+		if (a & 32) { \
+			if (mask1 & tmp) break; \
+			mask1 |= tmp; \
+		} else { \
+			if (mask0 & tmp) break; \
+			mask0 |= tmp; \
+		} \
+	}
+
+			if (_chip != 1) {
+				for (j = 0; j < 64; j += 8) {
+					int k, empty_ = empty, m0 = mask0, m1 = mask1;
+					if (*(int32_t*)(s + j + 6) != -1) break;
+					for (k = 0; k < 6; k++) {
+						int a = s[j + k];
+						CHECK_KEY
+					}
+					if (k < 6) {
+						empty = empty_; mask0 = m0; mask1 = m1;
+						break;
 					}
 				}
-				if (j < 40) continue;
+			} else
+				for (j = 0; j < 40; j++) {
+					int a = s[j];
+					CHECK_KEY
+				}
+#undef CHECK_KEY
+			if (j >= 40) do {
+				if (empty < 10) break;
+				tmp = 1 << 1 | 1 << 8 | 1 << 9; // DIAL, LSOFT, RSOFT
+				if ((mask0 & tmp) != tmp) break;
 				tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
-				if ((mask1 & tmp) != tmp || empty < 10) break;
-				if (keymap)
-					ERR_EXIT("found two keymaps (%p, %p)\n", (void*)keymap, (void*)s);
-				keymap = (short*)s;
-				break;
-			}
+				if ((mask1 & tmp) != tmp) break;
+				if (keymap) {
+					DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)s);
+					flags &= ~1; keymap = NULL;
+				} else keymap = (short*)s;
+			} while (0);
 		}
 
 		do {
@@ -71,10 +95,12 @@ void scan_firmware(intptr_t fw_addr) {
 		} while (0);
 	}
 	DBG_LOG("scan_firmware: %dms\n", sys_timer_ms() - time0);
-	DBG_LOG("keymap = %p\n", (void*)keymap);
-	DBG_LOG("pinmap = %p\n", (void*)pinmap);
-	if (!keymap) DBG_LOG("!!! keymap not found\n");
-	if (!pinmap) ERR_EXIT("pinmap not found\n");
+	if (flags & 1) {
+		if (keymap) DBG_LOG("keymap = %p\n", (void*)keymap);
+		else DBG_LOG("!!! keymap not found\n");
+	}
+	if (pinmap) DBG_LOG("pinmap = %p\n", (void*)pinmap);
+	else ERR_EXIT("pinmap not found\n");
 	if (!sys_data.keymap_addr)
 		sys_data.keymap_addr = keymap;
 	pinmap_addr = pinmap;

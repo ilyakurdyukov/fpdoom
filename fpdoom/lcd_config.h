@@ -323,7 +323,7 @@ static const uint8_t cmd9108_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd9307_init[] = {
+static const uint8_t cmd9307_init240[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
 	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
@@ -348,6 +348,40 @@ static const uint8_t cmd9307_init[] = {
 	LCM_CMD(0xf2, 6), 0x8f,0x13,0x06,0x06,0x07,0x3b,
 	LCM_CMD(0xf1, 6), 0x52,0xbc,0x8f,0x35,0x38,0x4f,
 	LCM_CMD(0xf3, 6), 0x54,0xbc,0x8f,0x33,0x3c,0x4f,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+static const uint8_t cmd9307_init[] = {
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x44, 2), 0x00,0x10,
+	LCM_CMD(0x21, 0),
+	LCM_CMD(0x86, 1), 0x99,
+	LCM_CMD(0x87, 1), 0x79,
+	LCM_CMD(0x89, 1), 0x03,
+	LCM_CMD(0xe8, 2), 0x22,0x70,
+	LCM_CMD(0x8b, 1), 0x80,
+	LCM_CMD(0x8d, 1), 0x22,
+	LCM_CMD(0x8e, 1), 0x0f,
+	LCM_CMD(0xc3, 1), 0x2a,
+	LCM_CMD(0xc4, 1), 0x05,
+	LCM_CMD(0xc9, 1), 0x0a,
+	LCM_CMD(0xff, 1), 0x62,
+	LCM_CMD(0x99, 1), 0x3e,
+	LCM_CMD(0x9d, 1), 0x4b,
+	LCM_CMD(0x8a, 1), 0x40,
+	LCM_CMD(0xf6, 1), 0x00,
+	LCM_CMD(0xf0, 6), 0x81,0x00,0x13,0x14,0x0b,0x45,
+	LCM_CMD(0xf1, 6), 0x58,0x77,0x76,0x2b,0x34,0x6f,
+	LCM_CMD(0xf2, 6), 0x44,0x00,0x19,0x17,0x0d,0x46,
+	LCM_CMD(0xf3, 6), 0x55,0xb7,0xd5,0x28,0x24,0xff,
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	//LCM_CMD(0xee, 0), // ???
 	LCM_CMD(0x11, 0), // Sleep Out Mode
 	LCM_DELAY(120),
 	LCM_CMD(0x29, 0), // Display ON
@@ -480,10 +514,15 @@ static const lcd_config_t lcd_config[] = {
 	// Sitronix ST7735S CTC
 	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7C89F0_init },
 
+/* Itel it5626 */
+
+	// GlaxyCore GC9307
+	{ 0x009307, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 }, 0x48, cmd9307_init },
+
 /* DZ09 */
 
 	// GlaxyCore GC9307
-	{ 0x009307, 0xffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init },
+	{ 0x80009307, 0x80ffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init240 },
 
 /* Samsung B310E */
 

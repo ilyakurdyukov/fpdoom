@@ -54,10 +54,11 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 13 | Vertex D514       | SC6531E  | ???    240x320 | center     |
 | 14 | Fly TS114         | SC6531E  | GC9306 240x320 | right soft |
 | 15 | Energizer E12     | SC6531E  | GC9106 128x160 | 1          |
+| 16 | Itel it5626       | SC6531DA | GC9307 240x320 | left soft  |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
-* Smart Watch DZ09: use `--spi 0 --lcd 0x9307`, no controls - you can only watch replays, no boot key - use boot cable
+* Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * Nokia TA-1174: use `--spi 1 --spi_mode 1 --lcd 0x9316`, also add `enddata 0` command for `spd_dump`, before `fdl` commands
 * BQ 3586: use `--bl_gpio 19` for backlight to work properly
 * Fly TS114: use `--spi 1`
