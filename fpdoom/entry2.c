@@ -14,6 +14,10 @@ int _argv_init(char ***argvp, int skip);
 
 int main(int argc, char **argv);
 
+#ifdef CXX_SUPPORT
+#include "cxx_init.h"
+#endif
+
 void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int arg_skip) {
 	int argc; char **argv = NULL;
 	uint32_t fw_addr = (uint32_t)image_addr & 0xf0000000;
@@ -45,6 +49,9 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 	}
 	_stdio_init();
 	argc = _argv_init(&argv, arg_skip);
+#ifdef CXX_SUPPORT
+	cxx_init(argc, argv);
+#endif
 	exit(main(argc, argv));
 }
 

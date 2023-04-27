@@ -290,7 +290,9 @@ CODE32_FN __aeabi_memclr
 	b	memset
 
 	.global __aeabi_memclr4
+	.global __aeabi_memclr8
 	.set __aeabi_memclr4, __aeabi_memclr
+	.set __aeabi_memclr8, __aeabi_memclr
 .endif
 
 CODE32_FN usb_send_asm

@@ -13,6 +13,14 @@ static inline int isalnum(int c) {
 	return isalpha(c) || isdigit(c);
 }
 
+static inline int isspace(int c) {
+	return c == ' ' || (unsigned)c - 9 < 5;
+}
+
+static inline int ispunct(int c) {
+	return (unsigned)c - 0x21 < 0x5e && !isalnum(c);
+}
+
 static inline int isprint(int c) {
 	return (unsigned)c - 0x20 < 0x5f;
 }

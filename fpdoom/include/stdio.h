@@ -5,6 +5,10 @@
 #include "stdarg.h"
 #include "stdint.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct _IO_FILE;
 typedef struct _IO_FILE FILE;
 
@@ -59,4 +63,9 @@ __attribute__((__format__(__scanf__, 2, 3)))
 int sscanf(const char *, const char *, ...);
 __attribute__((__format__(__scanf__, 2, 3)))
 int fscanf(FILE*, const char*, ...);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

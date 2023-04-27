@@ -37,6 +37,11 @@ void exit(int code) {
 	for (;;);
 }
 
+int atexit(void (*func)(void)) {
+	(void)func;
+	return -1;
+}
+
 FILE *_stdin = NULL;
 FILE *_stdout = NULL;
 FILE *_stderr = NULL;

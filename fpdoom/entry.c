@@ -46,6 +46,9 @@ struct entry2 {
 
 int entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size, uint8_t *entry2_rel, struct entry2 *entry2) {
 #else
+#ifdef CXX_SUPPORT
+#include "cxx_init.h"
+#endif
 void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 	static const uint8_t fdl_ack[8] = {
@@ -223,6 +226,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	*sys_data_copy = sys_data;
 	return argc1 - argc;
 #else
+#ifdef CXX_SUPPORT
+	cxx_init(argc, argv);
+#endif
 	exit(main(argc, argv));
 #endif
 }

@@ -199,8 +199,9 @@ int tolower(int ch) {
 
 long strtol(const char *s, char **end, int base) {
 	unsigned a; unsigned long val = 0, sign = 0;
+	const char *pos = s;
 	do a = *s++;
-	while (a == ' ' || a == '\t' || a == '\n' || a == '\r');
+	while (a == ' ' || (unsigned)a - 9 < 5);
 
 	if (a == '-') sign--, a = *s++;
 	else if (a == '+') a = *s++;
@@ -209,6 +210,7 @@ long strtol(const char *s, char **end, int base) {
 		base = 10;
 		if (a == '0') {
 			base = 8;
+			pos = s;
 			a = *s++;
 			if ((a | ('a' - 'A')) == 'x') {
 				base = 16;
@@ -225,11 +227,14 @@ long strtol(const char *s, char **end, int base) {
 		}
 		if (a >= (unsigned)base) break;
 		val = val * base + a;
+		pos = s;
 		a = *s++;
 	}
-	if (end) *end = (char*)s - 1;
+	if (end) *end = (char*)pos;
 	return (val ^ sign) - sign;
 }
+
+FN_ALIAS(strtol, strtoul)
 
 int atoi(const char *s) {
 	return strtol(s, 0, 10);
@@ -309,4 +314,23 @@ void* bsearch(const void *key, const void *a, size_t n,
 	}
 	return NULL;
 }
+
+#if CXX_SUPPORT
+/* operator new(unsigned) */
+void* _Znwj(unsigned size) { return malloc(size); }
+/* operator new[](unsigned) */
+void* _Znaj(unsigned size) { return malloc(size); }
+
+/* operator delete(void*) */
+void _ZdlPv(void *p) { free(p); }
+/* operator delete[](void*) */
+void _ZdaPv(void *p) { free(p); }
+
+int __cxa_atexit(void (*func)(void*), void *arg, void *d) {
+	(void)func; (void)arg; (void)d;
+	return -1;
+}
+
+void __cxa_pure_virtual(void) { for (;;); }
+#endif
 

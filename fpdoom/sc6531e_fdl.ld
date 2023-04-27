@@ -11,6 +11,13 @@ SECTIONS {
 	.text IMAGE_START : {
 		__image_start = .;
 		*(.text._start) *(.text .text.*)
+
+		. = ALIGN(4);
+		__init_array_start = .;
+		KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+		KEEP(*(.init_array .ctors))
+		__init_array_end = .;
+
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(4);

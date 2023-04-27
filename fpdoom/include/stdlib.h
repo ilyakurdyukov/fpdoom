@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <malloc.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline int abs(int num) {
 #ifdef __thumb__
 	int sign = num >> 31;
@@ -25,6 +29,7 @@ static inline long labs(long num) {
 int atoi(const char*);
 long atol(const char*);
 long strtol(const char*, char**, int);
+unsigned long strtoul(const char*, char**, int);
 
 __attribute__((noreturn))
 void exit(int);
@@ -38,5 +43,9 @@ void qsort(void*, size_t, size_t,
 		int (*)(const void*, const void*));
 void* bsearch(const void*, const void*, size_t, size_t,
 		int (*)(const void*, const void*));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
