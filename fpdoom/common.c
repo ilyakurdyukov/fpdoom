@@ -1,9 +1,6 @@
 #include "common.h"
 #include <stdlib.h>
 
-#define FN_ALIAS(fn, copy) \
-	__asm__("\t.global " #copy "\n\t.set " #copy ", " #fn);
-
 #if 0
 unsigned fastchk16(unsigned crc, const void *src, int len) {
 	uint8_t *s = (uint8_t*)src;
@@ -234,13 +231,17 @@ long strtol(const char *s, char **end, int base) {
 	return (val ^ sign) - sign;
 }
 
-FN_ALIAS(strtol, strtoul)
+unsigned long strtoul(const char *s, char **end, int base) {
+	return strtol(s, end, base);
+}
 
 int atoi(const char *s) {
 	return strtol(s, 0, 10);
 }
 
-FN_ALIAS(atoi, atol)
+long atol(const char *s) {
+	return strtol(s, 0, 10);
+}
 
 char* strdup(const char *str) {
 	size_t n = strlen(str) + 1;
@@ -326,9 +327,15 @@ void _ZdlPv(void *p) { free(p); }
 /* operator delete[](void*) */
 void _ZdaPv(void *p) { free(p); }
 
-int __cxa_atexit(void (*func)(void*), void *arg, void *d) {
-	(void)func; (void)arg; (void)d;
+int __cxa_atexit(void (*func)(void*), void *arg, void *dso) {
+	(void)func; (void)arg; (void)dso;
 	return -1;
+}
+
+void *__dso_handle = NULL;
+
+int __aeabi_atexit(void *arg, void (*func)(void*), void *dso) {
+	return __cxa_atexit(func, arg, dso);
 }
 
 void __cxa_pure_virtual(void) { for (;;); }

@@ -14,7 +14,10 @@ SECTIONS {
 
 		. = ALIGN(4);
 		__init_array_start = .;
-		KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+		/* the linker from android-ndk-r15c doesn't support SORT_BY_INIT_PRIORITY */
+		/* this feature is not required for simple code */
+		/* KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*))) */
+		KEEP(*(.init_array.* .ctors.*))
 		KEEP(*(.init_array .ctors))
 		__init_array_end = .;
 
