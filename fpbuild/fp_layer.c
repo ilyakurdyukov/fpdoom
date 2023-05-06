@@ -296,6 +296,7 @@ int setvideomode(int x, int y, int c, int fs) {
 
 	getvalidmodes();
 	x = disp->w1; y = disp->h1;
+	if (sys_data.scaler) x <<= 1, y <<= 1;
 	buildprintf("Setting video mode %dx%d\n", x, y);
 
 	//if (baselayer_videomodewillchange) baselayer_videomodewillchange();
