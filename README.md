@@ -4,6 +4,10 @@ Currently only for feature phones based on the SC6530/SC6531(E/DA) chipset.
 
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, USE AT YOUR OWN RISK!
 
+### Other ports
+
+Port of some games on Build Engine [here](fpbuild). Reuses code written for FPDoom.
+
 ### Build
 
 1. `libc_server`: use the host compiler, based on a [spd_dump](https://github.com/ilyakurdyukov/spreadtrum_flash) tool, so build it with the same options.
@@ -34,6 +38,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 1. Message `!!! unknown LCD`, and before that `LCD: id = 0x000000` - SPI mode is used to connect the LCD. I can't handle it yet.
 2. Message `!!! unknown LCD`, but some number shown in `LCD: id = 0x`. I can add support for this LCD if you send me a firmware dump from your phone.
 3. Message `!!! keymap not found`, means the firmware scan algorithm can't find the keymap, so you can't use the keypad, only watch replays. I can extract the keymap if you send me a firmware dump. I can also add code that asks you to press the requested keys to create the keymap if this becomes a common problem.
+4. Message `Error: W_InitFiles: no files found`, means that no `.wad` files were found. On Linux files must be named in lower case.
 
 ### List of tested models
 
@@ -47,7 +52,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 |  6 | Vertex С323       | SC6531DA | GC9106 128x160 | 0          |
 |  7 | Nobby 170B        | SC6531E  | GC9106 128x160 | #          |
 |  8 | SW DZ09           | SC6531DA | GC9307 240x240 | none       |
-|  9 | Nokia TA-1174     | SC6531E  | ???    128x160 | 7          |
+|  9 | Nokia TA-1174     | SC6531E  | ST7735 128x160 | 7          |
 | 10 | BQ 3586           | SC6531H  | R61529 320x480 | #          |
 | 11 | Samsung B310E     | SC6530C  | ST7735 128x160 | center     |
 | 12 | Fontel FP200      | SC6531DA | GC9106 128x160 | left soft  |
@@ -59,7 +64,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
-* Nokia TA-1174: use `--spi 1 --spi_mode 1 --lcd 0x9316`, also add `enddata 0` command for `spd_dump`, before `fdl` commands
+* Nokia TA-1174: use `--spi 1 --spi_mode 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * BQ 3586: use `--bl_gpio 19` for backlight to work properly
 * Fly TS114: use `--spi 1`
 

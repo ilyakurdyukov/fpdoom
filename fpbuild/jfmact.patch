@@ -1,0 +1,99 @@
+diff --git a/animlib.c b/animlib.c
+index b8df23e..81d5c67 100644
+--- a/animlib.c
++++ b/animlib.c
+@@ -158,7 +158,11 @@ run:
+ 
+    goto nextOp;
+ longOp:
++#ifdef EMBEDDED
++   wordCnt = read16u_le(srcP);
++#else
+    wordCnt = B_LITTLE16(*((uint16 *)srcP));
++#endif
+    srcP += sizeof(uint16);
+    if ((int16)wordCnt <= 0)
+       goto notLongSkip;       /* Do SIGNED test. */
+@@ -222,7 +226,11 @@ void renderframe (uint16 framenumber, uint16 *pagepointer)
+    ppointer+=anim->curlp.nRecords*2+offset;
+    if(ppointer[1])
+       {
++#ifdef EMBEDDED
++      ppointer += (read16u_le(ppointer + 2) + 4 + 1) & ~1;
++#else
+       ppointer += (4 + B_LITTLE16(((uint16 *)ppointer)[1]) + (B_LITTLE16(((uint16 *)ppointer)[1]) & 1));
++#endif
+       }
+    else
+       {
+diff --git a/control.c b/control.c
+index abd3b88..53c9671 100644
+--- a/control.c
++++ b/control.c
+@@ -482,6 +482,10 @@ void CONTROL_ClearAssignments( void )
+ {
+ 	int32 i;
+ 
++#if NO_MOUSE
++	memset(CONTROL_KeyMapping,          KEYUNDEFINED,    sizeof(CONTROL_KeyMapping));
++	return;
++#endif
+ 	memset(CONTROL_MouseButtonMapping,  BUTTONUNDEFINED, sizeof(CONTROL_MouseButtonMapping));
+ 	memset(CONTROL_JoyButtonMapping,    BUTTONUNDEFINED, sizeof(CONTROL_JoyButtonMapping));
+ 	memset(CONTROL_KeyMapping,          KEYUNDEFINED,    sizeof(CONTROL_KeyMapping));
+@@ -685,6 +689,10 @@ void CONTROL_PollDevices(ControlInfo *info)
+ {
+ 	int32 i;
+ 
++#if NO_MOUSE
++	memset(info, 0, sizeof(ControlInfo));
++	return;
++#endif
+ 	memcpy(CONTROL_LastMouseAxes, CONTROL_MouseAxes, sizeof(CONTROL_MouseAxes));
+ 	memcpy(CONTROL_LastJoyAxes,   CONTROL_JoyAxes,   sizeof(CONTROL_JoyAxes));
+ 
+@@ -783,6 +791,7 @@ void CONTROL_GetUserInput( UserInput *info )
+ 		CONTROL_UserInputDelay = -1;
+ 
+ 	if (GetTime() >= CONTROL_UserInputDelay) {
++#if !NO_MOUSE
+ 		if (CONTROL_MouseAxes[1].digital == -1)
+ 			info->dir = dir_North;
+ 		else if (CONTROL_MouseAxes[1].digital == 1)
+@@ -809,6 +818,7 @@ void CONTROL_GetUserInput( UserInput *info )
+             info->dir = dir_West;
+ 		else if (CONTROL_JoyButtonState[joybutton_DpadRight])
+             info->dir = dir_East;
++#endif
+ 
+         if (KB_KeyDown[sc_kpad_8] || KB_KeyDown[sc_UpArrow])
+             info->dir = dir_North;
+@@ -872,8 +882,10 @@ void CONTROL_GetInput( ControlInfo *info )
+ 	CONTROL_PollDevices( info );
+ 
+ 	memset(periphs, 0, sizeof(periphs));
++#if !NO_MOUSE
+ 	CONTROL_ButtonFunctionState(periphs);
+ 	CONTROL_AxisFunctionState(periphs);
++#endif
+ 
+ 	CONTROL_ButtonHeldState1 = CONTROL_ButtonState1;
+ 	CONTROL_ButtonHeldState2 = CONTROL_ButtonState2;
+@@ -914,6 +926,9 @@ boolean CONTROL_Startup(controltype which, int32 ( *TimeFunction )( void ), int3
+ 
+ 	if (initinput()) return true;
+ 
++#if NO_MOUSE
++	KB_Startup();
++#else
+ 	CONTROL_MousePresent = CONTROL_MouseEnabled    = false;
+ 	CONTROL_JoyPresent   = CONTROL_JoystickEnabled = false;
+ 	CONTROL_NumMouseButtons = CONTROL_NumJoyButtons = 0;
+@@ -934,6 +949,7 @@ boolean CONTROL_Startup(controltype which, int32 ( *TimeFunction )( void ), int3
+ 		buildprintf("CONTROL_Startup: Mouse Present\n");
+ 	if (CONTROL_JoyPresent)
+ 		buildprintf("CONTROL_Startup: Joystick Present\n");
++#endif
+ 
+ 	CONTROL_ButtonState1     = 0;
+ 	CONTROL_ButtonState2     = 0;

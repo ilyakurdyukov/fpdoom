@@ -1,0 +1,864 @@
+diff --git a/src/_functio.h b/src/_functio.h
+index 967a77a..8c38a56 100644
+--- a/src/_functio.h
++++ b/src/_functio.h
+@@ -99,7 +99,11 @@ static char * keydefaults[] =
+    "Turn_Right", "Right", "KPad6",
+    "Strafe", "LAlt", "RAlt",
+    "Fire", "LCtrl", "RCtrl",
++#if EMBEDDED == 2
++   "Open", "Enter", "",
++#else
+    "Open", "Space", "",
++#endif
+    "Run", "LShift", "RShift",
+    "AutoRun", "CapLck", "",
+    "Jump", "A", "/",
+@@ -120,7 +124,11 @@ static char * keydefaults[] =
+    "Weapon_8", "8", "",
+    "Weapon_9", "9", "",
+    "Weapon_10", "0", "",
++#if EMBEDDED == 2
++   "Inventory", "Space", "KpdEnt",
++#else
+    "Inventory", "Enter", "KpdEnt",
++#endif
+    "Inventory_Left", "[", "",
+    "Inventory_Right", "]", "",
+    "Med_Kit", "M", "",
+diff --git a/src/anim.c b/src/anim.c
+index f8197f2..048b96b 100644
+--- a/src/anim.c
++++ b/src/anim.c
+@@ -252,6 +252,12 @@ unsigned char * LoadAnm(short anim_num)
+ 
+     DSPRINTF(ds,"LoadAnm");
+     MONO_PRINT(ds);
++#ifdef EMBEDDED
++    if (!playanm_flag) {
++        buildprintf("!!! playanm(\"%s\",%d) skipped\n",ANIMname[ANIMnum],anim_num);
++        return(NULL);
++    }
++#endif
+ 
+     // this seperate allows the anim to be precached easily
+ 
+@@ -266,6 +272,13 @@ unsigned char * LoadAnm(short anim_num)
+         if (handle == -1)
+             return(NULL);
+         length = kfilelength(handle);
++#ifdef EMBEDDED
++        if (!can_allocache(length)) {
++            kclose(handle);
++            buildprintf("!!! playanm(\"%s\",%d) skipped, not enough free cache to play (length = %u)\n",ANIMname[ANIMnum],anim_num,length);
++            return(NULL);
++        }
++#endif
+ 
+         allocache((void **) &anm_ptr[anim_num], length + sizeof(anim_t), &walock[ANIM_TILE(ANIMnum)]);
+         animbuf = (unsigned char *) ((intptr_t)anm_ptr[anim_num] + sizeof(anim_t));
+diff --git a/src/border.c b/src/border.c
+index f8f2f31..8d5879c 100644
+--- a/src/border.c
++++ b/src/border.c
+@@ -113,8 +113,13 @@ VOID SetCrosshair(VOID)
+     x = windowx1 + wdx;
+     y = windowy1 + wdy;
+ 
++#if NO_FLOAT
++    CrosshairX = x * 320 / xdim;
++    CrosshairY = y * 200 / ydim;
++#else
+     CrosshairX = x / (xdim/320.0);
+     CrosshairY = y / (ydim/200.0);
++#endif
+ 
+     // rotatesprite takes FIXED point number
+     CrosshairX <<= 16;
+@@ -199,7 +204,11 @@ SetFragBar(PLAYERp pp)
+     for (i = windowx1; i <= windowx2; i++)
+         {
+         y = (tilesizy[FRAG_BAR] * num_frag_bars) - (2 * (num_frag_bars-1));
++#if NO_FLOAT
++        y = y * ydim / 200;
++#else
+         y = y * (ydim/200.0);
++#endif
+ 
+         if (windowy1 < y)
+             startumost[i] = y;
+diff --git a/src/colormap.c b/src/colormap.c
+index d479d1c..63b3f77 100644
+--- a/src/colormap.c
++++ b/src/colormap.c
+@@ -50,11 +50,20 @@ MapColors(short num, COLOR_MAP cm, short create)
+         return;
+         }
+ 
++#if NO_FLOAT
++    int32_t sum = 0, add;
++    add = ((cm.ToRange << 16) + (cm.FromRange >> 1)) / cm.FromRange;
++
++    for (i = 0; i < cm.FromRange; i++, sum += add)
++        tempbuf[i + cm.FromColor] = (sum >> 16) + cm.ToColor;
++    }
++#else
+     inc = cm.ToRange/((float)cm.FromRange);
+ 
+     for (i = 0; i < cm.FromRange; i++)
+         tempbuf[i + cm.FromColor] = (i*inc) + cm.ToColor;
+     }
++#endif
+ #else
+ VOID
+ MapColors(short num, COLOR_MAP cm, short create)
+diff --git a/src/config.c b/src/config.c
+index e6247bd..a3036d2 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -231,6 +231,7 @@ void CONFIG_SetDefaults( void )
+    Bstrcpy(WangBangMacro[9], MACRO10);
+ 
+    CONFIG_SetDefaultKeyDefinitions(CONFIG_DEFAULTS_CLASSIC);
++#if !NO_MOUSE
+    CONFIG_SetMouseDefaults(CONFIG_DEFAULTS_CLASSIC);
+    CONFIG_SetJoystickDefaults(CONFIG_DEFAULTS_CLASSIC);
+ 
+@@ -257,6 +258,7 @@ void CONFIG_SetDefaults( void )
+       CONTROL_SetJoyAxisDead(i, JoystickAnalogDead[i]);
+       CONTROL_SetJoyAxisSaturate(i, JoystickAnalogSaturate[i]);
+    }
++#endif
+ }
+ 
+ 
+@@ -707,6 +709,7 @@ void CONFIG_WriteSetup( void )
+            KB_ScanCodeToString(KeyboardKeys[dummy][0]), KB_ScanCodeToString(KeyboardKeys[dummy][1]));
+    }
+ 
++#if !NO_MOUSE
+    for (dummy=0;dummy<MAXMOUSEBUTTONS;dummy++) {
+        Bsprintf(buf,"MouseButton%d",dummy);
+        SCRIPT_PutString( scripthandle,"Controls", buf, CONFIG_FunctionNumToName( MouseButtons[dummy] ));
+@@ -758,6 +761,7 @@ void CONFIG_WriteSetup( void )
+        Bsprintf(buf,"JoystickAnalogSaturate%d",dummy);
+        SCRIPT_PutNumber(scripthandle, "Controls", buf, JoystickAnalogSaturate[dummy], FALSE, FALSE);
+    }
++#endif
+ 
+    SCRIPT_Save (scripthandle, setupfilename);
+    SCRIPT_Free (scripthandle);
+diff --git a/src/console.c b/src/console.c
+index 37ca2ac..e7462d7 100644
+--- a/src/console.c
++++ b/src/console.c
+@@ -212,6 +212,9 @@ BOOL IsCommand(char *str)
+     int i;
+     char first[512];
+ 
++#if NO_CONSOLE
++    return FALSE;
++#endif
+     sscanf(str,"%s",first);
+ 
+     for (i = 0; i < numcommands; i++)
+@@ -267,6 +270,9 @@ void CON_ConMessage(const char *message, ...)
+ //
+ void CON_StoreArg(const char *userarg)
+ {
++#ifdef EMBEDDED
++    return;
++#endif
+     if(con_argnum < MAX_USER_ARGS)
+     {
+         strcpy(&user_args[con_argnum][0],userarg);
+@@ -349,6 +355,9 @@ void CON_ProcessUserCommand( void )
+     SHORT i=0;
+     char temp_message[256],command_str[256];
+ 
++#if NO_CONSOLE
++    return;
++#endif
+     strcpy(temp_message,MessageInputString);
+     sscanf(Bstrlwr(temp_message),"%s", command_str); // Get the base command type
+ 
+@@ -379,6 +388,9 @@ void CON_InitConsole( void )
+ {
+ 	CON_COMMANDp i;
+ 
++#if NO_CONSOLE
++    return;
++#endif
+     for (i = &pre_commands[0]; i->command != NULL; i++)
+     {
+         if(!CON_AddCommand(i->command, i->function))
+diff --git a/src/draw.c b/src/draw.c
+index 7231f2e..23b922b 100644
+--- a/src/draw.c
++++ b/src/draw.c
+@@ -1428,8 +1428,13 @@ VOID SecretInfo(PLAYERp pp)
+     if (CommEnabled || CommPlayers > 1)
+         return;
+ 
++#if NO_FLOAT
++    x = x * 320 / xdim;
++    y = y * 200 / ydim;
++#else
+     x = x / (xdim/320.0);
+     y = y / (ydim/200.0);
++#endif
+ 
+     if (gs.Stats)
+         {
+diff --git a/src/game.c b/src/game.c
+index ab8b9d7..dc29d1d 100644
+--- a/src/game.c
++++ b/src/game.c
+@@ -253,7 +253,9 @@ short Level = 0;
+ BOOL ExitLevel = FALSE;
+ SHORT OrigCommPlayers=0;
+ extern BYTE CommPlayers;
++#if !NO_NET
+ extern BOOL CommEnabled;
++#endif
+ extern int bufferjitter;
+ 
+ BOOL CameraTestMode = FALSE;
+@@ -956,6 +958,7 @@ InitGame(VOID)
+ 
+     CommPlayers = numplayers;
+     OrigCommPlayers = CommPlayers;
++#if !NO_NET
+     if (numplayers > 1)
+         {
+         CommEnabled = TRUE;
+@@ -965,8 +968,11 @@ InitGame(VOID)
+             gNet.MultiGameType = MULTI_GAME_AI_BOTS;
+         NetBroadcastMode = (networkmode == MMULTI_MODE_P2P);
+         }
++#endif
+ 
++#ifndef EMBEDDED
+     LoadDemoRun();
++#endif
+ 
+     // LoadImages will now proceed to steal all the remaining heap space
+     buildputs("Loading sound and graphics...\n");
+@@ -997,6 +1003,9 @@ InitGame(VOID)
+ 
+     DemoModeMenuInit = TRUE;
+     // precache as much stuff as you can
++#ifdef EMBEDDED
++    if (1); else
++#endif
+     if (UserMapName[0] == '\0')
+         {
+         LoadLevel("$dozer.map");
+@@ -1016,9 +1025,11 @@ InitGame(VOID)
+ 
+     COVERsetbrightness(gs.Brightness,&palette_data[0][0]);
+ 
++#if !NO_SOUND
+     ASS_MessageOutputString = buildputs;    // Send JFAudioLib messages to the JFBuild console.
+     InitFX();   // JBF: do it down here so we get a hold of the window handle
+     InitMusic();
++#endif
+ 
+     }
+ 
+@@ -1707,7 +1718,9 @@ LogoLevel(VOID)
+     //MONO_PRINT(ds);
+ 
+     // PreCache Anim
++#ifndef EMBEDDED
+     LoadAnm(0);
++#endif
+ 
+     if ((fin = kopen4load("3drealms.pal", 0)) != -1)
+         {
+@@ -2084,6 +2097,9 @@ MenuLevel(VOID)
+         PlaySong(LevelInfo[0].SongName, RedBookSong[0], TRUE, FALSE);
+         }
+ 
++#if NO_NET
++    if (0)
++#endif
+     if (AutoNet)
+         {
+         DrawMenuLevelScreen();
+@@ -3415,6 +3431,7 @@ int app_main(int argc, char const * const argv[])
+     }
+ #endif
+ 
++#ifndef EMBEDDED
+     {
+         char *supportdir = Bgetsupportdir(TRUE);
+         char *appdir = Bgetappdir();
+@@ -3469,6 +3486,7 @@ int app_main(int argc, char const * const argv[])
+             free(supportdir);
+         }
+     }
++#endif
+ 
+     buildsetlogfile("sw.log");
+ 
+@@ -3616,6 +3634,9 @@ int app_main(int argc, char const * const argv[])
+ 
+     buildprintf("GRP file: %s\n", grpfile);
+     initgroupfile(grpfile);
++#ifdef EMBEDDED
++    if (GameVariant == GRPFILE_GAME_REG)
++#endif
+     if (!gamegrp && !DetectShareware()) {
+         if (SW_SHAREWARE) {
+             buildputs("Detected shareware GRP\n");
+@@ -3690,6 +3711,7 @@ int app_main(int argc, char const * const argv[])
+                 if (!strcmp(argv[i], "--")) break;
+             }
+         else
++#if !NO_NET
+         if (Bstrncasecmp(arg, "autonet",7) == 0)
+             {
+             AutoNet = TRUE;
+@@ -3698,11 +3720,15 @@ int app_main(int argc, char const * const argv[])
+                 &Auto.Team,&Auto.HurtTeam,&Auto.Kill,&Auto.Time,&Auto.Color,&Auto.Nuke);
+             }
+         else
++#endif
+         if (Bstrncasecmp(arg, "turnscale",9) == 0)
+             {
+             if (cnt <= argc-2)
+                 {
+                 cnt++;
++#ifdef EMBEDDED
++#define sscanf(s, f, d) *(d) = atoi(s)
++#endif
+                 sscanf(argv[cnt], "%d",&turn_scale);
+                 }
+             }
+@@ -3793,6 +3819,9 @@ int app_main(int argc, char const * const argv[])
+                         int temp;
+             cnt++;
+             sscanf(argv[cnt],"%d",&temp);
++#ifdef EMBEDDED
++#undef sscanf
++#endif
+                         AutoColor = temp;
+                         HasAutoColor = TRUE;
+             }
+@@ -5621,6 +5650,7 @@ void drawoverheadmap(int cposx, int cposy, int czoom, short cang)
+                 switch (spr->cstat & 48)
+                     {
+                 case 0:  // Regular sprite
++                    if(p >= 0) /* ASan */
+                     if(Player[p].PlayerSprite == j)
+                     {
+                     ox = sprx - cposx;
+diff --git a/src/game.h b/src/game.h
+index de9a98b..2e77556 100644
+--- a/src/game.h
++++ b/src/game.h
+@@ -388,8 +388,9 @@ extern char MessageOutputString[256];
+ #define TEST_SYNC_KEY(player, sync_num) TEST((player)->input.bits, (1 << (sync_num)))
+ #define RESET_SYNC_KEY(player, sync_num) RESET((player)->input.bits, (1 << (sync_num)))
+ 
+-#define TRAVERSE_SPRITE_SECT(l, o, n)    for ((o) = (l); (n) = nextspritesect[o], (o) != -1; (o) = (n))
+-#define TRAVERSE_SPRITE_STAT(l, o, n)    for ((o) = (l); (n) = nextspritestat[o], (o) != -1; (o) = (n))
++/* ASan */
++#define TRAVERSE_SPRITE_SECT(l, o, n)    for ((o) = (l); (o) != -1 && ((n) = nextspritesect[o], 1); (o) = (n))
++#define TRAVERSE_SPRITE_STAT(l, o, n)    for ((o) = (l); (o) != -1 && ((n) = nextspritestat[o], 1); (o) = (n))
+ #define TRAVERSE_CONNECT(i)   for (i = connecthead; i != -1; i = connectpoint2[i]) if (!Player[i].IsDisconnected)
+ 
+ 
+@@ -989,8 +990,13 @@ extern VOID (*InitWeapon[MAX_WEAPONS])(PLAYERp);
+ //
+ ///////////////////////////////////////////////////////////////////////////////////////////
+ 
++#if NO_NET
++#define MAX_SW_PLAYERS_SW 1
++#define MAX_SW_PLAYERS_REG 1
++#else
+ #define MAX_SW_PLAYERS_SW  (4)
+ #define MAX_SW_PLAYERS_REG (8)
++#endif
+ #define MAX_SW_PLAYERS (SW_SHAREWARE ? MAX_SW_PLAYERS_SW : MAX_SW_PLAYERS_REG)
+ 
+ typedef struct
+@@ -1167,7 +1173,11 @@ struct PLAYERstruct
+     #define MAXSYNCBYTES 16
+ 	// TENSW: on really bad network connections, the sync FIFO queue can overflow if it is the
+ 	// same size as the move fifo.
++#if NO_NET
++	#define SYNCFIFOSIZ 1
++#else
+ 	#define SYNCFIFOSIZ 1024
++#endif
+     BYTE syncval[SYNCFIFOSIZ][MAXSYNCBYTES];
+ 
+     // must start out as 0
+@@ -2219,7 +2229,11 @@ VOID DoSoundSpotMatch(short match, short sound_num, short sound_type);
+ extern BOOL ExitLevel;
+ extern BOOL Warping;
+ extern BYTE CommPlayers;
++#ifdef NO_NET
++#define CommEnabled 0
++#else
+ extern BOOL CommEnabled;
++#endif
+ extern char CommPlayerName[];
+ extern short Level;
+ extern short Episode;
+@@ -2333,7 +2347,12 @@ extern BOOL NightVision;
+ #endif
+ 
+ int _PlayerSound(char *file, int line, int num, int *x, int *y, int *z, Voc3D_Flags flags, PLAYERp pp);
++#if NO_SOUND
++#define PlayerSound(num, x, y, z, flags, pp) 0
++#define PlaySound(num, x, y, z, flags) -1
++#else
+ #define PlayerSound(num, x, y, z, flags, pp) _PlayerSound(__FILE__, __LINE__, (num), (x), (y), (z), (flags), (pp))
++#endif
+ 
+ #define MAXSO (MAXLONG)
+ 
+diff --git a/src/grpscan.c b/src/grpscan.c
+index 45fa805..f8780a4 100644
+--- a/src/grpscan.c
++++ b/src/grpscan.c
+@@ -47,6 +47,25 @@ struct grpfile grpfiles[] = {
+ };
+ static struct grpfile *foundgrps = NULL;
+ 
++#ifdef EMBEDDED
++extern int GameVariant;
++int ScanGroups(void) { return 0; }
++const struct grpfile* IdentifyGroup(const char *fn) {
++    int i; char *pfn = NULL;
++    static const char* const list[] = {
++        "sw.grp", "wt.grp", NULL };
++    buildprintf("Scanning for GRP files...\n");
++    for (i = 0; list[i]; i++)
++        if (findfrompath(list[i], &pfn) >= 0) break;
++    if (pfn) {
++        strcpy((char*)fn, pfn);
++        free(pfn);
++        if (i) GameVariant = GRPFILE_GAME_WD;
++    }
++    return NULL;
++}
++void FreeGroups(void) {}
++#else
+ #define GRPCACHEFILE "grpfiles.cache"
+ static struct grpcache {
+     struct grpcache *next;
+@@ -429,3 +448,4 @@ int ImportGroupsFromPath(const char *path, struct importgroupsmeta *cbs)
+     else if (errors) return IMPORTGROUP_ERROR; // Finding nothing but errors reports back errors.
+     return IMPORTGROUP_OK;
+ }
++#endif
+diff --git a/src/jsector.c b/src/jsector.c
+index 1da5540..b143a47 100644
+--- a/src/jsector.c
++++ b/src/jsector.c
+@@ -666,7 +666,7 @@ JS_DrawMirrors(PLAYERp pp, int tx, int ty, int tz, short tpang, int tphoriz)
+         {
+         for (cnt = MAXMIRRORS - 1; cnt >= 0; cnt--)
+             //if (TEST_GOTPIC(cnt + MIRRORLABEL) || TEST_GOTPIC(cnt + CAMSPRITE))
+-            if (TEST_GOTPIC(cnt + MIRRORLABEL) || TEST_GOTPIC(mirror[cnt].campic))
++            if (TEST_GOTPIC(cnt + MIRRORLABEL) || (mirror[cnt].campic >= 0 /* ASan */ && TEST_GOTPIC(mirror[cnt].campic)))
+                 {
+                 bIsWallMirror = FALSE;
+                 if (TEST_GOTPIC(cnt + MIRRORLABEL))
+@@ -675,7 +675,7 @@ JS_DrawMirrors(PLAYERp pp, int tx, int ty, int tz, short tpang, int tphoriz)
+                     RESET_GOTPIC(cnt + MIRRORLABEL);
+                     }
+                 //else if (TEST_GOTPIC(cnt + CAMSPRITE))
+-                else if (TEST_GOTPIC(mirror[cnt].campic))
++                else if (mirror[cnt].campic >= 0 /* ASan */ && TEST_GOTPIC(mirror[cnt].campic))
+                     {
+                     //RESET_GOTPIC(cnt + CAMSPRITE);
+                     RESET_GOTPIC(mirror[cnt].campic);
+@@ -1075,6 +1075,9 @@ JAnalyzeSprites(SPRITEp tspr)
+ 
+     // Check for voxels
+     //if (bVoxelsOn)
++#if NO_VOXELS
++    return;
++#endif
+     if (gs.Voxels)
+         {
+         if (aVoxelArray[tspr->picnum].Voxel >= 0)
+diff --git a/src/menus.c b/src/menus.c
+index 04c10d1..f629396 100644
+--- a/src/menus.c
++++ b/src/menus.c
+@@ -426,11 +426,13 @@ MenuGroup mouseaxesgroup = {65, 5, "^Mouse Axes", mouseaxes_i, pic_newgametitl,
+ MenuItem inputsetup_i[] =
+     {
+     {DefLayer(0, "Keys Setup", &keysetupgroup),OPT_XS,                 OPT_LINE(0),1,m_defshade,0,NULL,NULL,NULL},
++#if !NO_MOUSE
+     {DefLayer(0, "Mouse Options", &mousegroup),OPT_XS,                 OPT_LINE(2), 1, m_defshade,0,NULL, MNU_MouseCheck, NULL},
+     {DefLayer(0, "Mouse Buttons Setup", &mousesetupgroup),OPT_XS,      OPT_LINE(3),1,m_defshade,0,NULL,NULL,NULL},
+     {DefLayer(0, "Mouse Axes Setup", &mouseaxesgroup),OPT_XS,          OPT_LINE(4),1,m_defshade,0,NULL,NULL,NULL},
+     {DefLayer(0, "Controller Buttons Setup", &joybuttonssetupgroup),OPT_XS,OPT_LINE(6),1,m_defshade,0,NULL,MNU_JoystickCheck,MNU_JoystickButtonsInitialise},
+     {DefLayer(0, "Controller Axes Setup", &joyaxessetupgroup), OPT_XS,   OPT_LINE(7),1,m_defshade,0,NULL,MNU_JoystickCheck,MNU_JoystickAxesInitialise},
++#endif
+     {DefOption(0, "Apply Modern Defaults"), OPT_XS,                    OPT_LINE(9),1,m_defshade,0,MNU_LoadModernDefaults,NULL,NULL},
+     {DefOption(0, "Apply Classic Defaults"), OPT_XS,                   OPT_LINE(10),1,m_defshade,0,MNU_LoadClassicDefaults,NULL,NULL},
+     {DefNone}
+@@ -1843,6 +1845,10 @@ MNU_OrderCustom(UserCall call, MenuItem * item)
+     return (TRUE);
+     }
+ 
++#if NO_MOUSE
++#define CONFIG_SetMouseDefaults(x)
++#define CONFIG_SetJoystickDefaults(x)
++#endif
+ BOOL MNU_LoadModernDefaults(void)
+     {
+     CONFIG_SetDefaultKeyDefinitions(CONFIG_DEFAULTS_MODERN);
+@@ -2222,9 +2228,11 @@ MNU_InitMenus(void)
+     slidersettings[sldr_joyaxissatur] = 0;
+ 
+     // Distinguish between Single or Multiplay for new game menu types
++#if !NO_NET
+     if(CommPlayers > 1)
+         main_i[0].child = &networkgroup;
+     else
++#endif
+ //        #ifdef SW_SHAREWARE
+         main_i[0].child = &episodegroup;
+ //        #else
+@@ -3994,7 +4002,18 @@ MNU_DoSlider(short dir, MenuItem_p item, BOOL draw)
+             CONTROL_SetAnalogAxisScale(item->slider - sldr_mousescalex, offset<<13, controldevice_mouse);
+             }
+ 
+-        sprintf(tmp_text, "%.2f", (float)(slidersettings[item->slider]<<13) / 65535.f);
++#if NO_FLOAT
++#define PRINT_SCALE(n, shl, div) \
++    { \
++        int l=slidersettings[item->slider]; \
++        int v=((l<0?-l:l)*100 + (1<<(n-1)))>>n, h=v/100; \
++        sprintf(tmp_text, "%s%d.%02d", l<0?"-":"", h, v-h*100); \
++    }
++#else
++#define PRINT_SCALE(n, shl, div) \
++    sprintf(tmp_text, "%.2f", (float)(slidersettings[item->slider]<<shl) / div);
++#endif
++        PRINT_SCALE(3, 13, 65535.f)
+         MNU_DrawSmallString(OPT_XSIDE+tilesizx[pic_slidelend]+tilesizx[pic_sliderend]+(MAX_SLDR_WIDTH+1)*tilesizx[pic_slidebar], item->y+4, tmp_text, 1, 16);
+         break;
+ 
+@@ -4020,7 +4039,7 @@ MNU_DoSlider(short dir, MenuItem_p item, BOOL draw)
+             CONTROL_SetAnalogAxisScale(JoystickAxisPage, newscale, controldevice_joystick);
+             }
+ 
+-        sprintf(tmp_text, "%.2f", (float)(slidersettings[item->slider]<<13) / 65535.f);
++        PRINT_SCALE(3, 13, 65535.f)
+         MNU_DrawSmallString(OPT_XSIDE+tilesizx[pic_slidelend]+tilesizx[pic_sliderend]+(MAX_SLDR_WIDTH+1)*tilesizx[pic_slidebar], item->y+4, tmp_text, 1, 16);
+         break;
+ 
+@@ -4085,7 +4104,7 @@ MNU_DoSlider(short dir, MenuItem_p item, BOOL draw)
+                 }
+             }
+ 
+-        sprintf(tmp_text, "%.2f", (float)(slidersettings[item->slider]<<10) / 32767.f);
++        PRINT_SCALE(5, 10, 32767.f)
+         MNU_DrawSmallString(OPT_XSIDE+tilesizx[pic_slidelend]+tilesizx[pic_sliderend]+(MAX_SLDR_WIDTH+1)*tilesizx[pic_slidebar], item->y+4, tmp_text, 1, 16);
+         break;
+ 
+diff --git a/src/net.c b/src/net.c
+index c2f6849..57976ee 100644
+--- a/src/net.c
++++ b/src/net.c
+@@ -82,7 +82,9 @@ SW_PACKET loc;
+ 
+ BOOL ready2send = 0;
+ 
++#if !NO_NET
+ BOOL CommEnabled = FALSE;
++#endif
+ BYTE CommPlayers = 0;
+ int movefifoplc, movefifosendplc;//, movefifoend[MAX_SW_PLAYERS];
+ unsigned int MoveThingsCount;
+diff --git a/src/panel.c b/src/panel.c
+index 314b3dd..c8b62a0 100644
+--- a/src/panel.c
++++ b/src/panel.c
+@@ -271,7 +271,11 @@ VOID ArmorCalc(int damage_amt, int *armor_damage, int *player_damage)
+ 
+     // note: this could easily be converted to a mulscale and save a
+     // bit of processing for floats
++#if NO_FLOAT
++    damage_percent = (3 * damage_amt + 5 / 2) / 5;
++#else
+     damage_percent = ((0.6 * damage_amt)+0.5);
++#endif
+ 
+     *player_damage = damage_amt - damage_percent;
+     *armor_damage = damage_percent;
+@@ -2804,6 +2808,10 @@ pUziRetract(PANEL_SPRITEp psp)
+                 // only reset when primary goes off the screen
+                 RESET(psp->PlayerP->Flags, PF_WEAPON_RETRACT);
+                 psp->PlayerP->Wpn[WPN_UZI] = NULL;
++                /* ASan: use-after-free at PANF_SECONDARY */
++                /* When two Uzis run out of ammo, primary is freed first. */
++                if (psp->sibling && psp->sibling->sibling == psp)
++                    psp->sibling->sibling = NULL;
+                 }
+             else
+             if (TEST(psp->flags, PANF_SECONDARY))
+diff --git a/src/player.c b/src/player.c
+index fcbfd2c..1913695 100644
+--- a/src/player.c
++++ b/src/player.c
+@@ -3966,7 +3966,8 @@ DoPlayerClimb(PLAYERp pp)
+         // if floor is ABOVE you && your head goes above it, do a jump up to
+         // terrace
+ 
+-        if (pp->posz < sector[pp->LadderSector].floorz - Z(6))
++        /* ASan: Ladder from the sewers on the first level of WD */
++        if (pp->posz < (pp->LadderSector < 0 ? 0 : sector[pp->LadderSector].floorz) - Z(6))
+             {
+             pp->jump_speed = PLAYER_CLIMB_JUMP_AMT;
+             RESET(pp->Flags, PF_CLIMBING|PF_WEAPON_DOWN);
+@@ -4088,6 +4089,7 @@ DoPlayerWadeSuperJump(PLAYERp pp)
+             {
+             hitsect = wall[hitwall].nextsector;
+ 
++            if (hitsect >= 0) /* ASan */
+             if (labs(sector[hitsect].floorz - pp->posz) < Z(50))
+                 {
+                 if (Distance(pp->posx, pp->posy, hitx, hity) < ((((int)pp->SpriteP->clipdist)<<2) + 256))
+diff --git a/src/rooms.c b/src/rooms.c
+index dbffcaa..3667ff4 100644
+--- a/src/rooms.c
++++ b/src/rooms.c
+@@ -589,7 +589,7 @@ VOID FAFgetzrangepoint(LONG x, LONG y, LONG z, SHORT sectnum,
+     // because the ceiling and floors get moved out of the way for drawing.
+ 
+     // early out to regular routine
+-    if (!FAF_ConnectArea(sectnum))
++    if (sectnum < 0 /* ASan */ || !FAF_ConnectArea(sectnum))
+         {
+         getzrangepoint(x, y, z, sectnum, hiz,  ceilhit, loz,  florhit);
+         SectorZadjust(*ceilhit, hiz, *florhit, loz);
+diff --git a/src/rotator.c b/src/rotator.c
+index 27bac0a..f729931 100644
+--- a/src/rotator.c
++++ b/src/rotator.c
+@@ -271,6 +271,7 @@ void DoRotatorSetInterp(short SpriteNum)
+         setinterpolation(&wall[w].x);
+         setinterpolation(&wall[w].y);
+ 
++        if (wall[w].nextwall < 0) continue; /* ASan */
+         setinterpolation(&wall[DRAG_WALL(w)].x);
+         setinterpolation(&wall[DRAG_WALL(w)].y);
+         }
+@@ -290,6 +291,7 @@ void DoRotatorStopInterp(short SpriteNum)
+         stopinterpolation(&wall[w].x);
+         stopinterpolation(&wall[w].y);
+ 
++        if (wall[w].nextwall < 0) continue; /* ASan */
+         stopinterpolation(&wall[DRAG_WALL(w)].x);
+         stopinterpolation(&wall[DRAG_WALL(w)].y);
+         }
+diff --git a/src/rts.h b/src/rts.h
+index 9716774..96a9165 100644
+--- a/src/rts.h
++++ b/src/rts.h
+@@ -108,4 +108,8 @@ char * RTS_GetSoundName (int32 i);
+ ====================
+ */
+ void *RTS_GetSound (int32 lump);
++#if NO_SOUND
++#define RTS_Init(a) (void)0
++#define RTS_Shutdown() (void)0
++#endif
+ #endif
+diff --git a/src/scrip2.c b/src/scrip2.c
+index 557135a..9774e4d 100644
+--- a/src/scrip2.c
++++ b/src/scrip2.c
+@@ -180,8 +180,9 @@ void GetToken (BOOL crossline)
+ // skip space
+ //
+ skipspace:
+-    while (*script_p <= 32)
++    while (script_p < scriptend_p && *script_p <= 32) /* ASan */
+     {
++        if (0)
+         if (script_p >= scriptend_p)
+         {
+             if (!crossline)
+diff --git a/src/sector.c b/src/sector.c
+index fcf8b67..079c470 100644
+--- a/src/sector.c
++++ b/src/sector.c
+@@ -188,6 +188,7 @@ WallSetup(VOID)
+                     wall_num = wall[wall_num].point2)
+                     {
+                     SET(wall[wall_num].extra, WALLFX_LOOP_DONT_SPIN);
++                    if (wall[wall_num].nextwall >= 0) /* ASan */
+                     SET(wall[wall[wall_num].nextwall].extra, WALLFX_LOOP_DONT_SPIN);
+                     }
+ 
+@@ -266,6 +267,7 @@ WallSetup(VOID)
+                     wall_num = wall[wall_num].point2)
+                     {
+                     SET(wall[wall_num].extra, WALLFX_LOOP_OUTER);
++                    if (wall[wall_num].nextwall >= 0) /* ASan */
+                     SET(wall[wall[wall_num].nextwall].extra, WALLFX_LOOP_OUTER);
+                     }
+ 
+diff --git a/src/setup.c b/src/setup.c
+index 0ba6673..5573b0a 100644
+--- a/src/setup.c
++++ b/src/setup.c
+@@ -116,11 +116,13 @@ void InitSetup(void)
+    //CONFIG_ReadSetup();
+    if (CONTROL_Startup( 1, &GetTime, /*120*/ 140 )) exit(1);
+    SetupGameButtons();
++#if !NO_MOUSE
+    CONFIG_SetupMouse();
+    CONFIG_SetupJoystick();
+ 
+    CONTROL_JoystickEnabled = (UseJoystick && CONTROL_JoyPresent);
+    CONTROL_MouseEnabled = (UseMouse && CONTROL_MousePresent);
++#endif
+ 
+    /*{
+    int i;
+diff --git a/src/sounds.c b/src/sounds.c
+index 2940911..0d8e4af 100644
+--- a/src/sounds.c
++++ b/src/sounds.c
+@@ -23,6 +23,12 @@ Original Source: 1997 - Frank Maddin and Jim Norwood
+ Prepared for public release: 03/28/2005 - Charlie Wiederhold, 3D Realms
+ */
+ //-------------------------------------------------------------------------
++#if NO_SOUND
++#include "sounds.h"
++
++BOOL MusicInitialized = FALSE;
++BOOL FxInitialized = FALSE;
++#else
+ #include "build.h"
+ #include "cache1d.h"
+ 
+@@ -2106,5 +2112,6 @@ PlaySpriteSound(short spritenum, int attrib_ndx, Voc3D_Flags flags)
+ //  MONO_PRINT(ds);
+     PlaySound(u->Attrib->Sounds[attrib_ndx], &sp->x, &sp->y, &sp->z, flags);
+     }
++#endif
+ 
+ // vim:ts=4:sw=4:expandtab:
+diff --git a/src/sounds.h b/src/sounds.h
+index aadc5d5..1265c44 100644
+--- a/src/sounds.h
++++ b/src/sounds.h
+@@ -94,6 +94,28 @@ void SetSongVolume(int volume);
+ BOOL SongIsPlaying(void);
+ VOID PlaySoundRTS(int rts_num);
+ 
++#if NO_SOUND
++#define DoUpdateSounds3D() (void)0
++#define Terminate3DSounds() (void)0
++#define Set3DSoundOwner(a) (void)0
++#define PlaySpriteSound(a,b,c) (void)0
++#define DeleteNoSoundOwner(a) (void)0
++#define DeleteNoFollowSoundOwner(a) (void)0
++#define CacheSound(a,b) (BOOL)FALSE
++#define COVER_SetReverb(a) (void)0
++#define UnInitSound() (VOID)0
++#define StopFX() (VOID)0
++#define FlipStereo() (void)0
++#define StopSong() (void)0
++#define PauseSong(a) (void)0
++#define StopSound() (void)0
++#define StartAmbientSound() (void)0
++#define StopAmbientSound() (void)0
++#define PlaySong(a,b,c,d) (BOOL)FALSE
++#define SetSongVolume(a) (void)0
++#define PlaySoundRTS(a) (VOID)0
++#endif
++
+ //
+ // Standard VOC format information - generally don't need this
+ //
+diff --git a/src/weapon.c b/src/weapon.c
+index f353080..a9fb0df 100644
+--- a/src/weapon.c
++++ b/src/weapon.c
+@@ -2639,11 +2639,12 @@ STATE s_PaperShrapC[] =
+ BOOL MissileHitMatch(short Weapon, short WeaponNum, short hitsprite)
+     {
+     SPRITEp hsp = &sprite[hitsprite];
+-    USERp wu = User[Weapon];
++    USERp wu; /* ASan */
+ 
+     if (WeaponNum <= -1)
+         {
+         ASSERT(Weapon >= 0);
++        wu = User[Weapon]; /* ASan */
+         WeaponNum = wu->WeaponNum;
+ 
+         // can be hit by SO only
+@@ -5756,7 +5757,7 @@ PlayerCheckDeath(PLAYERp pp, short Weapon)
+     SPRITEp sp = pp->SpriteP;
+     USERp u = User[pp->PlayerSprite];
+     SPRITEp wp = &sprite[Weapon];
+-    USERp   wu = User[Weapon];
++    USERp   wu; /* ASan */
+     int SpawnZombie(PLAYERp pp, short);
+ 
+ 
+@@ -5783,6 +5784,7 @@ PlayerCheckDeath(PLAYERp pp, short Weapon)
+             return(TRUE);
+             }
+ 
++        wu = User[Weapon]; /* ASan */
+         if (Weapon > -1 && (wu->ID == RIPPER_RUN_R0 || wu->ID == RIPPER2_RUN_R0))
+             pp->DeathType = PLAYER_DEATH_RIPPER;
+ 
+@@ -7655,6 +7657,7 @@ DoHitscanDamage(short Weapon, short hitsprite)
+     // this routine needs some sort of sprite generated from the hitscan
+     // such as a smoke or spark sprite - reason is because of DoDamage()
+ 
++    if (hitsprite >= 0) /* ASan */
+     for (stat = 0; stat < SIZ(StatDamageList); stat++)
+         {
+         if (sprite[hitsprite].statnum == StatDamageList[stat])
+@@ -10800,7 +10803,7 @@ SpawnFireballFlames(SHORT SpriteNum, SHORT enemy)
+     SPRITEp sp = &sprite[SpriteNum];
+     USERp u = User[SpriteNum];
+     SPRITEp ep = &sprite[enemy];
+-    USERp eu = User[enemy];
++    USERp eu = NULL; /* ASan */
+     SPRITEp np;
+     USERp nu;
+     short new;
+@@ -10814,6 +10817,7 @@ SpawnFireballFlames(SHORT SpriteNum, SHORT enemy)
+         if (TEST(ep->extra, SPRX_BURNABLE) && ep->shade > 40)
+             return(-1);
+ 
++        eu = User[enemy]; /* ASan */
+         if (!eu)
+             {
+             ASSERT(TRUE == FALSE);
+@@ -17753,11 +17757,12 @@ HitscanSpriteAdjust(short SpriteNum, short hitwall)
+ 
+     #if 1
+     w = hitwall;
+-    nw = wall[w].point2;
+-    wall_ang = NORM_ANGLE(getangle(wall[nw].x - wall[w].x, wall[nw].y - wall[w].y));
+-
+     if (hitwall >= 0)
++        {
++        nw = wall[w].point2; /* ASan */
++        wall_ang = NORM_ANGLE(getangle(wall[nw].x - wall[w].x, wall[nw].y - wall[w].y));
+         ang = sp->ang = NORM_ANGLE(wall_ang + 512);
++        }
+     else
+         ang = sp->ang;
+     #endif

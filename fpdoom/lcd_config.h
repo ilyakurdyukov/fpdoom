@@ -214,7 +214,7 @@ static const uint8_t cmd9106_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd9316_init[] = {
+static const uint8_t cmd1C80F3_init[] = {
 	//LCM_DELAY(120),
 	LCM_CMD(0x11, 0), // Sleep Out Mode
 	LCM_DELAY(120),
@@ -492,8 +492,8 @@ static const lcd_config_t lcd_config[] = {
 
 /* Nokia TA-1174 */
 
-	// 0x1c80f3
-	{ 0x009316, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd9316_init },
+	// Sitronix ST7735
+	{ 0x1c80f3, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd1C80F3_init },
 
 /* BQ 3586 Tank Max */
 

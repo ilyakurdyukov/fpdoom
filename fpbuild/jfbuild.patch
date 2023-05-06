@@ -1,0 +1,1111 @@
+diff --git a/include/build.h b/include/build.h
+index 00df940..89be2d1 100644
+--- a/include/build.h
++++ b/include/build.h
+@@ -43,19 +43,40 @@ extern "C" {
+ #define MAXSPRITESV5 4096
+ #define MAXTILESV5   4096
+ 
++#ifdef EMBEDDED
++extern unsigned maxcache1dsize;
++extern char playanm_flag;
++int can_allocache(size_t);
++#define MAXSECTORS MAXSECTORSV7
++#ifndef MAXWALLS
++#define MAXWALLS MAXWALLSV7
++#endif
++#ifndef MAXSPRITES
++#define MAXSPRITES MAXSPRITESV7
++#endif
++#ifndef MAXTILES
++#define MAXTILES 9216
++#endif
++#define MAXVOXELS 80
++#else
+ #define MAXSECTORS MAXSECTORSV8
+ #define MAXWALLS MAXWALLSV8
+ #define MAXSPRITES MAXSPRITESV8
+ 
+ #define MAXTILES 9216
+ #define MAXVOXELS 4096
++#endif
+ #define MAXSTATUS 1024
+ #define MAXPLAYERS 16
++#if !defined(MAXXDIM) && !defined(MAXYDIM)
+ #define MAXXDIM 2880
+ #define MAXYDIM 1800
++#endif
+ #define MAXPALOOKUPS 256
+ #define MAXPSKYTILES 256
++#ifndef MAXSPRITESONSCREEN
+ #define MAXSPRITESONSCREEN 2048
++#endif
+ #define MAXUNIQHUDID 256 //Extra slots so HUD models can store animation state without messing game sprites
+ 
+ #define CLIPMASK0 (((1L)<<16)+1L)
+@@ -186,7 +207,9 @@ typedef struct {
+ EXTERN sectortype sector[MAXSECTORS];
+ EXTERN walltype wall[MAXWALLS];
+ EXTERN spritetype sprite[MAXSPRITES];
++#if USE_POLYMOST && USE_OPENGL
+ EXTERN spriteexttype spriteext[MAXSPRITES+MAXUNIQHUDID];
++#endif
+ EXTERN int guniqhudid;
+ 
+ EXTERN int spritesortcnt;
+@@ -211,7 +234,11 @@ EXTERN struct validmode_t validmode[MAXVALIDMODES];
+ EXTERN short numsectors, numwalls;
+ EXTERN /*volatile*/ int totalclock;
+ EXTERN int numframes, randomseed;
++#if NO_FLOAT && defined(ENGINE)
++#include "engine_tables.h"
++#else
+ EXTERN short sintable[2048];
++#endif
+ EXTERN unsigned char palette[768];
+ EXTERN short numpalookups;
+ EXTERN unsigned char *palookup[MAXPALOOKUPS];
+diff --git a/include/compat.h b/include/compat.h
+index 387f121..f977f3e 100644
+--- a/include/compat.h
++++ b/include/compat.h
+@@ -42,7 +42,7 @@
+ #define _CRT_DECLARE_NONSTDC_NAMES 0
+ #endif
+ 
+-#ifdef __cplusplus
++#if defined(__cplusplus) && !defined(EMBEDDED)
+ # include <cerrno>
+ # include <climits>
+ # include <cstdarg>
+@@ -209,7 +209,11 @@ static inline float B_SWAPFLOAT(float f) {
+ // On Windows, _MAX_PATH is 260, null included.
+ // POSIX says 256 is the most it will write into a user buffer of unspecified size, null included.
+ // X/Open says 1024 for the same purposes as POSIX.
++#ifdef EMBEDDED
++#define BMAX_PATH 64
++#else
+ #define BMAX_PATH 1024
++#endif
+ 
+ // Definitely not BSD/POSIX dirent.h.
+ struct Bdirent {
+@@ -396,6 +400,33 @@ int Bwildmatch (const char *i, const char *j);
+ # define Btime time
+ #endif
+ 
++#ifdef EMBEDDED
++static inline void write32_le(void *p, unsigned a) {
++	uint8_t *d = (uint8_t*)p; d[0] = a; d[1] = a >> 8;
++	d[2] = a >> 16; d[3] = a >> 24;
++}
++
++static inline int read32_le(const void *p) {
++	const uint8_t *s = (const uint8_t*)p;
++	return s[0] | s[1] << 8 | s[2] << 16 | s[3] << 24;
++}
++
++static inline int read16u_le(const void *p) {
++	const uint8_t *s = (const uint8_t*)p;
++	return s[0] | s[1] << 8;
++}
++
++static inline int read16s_le(const void *p) {
++	const uint8_t *s = (const uint8_t*)p;
++	return s[0] | ((const int8_t*)s)[1] << 8;
++}
++#else
++static inline void write32_le(void *p, unsigned a) { *(uint32_t*)p = a; }
++static inline int read32_le(const void *p) { return *(uint32_t*)p; }
++static inline int read16u_le(const void *p) { return *(uint16_t*)p; }
++static inline int read16s_le(const void *p) { return *(int16_t*)p; }
++#endif
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/include/osd.h b/include/osd.h
+index 348b42b..0008608 100644
+--- a/include/osd.h
++++ b/include/osd.h
+@@ -20,6 +20,29 @@ typedef struct {
+ extern "C" {
+ #endif
+ 
++#if NO_OSD
++static inline void OSD_Init(void) {}
++static inline void OSD_SetFunctions(
++		void (*drawchar)(int,int,char,int,int),
++		void (*drawstr)(int,int,char*,int,int,int),
++		void (*drawcursor)(int,int,int,int),
++		int (*colwidth)(int),
++		int (*rowheight)(int),
++		void (*clearbg)(int,int),
++		int (*gettime)(void),
++		void (*onshow)(int)) {}
++static inline int OSD_CaptureKey(int sc) { return 0x45; }
++static inline int OSD_HandleChar(int ch) { return 1; }
++static inline int OSD_HandleKey(int sc, int press) { return 1; }
++static inline void OSD_ResizeDisplay(int w, int h) {}
++static inline void OSD_ShowDisplay(int onf) {}
++static inline void OSD_Draw(void) {}
++static inline void OSD_Printf(const char *fmt, ...) {}
++static inline void OSD_Puts(const char *str) {}
++static inline void OSD_DispatchQueued(void) {}
++static inline int OSD_RegisterFunction(const char *name, const char *help,
++		int (*func)(const osdfuncparm_t*)) { return -1; }
++#else
+ // initializes things
+ void OSD_Init(void);
+ 
+@@ -80,6 +103,7 @@ int OSD_Dispatch(const char *cmd);
+ //   help = a short help string
+ //   func = the entry point to the function
+ int OSD_RegisterFunction(const char *name, const char *help, int (*func)(const osdfuncparm_t*));
++#endif
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/include/scriptfile.h b/include/scriptfile.h
+index 220b37e..a30b2f8 100644
+--- a/include/scriptfile.h
++++ b/include/scriptfile.h
+@@ -21,6 +21,7 @@ char *scriptfile_peektoken(scriptfile *sf);
+ int scriptfile_getnumber(scriptfile *sf, int *num);
+ int scriptfile_gethex(scriptfile *sf, int *num);    // For reading specifically hex without requiring an 0x prefix
+ int scriptfile_getdouble(scriptfile *sf, double *num);
++int scriptfile_getfixed16(scriptfile *sf, int *num);
+ int scriptfile_getstring(scriptfile *sf, char **st);
+ int scriptfile_getsymbol(scriptfile *sf, int *num);
+ int scriptfile_getlinum(scriptfile *sf, char *ptr);
+diff --git a/src/baselayer.c b/src/baselayer.c
+index 2982655..d90748e 100644
+--- a/src/baselayer.c
++++ b/src/baselayer.c
+@@ -69,8 +69,10 @@ int checkvideomode(int *x, int *y, int c, int fs, int forced)
+ 
+ 	// fix up the passed resolution values to be multiples of 8
+ 	// and at least 320x200 or at most MAXXDIMxMAXYDIM
++#ifndef EMBEDDED
+ 	if (*x < 320) *x = 320;
+ 	if (*y < 200) *y = 200;
++#endif
+ 	if (*x > MAXXDIM) *x = MAXXDIM;
+ 	if (*y > MAXYDIM) *y = MAXYDIM;
+ 	*x &= 0xfffffff8l;
+diff --git a/src/baselayer_priv.h b/src/baselayer_priv.h
+index 3537fe8..7f7ed76 100644
+--- a/src/baselayer_priv.h
++++ b/src/baselayer_priv.h
+@@ -9,7 +9,9 @@ extern char modechange;
+ extern char videomodereset;
+ 
+ // undefine to restrict windowed resolutions to conventional sizes
++#ifndef EMBEDDED
+ #define ANY_WINDOWED_SIZE
++#endif
+ 
+ int baselayer_init(void);
+ 
+diff --git a/src/cache1d.c b/src/cache1d.c
+index 95a27a7..504fa2a 100644
+--- a/src/cache1d.c
++++ b/src/cache1d.c
+@@ -5,7 +5,9 @@
+ // This file has been modified from Ken Silverman's original release
+ // by Jonathon Fowler (jf@jonof.id.au)
+ 
++#ifndef EMBEDDED
+ #define WITHKPLIB
++#endif
+ 
+ #include "build.h"
+ #include "cache1d.h"
+@@ -58,7 +60,9 @@ static int kzipopen(const char *filnam)
+ //           After calling uninitcache, it is still ok to call allocache
+ //           without first calling initcache.
+ 
++#ifndef MAXCACHEOBJECTS
+ #define MAXCACHEOBJECTS 9216
++#endif
+ 
+ static size_t cachesize = 0;
+ int cachecount = 0;
+@@ -95,6 +99,12 @@ void initcache(void *dacachestart, size_t dacachesize)
+ 	buildprintf("initcache(): Initialised with %zu bytes\n", cachesize);
+ }
+ 
++#ifdef EMBEDDED
++int can_allocache(size_t newbytes) {
++	return newbytes + 16 < cachesize;
++}
++#endif
++
+ void allocache(void **newhandle, size_t newbytes, unsigned char *newlockptr)
+ {
+ 	int z, zz, bestz=0, suckz;
+@@ -297,6 +307,34 @@ int addsearchpath(const char *p)
+ 
+ int findfrompath(const char *fn, char **where)
+ {
++#ifdef EMBEDDED
++	// try to open "tilesNNN.art" outside the archive only once
++	// because these files are often opened during the game
++	char *dup;
++	unsigned i = 0, k = 0x80000000;
++	static unsigned artmask = 0, artcase = 0;
++	if (*fn == 't' && !memcmp(fn + 1, "iles0", 5)) {
++		unsigned x;
++#define X(j) (k = k * 10 + (x = fn[j] - '0'), x < 10) &&
++		if (X(6) X(7) k < 32 && !strcmp(fn + 8, ".art")) {
++#undef X
++			if (artmask >> k & 1) return -1;
++			i = artcase >> k & 1;
++		} else k = -1;
++	}
++	dup = strdup(fn);
++	do {
++		if (i) strupr(dup);
++		if (access(dup, F_OK) >= 0) {
++			if (k < 32) artcase |= i << k;
++			*where = dup;
++			return 0;
++		}
++	} while (++i < 2);
++	if (k < 32) artmask |= 1 << k;
++	free(dup);
++	return -1;
++#endif
+ 	searchpath_t *sp;
+ 	char *pfn, *ffn;
+ 	size_t allocsiz;
+@@ -358,6 +396,7 @@ int openfrompath(const char *fn, int flags, int mode)
+ 	return h;
+ }
+ 
++#ifndef EMBEDDED
+ BFILE* fopenfrompath(const char *fn, const char *mode)
+ {
+ 	int fh;
+@@ -384,6 +423,7 @@ BFILE* fopenfrompath(const char *fn, const char *mode)
+ 
+ 	return h;
+ }
++#endif
+ 
+ 
+ #define MAXGROUPFILES 4     //Warning: Fix groupfil if this is changed
+@@ -882,6 +922,9 @@ void klistfree(CACHE1D_FIND_REC *rec)
+ CACHE1D_FIND_REC *klistpath(const char *_path, const char *mask, int type)
+ {
+ 	CACHE1D_FIND_REC *rec = NULL;
++#ifdef EMBEDDED
++	return rec;
++#endif
+ 	char *path;
+ 	
+ 	// pathsearchmode == 0: enumerates a path in the virtual filesystem
+@@ -1275,8 +1318,13 @@ static int lzwcompress(unsigned char *lzwinbuf, int uncompleng, unsigned char *l
+ 		lzwbuf2[addrcnt] = -1;
+ 		lzwbuf3[addrcnt] = -1;
+ 
++#ifdef EMBEDDED
++		(void)intptr; (void)shortptr;
++		write32_le(&lzwoutbuf[bitcnt>>3], read32_le(&lzwoutbuf[bitcnt>>3])|addr<<(bitcnt&7));
++#else
+ 		intptr = (int *)&lzwoutbuf[bitcnt>>3];
+ 		intptr[0] |= B_LITTLE32(addr<<(bitcnt&7));
++#endif
+ 		bitcnt += numbits;
+ 		if ((addr&((oneupnumbits>>1)-1)) > ((addrcnt-1)&((oneupnumbits>>1)-1)))
+ 			bitcnt--;
+@@ -1285,8 +1333,12 @@ static int lzwcompress(unsigned char *lzwinbuf, int uncompleng, unsigned char *l
+ 		if (addrcnt > oneupnumbits) { numbits++; oneupnumbits <<= 1; }
+ 	} while ((bytecnt1 < uncompleng) && (bitcnt < (uncompleng<<3)));
+ 
++#ifdef EMBEDDED
++	write32_le(&lzwoutbuf[bitcnt>>3], read32_le(&lzwoutbuf[bitcnt>>3])|addr<<(bitcnt&7));
++#else
+ 	intptr = (int *)&lzwoutbuf[bitcnt>>3];
+ 	intptr[0] |= B_LITTLE32(addr<<(bitcnt&7));
++#endif
+ 	bitcnt += numbits;
+ 	if ((addr&((oneupnumbits>>1)-1)) > ((addrcnt-1)&((oneupnumbits>>1)-1)))
+ 		bitcnt--;
+@@ -1322,8 +1374,13 @@ static int lzwuncompress(unsigned char *lzwinbuf, int compleng, unsigned char *l
+ 	numbits = 8; oneupnumbits = (1<<8);
+ 	do
+ 	{
++#ifdef EMBEDDED
++		(void)intptr;
++		dat = (read32_le(&lzwinbuf[bitcnt>>3])>>(bitcnt&7)) & (oneupnumbits-1);
++#else
+ 		intptr = (int *)&lzwinbuf[bitcnt>>3];
+ 		dat = ((B_LITTLE32(intptr[0])>>(bitcnt&7)) & (oneupnumbits-1));
++#endif
+ 		bitcnt += numbits;
+ 		if ((dat&((oneupnumbits>>1)-1)) > ((currstr-1)&((oneupnumbits>>1)-1)))
+ 			{ dat &= ((oneupnumbits>>1)-1); bitcnt--; }
+diff --git a/src/compat.c b/src/compat.c
+index 64c27d1..551e468 100644
+--- a/src/compat.c
++++ b/src/compat.c
+@@ -83,6 +83,7 @@ int Bvasprintf(char **ret, const char *format, va_list ap)
+  * The caller must free the string when done with it.
+  * @return NULL if it could not be determined
+  */
++#ifndef EMBEDDED
+ char *Bgethomedir(void)
+ {
+     char *dir = NULL;
+@@ -192,6 +193,7 @@ char *Bgetsupportdir(int global)
+     
+ 	return dir;
+ }
++#endif // EMBEDDED
+ 
+ int Bcorrectfilename(char *filename, int removefn)
+ {
+@@ -543,7 +545,9 @@ int Bwildmatch (const char *i, const char *j)
+ //
+ size_t Bgetsysmemsize(void)
+ {
+-#ifdef _WIN32
++#ifdef EMBEDDED
++	return 0x7fffffff;
++#elif defined(_WIN32)
+ 	size_t siz = 0x7fffffff;
+ 	
+         MEMORYSTATUSEX memst;
+diff --git a/src/config.c b/src/config.c
+index 3f6d933..df28328 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -119,9 +119,11 @@ static struct {
+ 		"; Maximum OpenGL mode refresh rate (Windows only, in Hertz)\n"
+ 	},
+ #endif
++#if !NO_MOUSE
+ 	{ "mousesensitivity", type_fixed16, &msens,
+ 		"; Mouse sensitivity\n"
+ 	},
++#endif
+ 	{ "keyforward", type_hex, &keys[0],
+ 		"; Key Settings\n"
+ 		";  Here's a map of all the keyboard scan codes: NOTE: values are listed in hex!\n"
+@@ -217,6 +219,13 @@ int loadsetup(const char *fn)
+ 						break;
+ 					}
+ 					case type_fixed16: {
++#if NO_FLOAT
++						int value = 0;
++						if (scriptfile_getfixed16(cfg, &value)) break;
++						*(int*)configspec[item].store = value;
++						break;
++					}
++#else
+ 						double value = 0.0;
+ 						if (scriptfile_getdouble(cfg, &value)) break;
+ 						*(int*)configspec[item].store = (int)(value*65536.0);
+@@ -228,6 +237,7 @@ int loadsetup(const char *fn)
+ 						*(double*)configspec[item].store = value;
+ 						break;
+ 					}
++#endif
+ 					default: {
+ 						buildputs("loadsetup: unhandled value type\n");
+ 						break;
+@@ -298,6 +308,15 @@ int writesetup(const char *fn)
+ 				break;
+ 			}
+ 			case type_fixed16: {
++#if NO_FLOAT
++				int num = *(int*)configspec[item].store;
++				unsigned a = num < 0 ? -num : num;
++				uint64_t f = ((uint64_t)a * 100000 + 0x8000) >> 16;
++				a = f / 100000; f %= 100000;
++				fprintf(fp, "%s%u.%05u\n", num < 0 ? "-" : "", a, (int)f);
++				break;
++			}
++#else
+ 				fprintf(fp, "%g\n", (double)(*(int*)configspec[item].store) / 65536.0);
+ 				break;
+ 			}
+@@ -305,6 +324,7 @@ int writesetup(const char *fn)
+ 				fprintf(fp, "%g\n", *(double*)configspec[item].store);
+ 				break;
+ 			}
++#endif
+ 			default: {
+ 				fputs("?\n", fp);
+ 				break;
+diff --git a/src/defs.c b/src/defs.c
+index 06634eb..88b5e63 100644
+--- a/src/defs.c
++++ b/src/defs.c
+@@ -8,6 +8,10 @@
+ #include "build.h"
+ #include "baselayer.h"
+ #include "scriptfile.h"
++#if NO_FLOAT
++#define double int
++#define scriptfile_getdouble scriptfile_getfixed16
++#endif
+ 
+ enum {
+ 	T_EOF = -2,
+@@ -486,13 +490,16 @@ static int defsparser(scriptfile *script)
+ 						break;
+ 					}
+ 
++#if !NO_VOXELS
+ 					for (tilex = ftilenume; tilex <= ltilenume; tilex++) {
+ 						tiletovox[tilex] = lastvoxid;
+ 					}
++#endif
+ 				}
+ 				break;
+ 
+ 				// NEW (ENCOURAGED) DEFINITION SYNTAX
++#if !NO_NEWSTYLE
+ 			case T_MODEL:
+ 				{
+ 					char *modelend, *modelfn;
+@@ -751,13 +758,16 @@ static int defsparser(scriptfile *script)
+ 							//case T_ERROR: buildprintf("Error on line %s:%d in voxel tokens\n", script->filename,linenum); break;
+ 							case T_TILE:
+ 								scriptfile_getsymbol(script,&tilex);
++#if !NO_VOXELS
+ 								if ((unsigned int)tilex < MAXTILES) tiletovox[tilex] = lastvoxid;
+ 								else buildprintf("Invalid tile number on line %s:%d\n",script->filename, scriptfile_getlinum(script,voxeltokptr));
++#endif
+ 								break;
+ 							case T_TILE0:
+ 								scriptfile_getsymbol(script,&tile0); break; //1st tile #
+ 							case T_TILE1:
+ 								scriptfile_getsymbol(script,&tile1);
++#if !NO_VOXELS
+ 								if (tile0 > tile1)
+ 								{
+ 									buildprintf("Warning: backwards tile range on line %s:%d\n", script->filename, scriptfile_getlinum(script,voxeltokptr));
+@@ -766,11 +776,22 @@ static int defsparser(scriptfile *script)
+ 								if ((tile1 < 0) || (tile0 >= MAXTILES))
+ 									{ buildprintf("Invalid tile range on line %s:%d\n",script->filename, scriptfile_getlinum(script,voxeltokptr)); break; }
+ 								for(tilex=tile0;tilex<=tile1;tilex++) tiletovox[tilex] = lastvoxid;
++#endif
+ 								break; //last tile number (inclusive)
+ 							case T_SCALE: {
++#if NO_FLOAT
++								int scale=1<<16;
++								scriptfile_getfixed16(script,&scale);
++#if !NO_VOXELS
++								voxscale[lastvoxid] = scale;
++#endif
++#else
+ 								double scale=1.0;
+ 								scriptfile_getdouble(script,&scale);
++#if !NO_VOXELS
+ 								voxscale[lastvoxid] = 65536*scale;
++#endif
++#endif
+ 								break;
+ 							}
+ 						}
+@@ -1011,6 +1032,7 @@ static int defsparser(scriptfile *script)
+ #endif
+ 				}
+ 				break;
++#endif
+ 
+ 			default:
+ 				buildputs("Unknown token.\n"); break;
+diff --git a/src/engine.c b/src/engine.c
+index c7c92b2..3a86f11 100644
+--- a/src/engine.c
++++ b/src/engine.c
+@@ -39,6 +39,7 @@
+ void *kmalloc(bsize_t size) { return(Bmalloc(size)); }
+ void kfree(void *buffer) { Bfree(buffer); }
+ 
++#if !NO_VOXELS
+ void loadvoxel(int voxindex) { (void)voxindex; }
+ int tiletovox[MAXTILES];
+ int usevoxels = 1;
+@@ -57,7 +58,17 @@ int voxscale[MAXVOXELS];
+ 
+ static int ggxinc[MAXXSIZ+1], ggyinc[MAXXSIZ+1];
+ static int lowrecip[1024], nytooclose, nytoofar;
++#if NO_DISTRECIP
++extern int reciptable[2048];
++extern int xdimen;
++static inline int voxrecip_small(uint32_t x) {
++	unsigned c = x ? __builtin_clz(x) : 0;
++	return ((int64_t)(xdimen << 4) * reciptable[(x<<(c+1))>>21])>>(31-c);
++}
++#else
+ static unsigned int distrecip[65536];
++#endif
++#endif
+ 
+ static int *lookups = NULL;
+ int dommxoverlay = 1, beforedrawrooms = 1;
+@@ -65,7 +76,9 @@ int dommxoverlay = 1, beforedrawrooms = 1;
+ static int oxdimen = -1, oviewingrange = -1, oxyaspect = -1;
+ 
+ int curbrightness = 0, gammabrightness = 0;
++#if !NO_FLOAT
+ float curgamma = 1.0;
++#endif
+ 
+ 	//Textured Map variables
+ static unsigned char globalpolytype;
+@@ -90,7 +103,10 @@ int artsize = 0;
+ size_t cachesize = 0;
+ int editorgridextent = 131072;
+ 
+-static short radarang[1280], radarang2[MAXXDIM];
++#if !NO_FLOAT
++static short radarang[1280];
++#endif
++static short radarang2[MAXXDIM];
+ static unsigned short sqrtable[4096], shlookup[4096+256];
+ unsigned char pow2char[8] = {1,2,4,8,16,32,64,128};
+ int pow2long[32] =
+@@ -106,7 +122,9 @@ int pow2long[32] =
+ };
+ int reciptable[2048], fpuasm;
+ 
++#if !NO_FLOAT
+ unsigned char britable[16][256];
++#endif
+ 
+ static char kensmessage[128];
+ char *engineerrstr = NULL;
+@@ -430,9 +448,16 @@ static inline int msqrtasm(unsigned int c)
+ }
+ 
+ static inline int krecipasm(int i)
+-{ // Ken did this
++{
++#if NO_FLOAT
++	int s = i >> 31; uint32_t x = (i^s)-s;
++	unsigned c = i ? __builtin_clz(x) : 0;
++	return(reciptable[(x<<(c+1))>>21]>>(c^31))^s;
++#else
++	// Ken did this
+ 	float f = (float)i; i = *(int *)&f;
+ 	return((reciptable[(i>>12)&2047]>>(((i-0x3f800000)>>23)&31))^(i>>31));
++#endif
+ }
+ 
+ 
+@@ -2296,6 +2321,7 @@ static void parascan(int dax1, int dax2, int sectnum, unsigned char dastat, int
+ 	{
+ 		wallnum = thewall[z]; nextsectnum = wall[wallnum].nextsector;
+ 
++		if (nextsectnum < 0) j = 0; else /* ASan */
+ 		if (dastat == 0) j = sector[nextsectnum].ceilingstat;
+ 						else j = sector[nextsectnum].floorstat;
+ 
+@@ -2746,6 +2772,7 @@ static void drawalls(int bunch)
+ //
+ // drawvox
+ //
++#if !NO_VOXELS
+ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 		  int daxscale, int dayscale, unsigned char daindex,
+ 		  signed char dashade, unsigned char dapal, int *daumost, int *dadmost)
+@@ -2802,8 +2829,13 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 	dayscalerecip = (1<<30)/dayscale;
+ 
+ 	longptr = (int *)davoxptr;
++#ifdef EMBEDDED
++	daxsiz = read32_le(&longptr[0]); daysiz = read32_le(&longptr[1]); dazsiz = read32_le(&longptr[2]);
++	daxpivot = read32_le(&longptr[3]); daypivot = read32_le(&longptr[4]); dazpivot = read32_le(&longptr[5]);
++#else
+ 	daxsiz = B_LITTLE32(longptr[0]); daysiz = B_LITTLE32(longptr[1]); dazsiz = B_LITTLE32(longptr[2]);
+ 	daxpivot = B_LITTLE32(longptr[3]); daypivot = B_LITTLE32(longptr[4]); dazpivot = B_LITTLE32(longptr[5]);
++#endif
+ 	davoxptr += (6<<2);
+ 
+ 	x = mulscale16(globalposx-dasprx,daxscalerecip);
+@@ -2901,7 +2933,11 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 
+ 		for(x=xs;x!=xe;x+=xi)
+ 		{
++#ifdef EMBEDDED
++			slabxoffs = (intptr_t)&davoxptr[read32_le(&longptr[x])];
++#else
+ 			slabxoffs = (intptr_t)&davoxptr[B_LITTLE32(longptr[x])];
++#endif
+ 			shortptr = (short *)&davoxptr[((x*(daysiz+1))<<1)+xyvoxoffs];
+ 
+ 			nx = mulscale16(ggxstart+ggxinc[x],viewingrangerecip)+x1;
+@@ -2909,10 +2945,26 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 			for(y=ys;y!=ye;y+=yi,nx+=dagyinc,ny-=dagxinc)
+ 			{
+ 				if ((ny <= nytooclose) || (ny >= nytoofar)) continue;
++#ifdef EMBEDDED
++				voxptr = (unsigned char *)(read16s_le(&shortptr[y])+slabxoffs);
++				voxend = (unsigned char *)(read16s_le(&shortptr[y+1])+slabxoffs);
++#else
+ 				voxptr = (unsigned char *)(B_LITTLE16(shortptr[y])+slabxoffs);
+ 				voxend = (unsigned char *)(B_LITTLE16(shortptr[y+1])+slabxoffs);
++#endif
+ 				if (voxptr == voxend) continue;
+ 
++#if NO_DISTRECIP
++				lx = mulscale32(nx>>3,voxrecip_small(ny+y1))+halfxdimen;
++				if (lx < 0) lx = 0;
++				rx = mulscale32((nx+nxoff)>>3,voxrecip_small(ny+y2))+halfxdimen;
++				if (rx > xdimen) rx = xdimen;
++				if (rx <= lx) continue;
++				rx -= lx;
++
++				l1 = voxrecip_small(ny-yoff);
++				l2 = voxrecip_small(ny+yoff);
++#else
+ 				lx = mulscale32(nx>>3,distrecip[(ny+y1)>>14])+halfxdimen;
+ 				if (lx < 0) lx = 0;
+ 				rx = mulscale32((nx+nxoff)>>3,distrecip[(ny+y2)>>14])+halfxdimen;
+@@ -2922,6 +2974,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 
+ 				l1 = distrecip[(ny-yoff)>>14];
+ 				l2 = distrecip[(ny+yoff)>>14];
++#endif
+ 				for(;voxptr<voxend;voxptr+=voxptr[1]+3)
+ 				{
+ 					j = (voxptr[0]<<15)-syoff;
+@@ -2967,6 +3020,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+ 		}
+ 	}
+ }
++#endif // NO_VOXELS
+ 
+ 
+ //
+@@ -3001,6 +3055,7 @@ static void drawsprite(int snum)
+ 	cstat = tspr->cstat;
+ 
+ 	if ((cstat&48)==48) vtilenum = tilenum;	// if the game wants voxels, it gets voxels
++#if !NO_VOXELS
+ 	else if ((cstat&48)!=48 && (usevoxels) && (tiletovox[tilenum] != -1)
+ #if USE_POLYMOST && USE_OPENGL
+ 		 && (!(spriteext[tspr->owner].flags&SPREXT_NOTMD))
+@@ -3009,6 +3064,7 @@ static void drawsprite(int snum)
+ 		vtilenum = tiletovox[tilenum];
+ 		cstat |= 48;
+ 	}
++#endif
+ 
+ 	if ((cstat&48) != 48)
+ 	{
+@@ -3623,7 +3679,7 @@ static void drawsprite(int snum)
+ 			xsi[z] = scale(rxi[z],xdimen<<15,rzi[z]) + (xdimen<<15);
+ 			ysi[z] = scale(ryi[z],xdimen<<15,rzi[z]) + (globalhoriz<<16);
+ 			if (xsi[z] < 0) xsi[z] = 0;
+-			if (xsi[z] > (xdimen<<16)) xsi[z] = (xdimen<<16);
++			if (xsi[z] > (xdimen-1)<<16) xsi[z] = (xdimen-1)<<16; /* ASan */
+ 			if (ysi[z] < ((int)0<<16)) ysi[z] = ((int)0<<16);
+ 			if (ysi[z] > ((int)ydimen<<16)) ysi[z] = ((int)ydimen<<16);
+ 			if (xsi[z] < lmax) lmax = xsi[z], lpoint = z;
+@@ -3757,9 +3813,12 @@ static void drawsprite(int snum)
+ 	}
+ 	else if ((cstat&48) == 48)
+ 	{
++#if NO_VOXELS
++		buildprintf("!!! an attempt to draw a voxel\n");
++#else
+ 		int nxrepeat, nyrepeat;
+ 
+-		lx = 0; rx = xdim-1;
++		lx = 0; rx = xdimen-1; /* ASan */
+ 		for(x=lx;x<=rx;x++)
+ 		{
+ 			lwall[x] = (int)startumost[x+windowx1]-windowy1;
+@@ -3825,6 +3884,7 @@ static void drawsprite(int snum)
+ 		}
+ 
+ 		if (!(cstat&128)) tspr->z -= mulscale22(B_LITTLE32(longptr[5]),nyrepeat);
++		if (tspr->owner < 0) /* ASan */ yoff = (int)tspr->yoffset; else 
+ 		yoff = (int)((signed char)((picanm[sprite[tspr->owner].picnum]>>16)&255))+((int)tspr->yoffset);
+ 		tspr->z -= mulscale14(yoff,nyrepeat);
+ 
+@@ -3884,8 +3944,10 @@ static void drawsprite(int snum)
+ 		i += spriteext[tspr->owner].angoff;
+ #endif
+ 		drawvox(tspr->x,tspr->y,tspr->z,i,(int)tspr->xrepeat,(int)tspr->yrepeat,vtilenum,tspr->shade,tspr->pal,lwall,swall);
++#endif // NO_VOXELS
+ 	}
+ 
++	if (spritenum >= 0) /* ASan */
+ 	if (automapping == 1) show2dsprite[spritenum>>3] |= pow2char[spritenum&7];
+ }
+ 
+@@ -4877,9 +4939,13 @@ static void dosetaspect(void)
+ 			if (j != 0) j = mulscale16((int)radarang[k+1]-(int)radarang[k],j);
+ 			radarang2[i] = (short)(((int)radarang[k]+j)>>6);
+ 		}
++#if !NO_VOXELS
++#if !NO_DISTRECIP
+ 		for(i=1;i<65536;i++) distrecip[i] = divscale20(xdimen,i);
++#endif
+ 		nytooclose = xdimen*2100;
+ 		nytoofar = 65536*16384-1048576;
++#endif
+ 	}
+ }
+ 
+@@ -4887,6 +4953,7 @@ static void dosetaspect(void)
+ //
+ // loadtables (internal)
+ //
++#if !NO_FLOAT
+ static void calcbritable(void)
+ {
+ 	int i,j;
+@@ -4898,12 +4965,17 @@ static void calcbritable(void)
+ 			britable[i][j] = (unsigned char)(pow((double)j,a)*b);
+ 	}
+ }
++#endif
+ 
+ static int loadtables(void)
+ {
+ 	int i;
+ 
+ 	initksqrt();
++#if NO_FLOAT
++    for(i=0;i<2048;i++)
++        reciptable[i] = divscale30(2048L,i+2048);
++#else
+     for(i=0;i<2048;i++) {
+         sintable[i] = (short)(16384*sin((double)i*3.14159265358979/1024));
+         reciptable[i] = divscale30(2048L,i+2048);
+@@ -4922,6 +4994,7 @@ static int loadtables(void)
+         engineerrstr = "Calculation of radarang yielded unexpected results.";
+         return 1;
+     }
++#endif
+ 
+ 	return 0;
+ }
+@@ -5373,7 +5446,9 @@ int preinitengine(void)
+ 	assert(sizeof(spritetype) == 44);
+ 	assert((intptr_t)&sprite[1] - (intptr_t)&sprite[0] == sizeof(spritetype));
+ 	assert(sizeof(spriteexttype) == 12);
++#if USE_POLYMOST && USE_OPENGL
+ 	assert((intptr_t)&spriteext[1] - (intptr_t)&spriteext[0] == sizeof(spriteexttype));
++#endif
+ 
+ 	if (initsystem()) exit(1);
+ 
+@@ -5423,6 +5498,7 @@ int initengine(void)
+ 	parallaxtype = 2; parallaxyoffs = 0L; parallaxyscale = 65536;
+ 	showinvisibility = 0;
+ 
++#if !NO_VOXELS
+ 	for(i=1;i<1024;i++) lowrecip[i] = ((1<<24)-1)/i;
+ 	for(i=0;i<MAXVOXELS;i++)
+ 		for(j=0;j<MAXVOXMIPS;j++)
+@@ -5433,6 +5509,7 @@ int initengine(void)
+ 	for(i=0;i<MAXTILES;i++)
+ 		tiletovox[i] = -1;
+ 	clearbuf(&voxscale[0],sizeof(voxscale)>>2,65536L);
++#endif
+ 
+ 	searchit = 0; searchstat = -1;
+ 
+@@ -5490,8 +5567,10 @@ void uninitengine(void)
+ 
+ 	uninitsystem();
+ 
++#ifndef EMBEDDED
+ 	if (logfile) Bfclose(logfile);
+ 	logfile = NULL;
++#endif
+ 
+ 	if (artfil != -1) kclose(artfil);
+ 
+@@ -5625,6 +5704,7 @@ void drawrooms(int daposx, int daposy, int daposz,
+ 	if (inpreparemirror)
+ 	{
+ 		inpreparemirror = 0;
++		if (!numbunches) return; /* ASan */
+ 		mirrorsx1 = xdimen-1; mirrorsx2 = 0;
+ 		for(i=numscans-1;i>=0;i--)
+ 		{
+@@ -6179,6 +6259,9 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+ 
+ 	i = strlen(filename)-1;
+ 	if ((unsigned char)filename[i] == 255) { filename[i] = 0; fromwhere = 1; }	// JBF 20040119: "compatibility"
++#ifdef EMBEDDED
++	buildprintf("loadboard(\"%s\")\n", filename);
++#endif
+ 	if ((fil = kopen4load(filename,fromwhere)) == -1)
+ 		{ mapversion = 7L; return(-1); }
+ 
+@@ -6221,6 +6304,14 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+ 	kread(fil,dacursectnum,2); *dacursectnum = B_LITTLE16(*dacursectnum);
+ 
+ 	kread(fil,&numsectors,2); numsectors = B_LITTLE16(numsectors);
++#ifdef EMBEDDED
++#define NUMCHECK(n, m) \
++	buildprintf("info: %s = %d\n", #n, n); \
++	if (n > m) { buildprintf("error: %s > %s (%d)\n", #n, #m, m); return(-2); }
++#else
++#define NUMCHECK(n, m)
++#endif
++	NUMCHECK(numsectors, MAXSECTORS)
+ 	if (numsectors > maxsectors) { kclose(fil); return(-2); }
+ 	kread(fil,&sector[0],sizeof(sectortype)*numsectors);
+ 	for (i=numsectors-1; i>=0; i--) {
+@@ -6240,6 +6331,7 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+ 	}
+ 
+ 	kread(fil,&numwalls,2); numwalls = B_LITTLE16(numwalls);
++	NUMCHECK(numwalls, MAXWALLS)
+ 	if (numwalls > maxwalls) { kclose(fil); return(-2); }
+ 	kread(fil,&wall[0],sizeof(walltype)*numwalls);
+ 	for (i=numwalls-1; i>=0; i--) {
+@@ -6257,6 +6349,8 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+ 	}
+ 
+ 	kread(fil,&numsprites,2); numsprites = B_LITTLE16(numsprites);
++	NUMCHECK(numsprites, MAXSPRITES)
++#undef NUMCHECK
+ 	if (numsprites > maxsprites) { kclose(fil); return(-2); }
+ 	kread(fil,&sprite[0],sizeof(spritetype)*numsprites);
+ 	for (i=numsprites-1; i>=0; i--) {
+@@ -7800,6 +7894,12 @@ int loadpics(char *filename, int askedsize)
+ 			kread(fil,&numtiles,4);       numtiles       = B_LITTLE32(numtiles);
+ 			kread(fil,&localtilestart,4); localtilestart = B_LITTLE32(localtilestart);
+ 			kread(fil,&localtileend,4);   localtileend   = B_LITTLE32(localtileend);
++#ifdef EMBEDDED
++			if (localtileend >= MAXTILES) {
++				buildprintf("error: numtiles (%d) > MAXTILES (%d)\n", localtileend+1, MAXTILES);
++				return(-1);
++			}
++#endif
+ 			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
+ 			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
+ 			kread(fil,&picanm[localtilestart],(localtileend-localtilestart+1)<<2);
+@@ -7830,10 +7930,14 @@ int loadpics(char *filename, int askedsize)
+ 	//try dpmi_DETERMINEMAXREALALLOC!
+ 
+ 	//cachesize = min((int)((Bgetsysmemsize()/100)*60),max(artsize,askedsize));
++#ifdef EMBEDDED
++	cachesize = maxcache1dsize;
++#else
+ 	if (Bgetsysmemsize() <= (unsigned int)askedsize)
+ 		cachesize = (Bgetsysmemsize()/100)*60;
+ 	else
+ 		cachesize = askedsize;
++#endif
+ 	while ((pic = kmalloc(cachesize)) == NULL)
+ 	{
+ 		cachesize -= 65536L;
+@@ -7980,6 +8084,7 @@ void copytilepiece(int tilenume1, int sx1, int sy1, int xsiz, int ysiz,
+ //
+ int qloadkvx(int voxindex, char *filename)
+ {
++#if !NO_VOXELS
+ 	int i, fil, dasiz, lengcnt, lengtot;
+ 	unsigned char *ptr;
+ 
+@@ -8008,6 +8113,7 @@ int qloadkvx(int voxindex, char *filename)
+ 		voxmodels[voxindex] = NULL;
+ 	}
+ 	voxmodels[voxindex] = voxload(filename);
++#endif
+ #endif
+ 	return 0;
+ }
+@@ -9599,9 +9705,13 @@ void getzrange(int x, int y, int z, short sectnum,
+ void setview(int x1, int y1, int x2, int y2)
+ {
+ 	int i;
++#if NO_FLOAT
++	int xfov = xdim * (65536 / 4 * 3) / ydim;
++#else
+ 	float xfov;
+ 
+ 	xfov = ((float)xdim / (float)ydim) / (4.f / 3.f);
++#endif
+ 
+ 	windowx1 = x1; wx1 = (x1<<12);
+ 	windowy1 = y1; wy1 = (y1<<12);
+@@ -9612,7 +9722,11 @@ void setview(int x1, int y1, int x2, int y2)
+ 	xdimenrecip = divscale32(1L,xdimen);
+ 	ydimen = (y2-y1)+1;
+ 
++#if NO_FLOAT
++	setaspect(xfov, pixelaspect);
++#else
+ 	setaspect((int)(65536.f * xfov), pixelaspect);
++#endif
+ 
+ 	for(i=0;i<windowx1;i++) { startumost[i] = 1, startdmost[i] = 0; }
+ 	for(i=windowx1;i<=windowx2;i++)
+@@ -9831,8 +9945,12 @@ void setbrightness(int dabrightness, unsigned char *dapal, char noapply)
+ 	if (!(noapply&4))
+ 		curbrightness = min(max((int)dabrightness,0),15);
+ 
++#if NO_FLOAT
++	j = curbrightness;
++#else
+ 	curgamma = 1.0 + ((float)curbrightness / 10.0);
+ 	if (setgamma(curgamma)) j = curbrightness; else j = 0;
++#endif
+ 
+ 	for(k=i=0;i<256;i++)
+ 	{
+@@ -10414,9 +10532,11 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+ 		plc = y1+mulscale12((2047-x1)&4095,inc);
+ 		i = ((x1+2048)>>12); daend = ((x2+2048)>>12);
+ 
++		if (daend > xdimen-1) daend = xdimen-1; /* ASan */
+ 		for(;i<daend;i++)
+ 		{
+ 			j = (plc>>12);
++			if (j >= ydimen) break; /* ASan */
+ 			if ((j >= startumost[i]) && (j < startdmost[i]))
+ 				drawpixel((void*)(frameplace+ylookup[j]+i),col);
+ 			plc += inc;
+@@ -10435,10 +10555,13 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+ 		plc = x1+mulscale12((2047-y1)&4095,inc);
+ 		i = ((y1+2048)>>12); daend = ((y2+2048)>>12);
+ 
++		if (daend > ydimen-1) daend = ydimen-1; /* ASan */
++		if (i >= daend) return; /* ASan */
+ 		p = ylookup[i]+frameplace;
+ 		for(;i<daend;i++)
+ 		{
+ 			j = (plc>>12);
++			if (j >= xdimen) break; /* ASan */
+ 			if ((i >= startumost[j]) && (i < startdmost[j]))
+ 				drawpixel((void*)(j+p),col);
+ 			plc += inc; p += ylookup[1];
+@@ -11025,6 +11148,13 @@ void setpolymost2dview(void)
+ #endif //USE_POLYMOST && USE_OPENGL
+ 
+ 
++#ifdef EMBEDDED
++void buildprintf(const char *fmt, ...) {
++	va_list va; va_start(va, fmt); vprintf(fmt, va); va_end(va);
++}
++void buildputs(const char *str) { fputs(str, stdout); }
++void buildsetlogfile(const char *fn) {}
++#else
+ void buildprintf(const char *fmt, ...)
+ {
+ 	char tmpstr[1024];
+@@ -11067,6 +11197,7 @@ void buildsetlogfile(const char *fn)
+ 	if (fn) logfile = Bfopen(fn,"w");
+ 	if (logfile) setvbuf(logfile, (char*)NULL, _IONBF, 0);
+ }
++#endif
+ 
+ 
+ /*
+diff --git a/src/engine_priv.h b/src/engine_priv.h
+index 9a85ca2..5521a43 100644
+--- a/src/engine_priv.h
++++ b/src/engine_priv.h
+@@ -6,7 +6,9 @@
+ #define MAXTILEFILES 256
+ #define MAXYSAVES ((MAXXDIM*MAXSPRITES)>>7)
+ #define MAXNODESPERLINE 42   //Warning: This depends on MAXYSAVES & MAXYDIM!
++#ifndef MAXWALLSB
+ #define MAXWALLSB 4096
++#endif
+ #define MAXCLIPDIST 1024
+ 
+ extern unsigned char pow2char[8];
+@@ -38,6 +40,9 @@ extern char inpreparemirror;
+ 
+ extern int curbrightness, gammabrightness;
+ extern float curgamma;
++#if NO_FLOAT
++const
++#endif
+ extern unsigned char britable[16][256];
+ extern unsigned char picsiz[MAXTILES];
+ extern int lastx[MAXYDIM];
+diff --git a/src/osd.c b/src/osd.c
+index 92b5dbb..4fa5fcd 100644
+--- a/src/osd.c
++++ b/src/osd.c
+@@ -6,6 +6,7 @@
+ #include "osd.h"
+ #include "baselayer.h"
+ 
++#if !NO_OSD
+ extern int getclosestcol(int r, int g, int b);	// engine.c
+ extern int qsetmode;	// engine.c
+ 
+@@ -1230,4 +1231,5 @@ static symbol_t *findexactsymbol(const char *name)
+ 
+ 	return NULL;
+ }
++#endif // NO_OSD
+ 
+diff --git a/src/scriptfile.c b/src/scriptfile.c
+index e152782..4811487 100644
+--- a/src/scriptfile.c
++++ b/src/scriptfile.c
+@@ -82,6 +82,34 @@ int scriptfile_gethex(scriptfile *sf, int *num)
+ 	return scriptfile_getnumber_radix(sf, num, 16);
+ }
+ 
++#if NO_FLOAT
++static int parsefixed16(char *ptr, char **end) {
++	unsigned a, num, frac = 0, flen = 0, sign = 0;
++	char *next;
++	a = *ptr;
++	if (a == '-') sign = ~0;
++	if (a == '+' || a == '-') a = *++ptr;
++	if (a - '0' > 9) return 0;
++	num = strtol(ptr, &next, 10);
++	if (ptr == next) return 0;
++	num <<= 16;
++	ptr = next;
++	if (*ptr == '.') do {
++		if ((a = *++ptr) - '0' > 9) break;
++		frac = strtol(ptr, &next, 10);
++		flen = next - ptr;
++		if (flen) {
++			unsigned div = 1;
++			if (flen > 9) return 0;
++			while (flen--) div *= 10;
++			num += (((uint64_t)frac << 32) / div + 0x8000) >> 16;
++		}
++	} while (0);
++	*end = next;
++	return (num ^ sign) - sign;
++}
++int scriptfile_getfixed16(scriptfile *sf, int *num)
++#else
+ static double parsedouble(char *ptr, char **end)
+ {
+ 	int beforedecimal = 1, negative = 0, dig;
+@@ -117,6 +145,7 @@ static double parsedouble(char *ptr, char **end)
+ }
+ 
+ int scriptfile_getdouble(scriptfile *sf, double *num)
++#endif
+ {
+ 	skipoverws(sf);
+ 	if (sf->textptr >= sf->eof)
+@@ -129,7 +158,11 @@ int scriptfile_getdouble(scriptfile *sf, double *num)
+ 
+ 	// On Linux, locale settings interfere with interpreting x.y format numbers
+ 	//(*num) = strtod((const char *)sf->textptr,&sf->textptr);
++#if NO_FLOAT
++	*(int*)num = parsefixed16(sf->textptr, &sf->textptr);
++#else
+ 	(*num) = parsedouble(sf->textptr, &sf->textptr);
++#endif
+ 	
+ 	if (!ISWS(*sf->textptr) && *sf->textptr) {
+ 		char *p = sf->textptr;

@@ -30,6 +30,7 @@ int atoi(const char*);
 long atol(const char*);
 long strtol(const char*, char**, int);
 unsigned long strtoul(const char*, char**, int);
+static inline char *getenv(const char *name) { (void)name; return NULL; }
 
 __attribute__((noreturn))
 void exit(int);

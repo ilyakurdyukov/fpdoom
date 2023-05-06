@@ -1,0 +1,636 @@
+diff --git a/src/_functio.h b/src/_functio.h
+index 8ea21ae..ffbff99 100644
+--- a/src/_functio.h
++++ b/src/_functio.h
+@@ -107,7 +107,11 @@ static char * keydefaults[] =
+    "Turn_Right", "Right", "KPad6",
+    "Strafe", "LAlt", "RAlt",
+    "Fire", "LCtrl", "RCtrl",
++#if EMBEDDED == 2
++   "Open", "Enter", "",
++#else
+    "Open", "Space", "",
++#endif
+    "Run", "LShift", "RShift",
+    "AutoRun", "CapLck", "",
+    "Jump", "A", "/",
+@@ -130,7 +134,11 @@ static char * keydefaults[] =
+    "Weapon_8", "8", "",
+    "Weapon_9", "9", "",
+    "Weapon_10", "0", "",
++#if EMBEDDED == 2
++   "Inventory", "Space", "KpdEnt",
++#else
+    "Inventory", "Enter", "KpdEnt",
++#endif
+    "Inventory_Left", "[", "",
+    "Inventory_Right", "]", "",
+    "Holo_Duke", "H", "",
+diff --git a/src/actors.c b/src/actors.c
+index cd86a52..3c28f45 100644
+--- a/src/actors.c
++++ b/src/actors.c
+@@ -26,6 +26,10 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
+ //-------------------------------------------------------------------------
+ 
+ #include "duke3d.h"
++#ifdef EMBEDDED
++#undef MAXWALLS
++#define MAXWALLS MAXWALLSV7
++#endif
+ 
+ extern char numenvsnds,actor_tog;
+ 
+@@ -509,7 +513,7 @@ int movesprite(short spritenum, int xchange, int ychange, int zchange, unsigned
+         {
+                 sprite[spritenum].x = oldx;
+                 sprite[spritenum].y = oldy;
+-                if(sector[dasectnum].lotag == 1 && sprite[spritenum].picnum == LIZMAN)
++                if(dasectnum >= 0 /* ASan */ && sector[dasectnum].lotag == 1 && sprite[spritenum].picnum == LIZMAN)
+                     sprite[spritenum].ang = (TRAND&2047);
+                 else if( (hittype[spritenum].temp_data[0]&3) == 1 && sprite[spritenum].picnum != COMMANDER )
+                     sprite[spritenum].ang = (TRAND&2047);
+diff --git a/src/config.c b/src/config.c
+index 29d6473..37d9315 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -240,6 +240,7 @@ void CONFIG_SetDefaults( void )
+     Bstrcpy(ud.ridecule[9], "AARRRGHHHHH!!!");
+  
+     CONFIG_SetDefaultKeyDefinitions(CONFIG_DEFAULTS_CLASSIC);
++#if !NO_MOUSE
+     CONFIG_SetMouseDefaults(CONFIG_DEFAULTS_CLASSIC);
+     CONFIG_SetJoystickDefaults(CONFIG_DEFAULTS_CLASSIC);
+ 
+@@ -266,6 +267,7 @@ void CONFIG_SetDefaults( void )
+         CONTROL_SetJoyAxisDead(i, JoystickAnalogueDead[i]);
+         CONTROL_SetJoyAxisSaturate(i, JoystickAnalogueSaturate[i]);
+     }
++#endif
+ }
+ 
+ void CONFIG_SetDefaultKeyDefinitions(int style)
+@@ -294,6 +296,10 @@ void CONFIG_SetDefaultKeyDefinitions(int style)
+     }
+ }
+ 
++#if NO_MOUSE
++void CONFIG_SetMouseDefaults(int style) {}
++void CONFIG_SetJoystickDefaults(int style) {}
++#else
+ void CONFIG_SetMouseDefaults(int style)
+ {
+     char **mousedefaultset, **mouseclickeddefaultset;
+@@ -359,6 +365,7 @@ void CONFIG_SetJoystickDefaults(int style)
+         CONTROL_MapAnalogAxis(i, JoystickAnalogueAxes[i], controldevice_joystick);
+     }
+ }
++#endif
+ 
+ /*
+ ===================
+@@ -769,6 +776,7 @@ void CONFIG_WriteSetup( void )
+         SCRIPT_PutNumber( scripthandle, "Misc",buf,ud.wchoice[myconnectindex][dummy],false,false);
+     }
+ 
++#if !NO_MOUSE
+     for (dummy=0;dummy<MAXMOUSEBUTTONS;dummy++) {
+         Bsprintf(buf,"MouseButton%d",dummy);
+         SCRIPT_PutString( scripthandle,"Controls", buf, CONFIG_FunctionNumToName( MouseFunctions[dummy][0] ));
+@@ -820,6 +828,7 @@ void CONFIG_WriteSetup( void )
+         Bsprintf(buf,"JoystickAnalogSaturate%d",dummy);
+         SCRIPT_PutNumber(scripthandle, "Controls", buf, JoystickAnalogueSaturate[dummy], false, false);
+     }
++#endif
+ 
+     SCRIPT_PutString( scripthandle, "Comm Setup","PlayerName",&myname[0]);
+ 
+diff --git a/src/game.c b/src/game.c
+index 85e4e80..4402c1c 100644
+--- a/src/game.c
++++ b/src/game.c
+@@ -453,6 +453,9 @@ void getpackets(void)
+     // only dispatch commands here when not in a game
+     if( !(ps[myconnectindex].gm&MODE_GAME) ) { OSD_DispatchQueued(); }
+ 
++#if NO_NET
++    return;
++#endif
+     if (numplayers < 2) return;
+     while ((packbufleng = getpacket(&other,packbuf)) > 0)
+     {
+@@ -810,7 +813,11 @@ void faketimerhandler()
+      avgfvel = avgsvel = avgavel = avghorz = avgbits = 0;
+      movefifoend[myconnectindex]++;
+ 
++#if NO_NET
++     if (1)
++#else
+      if (numplayers < 2)
++#endif
+      {
+           if (ud.multimode > 1) for(i=connecthead;i>=0;i=connectpoint2[i])
+               if(i != myconnectindex)
+@@ -1075,6 +1082,9 @@ void caches(void)
+ 
+      k += 6;
+ 
++#if NO_SOUND
++     if(0)
++#endif
+      for(i=1;i<11;i++)
+           if (lumplockbyte[i] >= 200)
+           {
+@@ -2969,7 +2979,11 @@ void displayrooms(short snum,int smoothratio)
+                 allocache((void **)&waloff[TILE_SAVESHOT],200*320,&walock[TILE_SAVESHOT]);
+             setviewtotile(TILE_SAVESHOT,200L,320L);
+         }
++#if NO_ROTSCR
++        else if(0)
++#else
+         else if( POLYMOST_RENDERMODE_CLASSIC() && ( ( ud.screen_tilting && p->rotscrnang ) || ud.detail==0 ) )
++#endif
+         {
+                 if (ud.screen_tilting) tang = p->rotscrnang; else tang = 0;
+ 
+@@ -3116,7 +3130,11 @@ void displayrooms(short snum,int smoothratio)
+             screencapt = 0;
+ //            walock[TILE_SAVESHOT] = 1;
+         }
++#if NO_ROTSCR
++        else if(0)
++#else
+         else if( POLYMOST_RENDERMODE_CLASSIC() && ( ( ud.screen_tilting && p->rotscrnang) || ud.detail==0 ) )
++#endif
+         {
+             if (ud.screen_tilting) tang = p->rotscrnang; else tang = 0;
+ 
+@@ -3230,7 +3248,9 @@ short EGS(short whatsect,int s_x,int s_y,int s_z,short s_pn,signed char s_s,sign
+     if (show2dsector[SECT>>3]&(1<<(SECT&7))) show2dsprite[i>>3] |= (1<<(i&7));
+     else show2dsprite[i>>3] &= ~(1<<(i&7));
+ 
++#if USE_POLYMOST && USE_OPENGL
+     clearbufbyte(&spriteext[i], sizeof(spriteexttype), 0);
++#endif
+ /*
+     if(s->sectnum < 0)
+     {
+@@ -6518,6 +6538,9 @@ void nonsharedkeys(void)
+         FTA(83+ud.scrollmode,&ps[myconnectindex]);
+     }
+ 
++#if NO_NET
++    if(0)
++#endif
+     if( SHIFTS_IS_PRESSED || ALT_IS_PRESSED )
+     {
+         i = 0;
+@@ -7540,11 +7563,13 @@ void Startup(void)
+         exit(1);
+     }
+     SetupGameButtons();
++#if !NO_MOUSE
+     CONFIG_SetupMouse();
+     CONFIG_SetupJoystick();
+ 
+     CONTROL_JoystickEnabled = (UseJoystick && CONTROL_JoyPresent);
+     CONTROL_MouseEnabled = (UseMouse && CONTROL_MousePresent);
++#endif
+ 
+     inittimer(TICRATE, NULL);
+ 
+@@ -7692,6 +7717,9 @@ int app_main(int argc, char const * const argv[])
+     }
+ #endif
+ 
++#ifdef EMBEDDED
++    if (0)
++#endif
+     {
+         char *supportdir = Bgetsupportdir(TRUE);
+         char *appdir = Bgetappdir();
+@@ -7728,6 +7756,9 @@ int app_main(int argc, char const * const argv[])
+     // creating a 'user_profiles_disabled' file in the current working
+     // directory where the game was launched makes the installation
+     // "portable" by writing into the working directory
++#ifdef EMBEDDED
++    if (1); else
++#endif
+     if (access("user_profiles_disabled", F_OK) == 0) {
+         char cwd[BMAX_PATH+1];
+         if (getcwd(cwd, sizeof(cwd))) {
+@@ -7956,8 +7987,10 @@ int app_main(int argc, char const * const argv[])
+ 
+     ud.last_level = -1;
+ 
++#if !NO_SOUND
+    RTS_Init(ud.rtsname);
+    if(numlumps) buildprintf("Using .RTS file:%s\n",ud.rtsname);
++#endif
+ 
+     if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight,ScreenBPP) < 0 )
+     {
+@@ -7970,6 +8003,9 @@ int app_main(int argc, char const * const argv[])
+         setgamemode(ScreenMode,ScreenWidth,ScreenHeight,ScreenBPP);
+     }
+ 
++#if NO_SOUND
++    if (0)
++#endif
+     {
+         // Send JFAudioLib output into the JFBuild console.
+         extern void (*ASS_MessageOutputString)(const char *);
+@@ -8955,6 +8991,9 @@ char domovethings(void)
+     short i, j;
+     unsigned char ch;
+ 
++#if NO_NET
++    if (0)
++#endif
+     for(i=connecthead;i>=0;i=connectpoint2[i])
+         if( sync[i].bits&(1<<17) )
+     {
+@@ -9042,6 +9081,7 @@ char domovethings(void)
+ 
+     updateinterpolations();
+ 
++#if !NO_NET
+     j = -1;
+     for(i=connecthead;i>=0;i=connectpoint2[i])
+      {
+@@ -9088,6 +9128,7 @@ char domovethings(void)
+             syncval[myconnectindex][syncvalhead[myconnectindex]&(MOVEFIFOSIZ-1)] = ch;
+             syncvalhead[myconnectindex]++;
+       }
++#endif
+ 
+     if(ud.recstat == 1) record();
+ 
+diff --git a/src/gamedef.c b/src/gamedef.c
+index 8f5da12..a668000 100644
+--- a/src/gamedef.c
++++ b/src/gamedef.c
+@@ -1413,6 +1413,16 @@ char parsecommand(void)
+             fta_quotes[k][i] = '\0';
+             return 0;
+         case 57:    //definesound
++#if NO_SOUND
++            scriptptr--;
++            for(i = 0; i < 6; i++) {
++                transnum(LABEL_DEFINE); scriptptr--;
++                if(i) continue;
++                while(*textptr == ' ') textptr++;
++                while(*textptr != ' ' && *textptr != 0) textptr++;
++            }
++            return 0;
++#endif
+             scriptptr--;
+             transnum(LABEL_DEFINE);
+             k = *(scriptptr-1);
+@@ -3178,6 +3188,9 @@ char parse(void)
+ 
+         case 109:   //ifnosounds
+ 
++#if NO_SOUND
++            if(1) j = 0; else
++#endif
+             for(j=1;j<NUM_SOUNDS;j++)
+                 if( SoundOwner[j][0].i == g_i )
+                     break;
+diff --git a/src/grpscan.c b/src/grpscan.c
+index fc5e806..a6f9850 100644
+--- a/src/grpscan.c
++++ b/src/grpscan.c
+@@ -49,6 +49,25 @@ struct grpfile grpfiles[] = {
+ };
+ static struct grpfile *foundgrps = NULL;
+ 
++#ifdef EMBEDDED
++extern int gametype;
++int ScanGroups(void) { return 0; }
++const struct grpfile* IdentifyGroup(const char *fn) {
++    int i; char *pfn = NULL;
++    static const char* const list[] = {
++        "duke3d.grp", "nam.grp", NULL };
++    buildprintf("Scanning for GRP files...\n");
++    for (i = 0; list[i]; i++)
++        if (findfrompath(list[i], &pfn) >= 0) break;
++    if (pfn) {
++        strcpy((char*)fn, pfn);
++        free(pfn);
++        if (i) gametype = GAMEGRP_GAME_NAM;
++    }
++    return NULL;
++}
++void FreeGroups(void) {}
++#else
+ #define GRPCACHEFILE "grpfiles.cache"
+ static struct grpcache {
+     struct grpcache *next;
+@@ -430,3 +449,4 @@ int ImportGroupsFromPath(const char *path, struct importgroupsmeta *cbs)
+     else if (errors) return IMPORTGROUP_ERROR; // Finding nothing but errors reports back errors.
+     return IMPORTGROUP_OK;
+ }
++#endif
+diff --git a/src/menues.c b/src/menues.c
+index 3ea237c..292cf4f 100644
+--- a/src/menues.c
++++ b/src/menues.c
+@@ -182,7 +182,11 @@ int loadplayer(signed char spot)
+     char *fnptr;
+     int fil, bv, i, x;
+     int32 nump;
++#ifdef EMBEDDED
++    int *ptrbuf;
++#else
+     int ptrbuf[MAXTILES];
++#endif
+     
+     assert(MAXTILES > MAXANIMATES);
+     
+@@ -286,7 +290,9 @@ int loadplayer(signed char spot)
+     if (kdfread(&numsectors,2,1,fil) != 1) goto corrupt;
+     if (kdfread(&sector[0],sizeof(sectortype),MAXSECTORS,fil) != MAXSECTORS) goto corrupt;
+     if (kdfread(&sprite[0],sizeof(spritetype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
++#if USE_POLYMOST && USE_OPENGL
+     if (kdfread(&spriteext[0],sizeof(spriteexttype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
++#endif
+     if (kdfread(&headspritesect[0],2,MAXSECTORS+1,fil) != MAXSECTORS+1) goto corrupt;
+     if (kdfread(&prevspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+     if (kdfread(&nextspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+@@ -317,12 +323,16 @@ int loadplayer(signed char spot)
+ 
+     if (kdfread(&script[0],4,MAXSCRIPTSIZE,fil) != MAXSCRIPTSIZE) goto corrupt;
+ 
++#ifdef EMBEDDED
++    ptrbuf = (int*)(actorscrptr + MAXTILES) - MAXTILES;
++#endif
+     if (kdfread(&ptrbuf[0],4,MAXTILES,fil) != MAXTILES) goto corrupt;
+     for(i=0;i<MAXTILES;i++)
+         if(ptrbuf[i])
+         {
+             actorscrptr[i] = (int *)((intptr_t)&script[0] + ptrbuf[i]);
+         }
++        else actorscrptr[i] = NULL;
+ 
+     if (kdfread(&hittype[0],sizeof(struct weaponhit),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+ 
+@@ -332,6 +342,9 @@ int loadplayer(signed char spot)
+ 
+     if (kdfread(&animatecnt,sizeof(animatecnt),1,fil) != 1) goto corrupt;
+     if (kdfread(&animatesect[0],2,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
++#ifdef EMBEDDED
++    ptrbuf = (int*)animateptr;
++#endif
+     if (kdfread(&ptrbuf[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+     for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int *)((intptr_t)&sector[0] + ptrbuf[i]);
+     if (kdfread(&animategoal[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+@@ -556,7 +569,9 @@ int saveplayer(signed char spot)
+     dfwrite(&numsectors,2,1,fil);
+     dfwrite(&sector[0],sizeof(sectortype),MAXSECTORS,fil);
+     dfwrite(&sprite[0],sizeof(spritetype),MAXSPRITES,fil);
++#if USE_POLYMOST && USE_OPENGL
+     dfwrite(&spriteext[0],sizeof(spriteexttype),MAXSPRITES,fil);
++#endif
+     dfwrite(&headspritesect[0],2,MAXSECTORS+1,fil);
+     dfwrite(&prevspritesect[0],2,MAXSPRITES,fil);
+     dfwrite(&nextspritesect[0],2,MAXSPRITES,fil);
+@@ -2316,7 +2331,11 @@ if (!VOLUMEALL) {
+         }
+ 
+         menutext(160,c,0,0,"GAME OPTIONS");
++#if NO_SOUND
++        menutext(160,c+18,0,1,"SOUND OPTIONS");
++#else
+         menutext(160,c+18,0,0,"SOUND OPTIONS");
++#endif
+         menutext(160,c+18+18,0,0,"VIDEO SETTINGS");
+         menutext(160,c+18+18+18,0,0,"INPUT SETTINGS");
+         if (!NAM) {
+@@ -2371,8 +2390,13 @@ if (!VOLUMEALL) {
+         }
+ 
+         menutext(160,c,         0,0,"KEYS SETUP");
++#if NO_MOUSE
++        menutext(160,c+18,      0,1,"MOUSE SETUP");
++        menutext(160,c+18+18,   0,1,"CONTROLLER SETUP");
++#else
+         menutext(160,c+18,      0,0,"MOUSE SETUP");
+         menutext(160,c+18+18,   0,CONTROL_JoyPresent==0,"CONTROLLER SETUP");
++#endif
+         menutext(160,c+18+18+18+9, 0,0,"USE MODERN DEFAULTS");
+         menutext(160,c+18+18+18+18+9,0,0,"USE CLASSIC DEFAULTS");
+         if (changesmade == CONFIG_DEFAULTS_MODERN)
+@@ -2642,6 +2666,7 @@ if (!VOLUMEALL) {
+         break;
+     }
+ 
++#if !NO_MOUSE
+     case 205:
+          rotatesprite(320<<15,10<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1);
+             menutext(320>>1,15,0,0,"MOUSE SETUP");
+@@ -2890,7 +2915,17 @@ if (!VOLUMEALL) {
+             CONTROL_SetAnalogAxisScale( 0, l, controldevice_mouse );
+             MouseAnalogueScale[0] = l;
+         }
+-        Bsprintf(buf,"%s%.2f",l>=0?" ":"",(float)l/65536.0);
++#if NO_FLOAT
++#define PRINT_SCALE \
++    { \
++        int v=((l<0?-l:l)*100+0x8000)>>16, h=v/100; \
++        Bsprintf(buf,"%c%d.%02d",l<0?'-':' ',h,v-h*100); \
++    }
++#else
++#define PRINT_SCALE \
++    Bsprintf(buf,"%s%.2f",l>=0?" ":"",(float)l/65536.0);
++#endif
++        PRINT_SCALE
+         gametext(c+160-16,40-8,buf,0,2+8+16);
+         
+         menutext(c,40+16,0,0,"Y-AXIS SCALE");
+@@ -2901,7 +2936,7 @@ if (!VOLUMEALL) {
+             CONTROL_SetAnalogAxisScale( 1, l, controldevice_mouse );
+             MouseAnalogueScale[1] = l;
+         }
+-        Bsprintf(buf,"%s%.2f",l>=0?" ":"",(float)l/65536.0);
++        PRINT_SCALE
+         gametext(c+160-16,40+16-8,buf,0,2+8+16);
+         
+         menutext(c,40+16+16+8,0,0,"DIGITAL AXES ACTIONS");
+@@ -3118,7 +3153,7 @@ if (!VOLUMEALL) {
+             CONTROL_SetAnalogAxisScale( thispage*2, l, controldevice_joystick );
+             JoystickAnalogueScale[thispage*2] = l;
+         }
+-        Bsprintf(buf,"%s%.2f",l>=0?" ":"",(float)l/65536.0);
++        PRINT_SCALE
+         gametext(140,38,buf,0,2+8+16);
+ 
+         gametext(76,38+15,"DIGITAL",0,2+8+16);
+@@ -3157,7 +3192,7 @@ if (!VOLUMEALL) {
+                 CONTROL_SetAnalogAxisScale( thispage*2+1, l, controldevice_joystick );
+                 JoystickAnalogueScale[thispage*2+1] = l;
+             }
+-            Bsprintf(buf,"%s%.2f",l>=0?" ":"",(float)l/65536.0);
++            PRINT_SCALE
+             gametext(140,38+64,buf,0,2+8+16);
+ 
+             gametext(76,38+64+15,"DIGITAL",0,2+8+16);
+@@ -3253,7 +3288,9 @@ if (!VOLUMEALL) {
+         }
+         break;      
+     }
++#endif
+         
++#if !NO_SOUND
+         case 700:
+             c = (320>>1)-120;
+             rotatesprite(320<<15,19<<16,65536L,0,MENUBAR,16,0,10,0,0,xdim-1,ydim-1);
+@@ -3366,6 +3403,7 @@ if (!VOLUMEALL) {
+ 
+ 
+             break;
++#endif
+ 
+         case 350:
+             cmenu(351);
+@@ -3642,6 +3680,7 @@ VOLUME_ALL_40x:
+             {
+                 KB_FlushKeyboardQueue();
+ 
++#if !NO_NET
+                 if( gamequit == 0 && ( numplayers > 1 ) )
+                 {
+                     if(ps[myconnectindex].gm&MODE_GAME)
+@@ -3656,6 +3695,7 @@ VOLUME_ALL_40x:
+                     }
+                 }
+                 else if( numplayers < 2 )
++#endif
+                     gameexit(" ");
+ 
+                 if( ( totalclock > quittimer ) && ( gamequit == 1) )
+@@ -4489,9 +4529,22 @@ void playanm(const char *fn,char t)
+     uinfo.dir = dir_None;
+     uinfo.button0 = uinfo.button1 = FALSE;
+     
++#ifdef EMBEDDED
++    if (!playanm_flag) {
++        buildprintf("!!! playanm(\"%s\",%d) skipped\n",fn,t);
++        return;
++    }
++#endif
+     handle = kopen4load(fn,0);
+     if(handle == -1) return;
+     length = kfilelength(handle);
++#ifdef EMBEDDED
++    if (!can_allocache(length)) {
++        kclose(handle);
++        buildprintf("!!! playanm(\"%s\",%d) skipped, not enough free cache to play (length = %u)\n",fn,t,length);
++        return;
++    }
++#endif
+ 
+     walock[TILE_ANIM] = 219+t;
+ 
+diff --git a/src/player.c b/src/player.c
+index fc8f037..a5e71eb 100644
+--- a/src/player.c
++++ b/src/player.c
+@@ -28,6 +28,10 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
+ // Savage Baggage Masters
+ 
+ #include "duke3d.h"
++#ifdef EMBEDDED
++#undef MAXWALLS
++#define MAXWALLS MAXWALLSV7
++#endif
+ 
+ //#define WITHMAPDUMPSLASH
+ 
+@@ -1305,6 +1309,7 @@ char animatetip(short gs,short snum)
+     short tip_y[] = {0,-8,-16,-32,-64,-84,-108,-108,-108,-108,-108,-108,-108,-108,-108,-108,-96,-72,-64,-32,-16};
+ 
+     if(ps[snum].tipincs == 0) return 0;
++    if((unsigned)ps[snum].tipincs >= sizeof(tip_y)/sizeof(*tip_y)) return 1; /* ASan */
+ 
+     looking_arc = klabs(ps[snum].look_ang)/9;
+     looking_arc -= (ps[snum].hard_landing<<3);
+@@ -3237,7 +3242,7 @@ void processinput(short snum)
+                 {
+                     case 0:
+ 
+-                        if(lz >= 0 && (lz&(MAXSPRITES-1))==49152 )
++                        if(lz >= 0 && (lz&49152)==49152 )
+                             j = sprite[lz&(MAXSPRITES-1)].picnum;
+                         else j = sector[psect].floorpicnum;
+ 
+diff --git a/src/premap.c b/src/premap.c
+index 10f4b83..e7beb6f 100644
+--- a/src/premap.c
++++ b/src/premap.c
+@@ -238,6 +238,9 @@ void cachegoodsprites(void)
+     for (i=MORTER; i<MORTER+4; i++) tloadtile(i,4);
+ }
+ 
++#if NO_SOUND
++#define FXDevice -1
++#endif
+ char getsound(unsigned short num)
+ {
+     short fp;
+diff --git a/src/sector.c b/src/sector.c
+index e23795a..0117d44 100644
+--- a/src/sector.c
++++ b/src/sector.c
+@@ -26,6 +26,10 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
+ //-------------------------------------------------------------------------
+ 
+ #include "duke3d.h"
++#ifdef EMBEDDED
++#undef MAXWALLS
++#define MAXWALLS MAXWALLSV7
++#endif
+ 
+ // PRIMITIVE
+ 
+diff --git a/src/sounds.c b/src/sounds.c
+index 2e12d29..ad96ee1 100644
+--- a/src/sounds.c
++++ b/src/sounds.c
+@@ -30,6 +30,30 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
+ #include <string.h>
+ #include "duke3d.h"
+ 
++#if NO_SOUND
++int numenvsnds = 0;
++
++void SoundStartup(void) {}
++void SoundShutdown(void) {}
++void MusicStartup(void) {}
++void MusicShutdown(void) {}
++void MusicPause(int a) {}
++void MusicSetVolume(int a) {}
++void intomenusounds(void) {}
++void playmusic(char* a) {}
++void stopmusic(void) {}
++int xyzsound(short a, short b, int c, int d, int e) { return -1; }
++void sound(short a) {}
++int spritesound(unsigned short a, short b) { return -1; }
++void stopspritesound(short a, short b) {}
++void stopsound(short a) {}
++void stopenvsound(short a, short b) {}
++void pan3dsound(void) {}
++void testcallback(unsigned int a) {}
++void clearsoundlocks(void) {}
++int isspritemakingsound(short a, int b) { return 0; }
++int issoundplaying(int a, int b) { return 0; }
++#else
+ 
+ #define LOUDESTVOLUME 150
+ 
+@@ -745,4 +769,5 @@ int issoundplaying(int num, int xyz)
+         return Sound[num].numall;
+     }
+ }
++#endif
+ 
