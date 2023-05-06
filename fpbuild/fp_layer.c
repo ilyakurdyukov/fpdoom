@@ -295,7 +295,7 @@ int setvideomode(int x, int y, int c, int fs) {
 	CHIP_FN2(sys_start)();
 
 	getvalidmodes();
-	x = disp->w1; y = disp->h1;
+	x = disp->w2; y = disp->h2;
 	if (sys_data.scaler) x <<= 1, y <<= 1;
 	buildprintf("Setting video mode %dx%d\n", x, y);
 
