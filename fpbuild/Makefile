@@ -185,6 +185,9 @@ $(OBJDIR)/game/%.o: $(GAMESRC)/%.c | $(OBJDIR)
 $(OBJDIR)/game/%.o: $(GAMESRC)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) $(GAME_CFLAGS) -MMD -MP -MF $(@:.o=.d) $< -c -o $@
 
+# code from a-c.c is important for performance
+$(OBJDIR)/jfbuild/a-c.o: CFLAGS := $(filter-out -mthumb,$(CFLAGS)) -O2
+
 $(OBJDIR)/jfbuild/%.o: $(ENGINEROOT)/src/%.c | $(OBJDIR)
 	$(call compile_fn,$(GAME_CFLAGS))
 
