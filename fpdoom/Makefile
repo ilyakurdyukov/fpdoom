@@ -51,6 +51,7 @@ endif
 
 CFLAGS += -Wall -Wextra -pedantic -std=c99 -fsigned-char
 CFLAGS += -fno-PIE -ffreestanding -march=armv5te -mthumb $(EXTRA_CFLAGS) -fno-strict-aliasing
+CFLAGS += -fomit-frame-pointer
 CFLAGS += -ffunction-sections -fdata-sections
 LFLAGS = -pie -nostartfiles -nodefaultlibs -nostdlib -Wl,-T,$(LDSCRIPT) -Wl,--gc-sections -Wl,-z,notext
 ifeq ($(CHIP), 2)

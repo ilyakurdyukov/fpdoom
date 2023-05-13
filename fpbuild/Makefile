@@ -1,6 +1,7 @@
 # 0 - detect, 1 - SC6531E, 2 - SC6531DA, 3 - SC6530
 CHIP = 0
 TWO_STAGE = 1
+USE_ASM = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 SRCS = asmcode usbio common libc syscomm
 ifeq ($(CHIP), 0)
@@ -44,7 +45,7 @@ GAME_SRCS = \
 endif
 
 BUILD_SRCS = \
-	a-c asmprot baselayer cache1d \
+	asmprot baselayer cache1d \
 	compat crc32 defs engine \
 	mmulti_null osd pragmas scriptfile \
 	textfont talltextfont smalltextfont \
@@ -55,6 +56,11 @@ MACT_SRCS = \
 	mouse mathutil scriplib animlib
 
 SRCS += fp_layer unistd
+ifeq ($(USE_ASM), 0)
+BUILD_SRCS += a-c
+else
+SRCS += buildasm a-new
+endif
 
 GAME_OBJS = $(GAME_SRCS:%=$(OBJDIR)/game/%.o)
 GAME_OBJS += $(BUILD_SRCS:%=$(OBJDIR)/jfbuild/%.o)
@@ -90,6 +96,7 @@ endif
 
 CFLAGS += -Wall -Wextra -funsigned-char
 CFLAGS += -fno-PIE -ffreestanding -march=armv5te -mthumb $(EXTRA_CFLAGS) -fno-strict-aliasing
+CFLAGS += -fomit-frame-pointer
 CFLAGS += -ffunction-sections -fdata-sections
 LFLAGS = -pie -nostartfiles -nodefaultlibs -nostdlib -Wl,-T,$(LDSCRIPT) -Wl,--gc-sections -Wl,-z,notext
 ifeq ($(CHIP), 2)
@@ -124,6 +131,9 @@ CXXFLAGS := $(CFLAGS) -std=c++14 -fno-exceptions -fno-rtti -Wno-narrowing
 CFLAGS += -std=c99 -pedantic
 
 GAME_CFLAGS = -DEMBEDDED=2 -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1 -DNO_OSD=1
+ifneq ($(USE_ASM), 0)
+GAME_CFLAGS += -DUSE_ASM
+endif
 GAME_CFLAGS += -DNO_FLOAT=1 -I$(OBJDIR)
 GAME_CFLAGS += -DMAXXDIM=480 -DMAXYDIM=320
 GAME_CFLAGS += -DNO_NEWSTYLE=1

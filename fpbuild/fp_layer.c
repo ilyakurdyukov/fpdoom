@@ -7,7 +7,7 @@ void setvlinebpl(int dabpl);
 
 #include "syscode.h"
 
-static uint8_t *frame;
+static uint8_t *frame, *frame_ptr;
 static void shutdownvideo(void);
 
 int wm_msgbox(const char *name, const char *fmt, ...) {
@@ -281,7 +281,7 @@ void getvalidmodes(void) {
 
 static void shutdownvideo(void) {
 	if (frame) {
-		free(frame);
+		free(frame_ptr);
 		frame = NULL;
 	}
 }
@@ -302,10 +302,11 @@ int setvideomode(int x, int y, int c, int fs) {
 	//if (baselayer_videomodewillchange) baselayer_videomodewillchange();
 
 	{
-		int i, j, st = x + 4;
-		frame = malloc(st * y);
-
-		frameplace = (intptr_t)frame;
+		int i, j, st = x;
+		uint8_t *p;
+		frame_ptr = p = malloc(st * y + 8);
+		frame = p += -(intptr_t)p & 7;
+		frameplace = (intptr_t)p;
 		bytesperline = st;
 		imageSize = st * y;
 		numpages = 1;
@@ -431,8 +432,9 @@ void scr_update_1d2_ref(uint8_t *src, void *dest) {
 	}
 }
 
-#ifdef USE_ASM2
+#ifdef USE_ASM
 #define SEL(name) name##_asm
+extern int scr_update_data[2];
 #else
 #define SEL(name) name##_ref
 #endif
@@ -444,7 +446,7 @@ uint8_t *framebuffer_init(void) {
 		void (*scr_update)(uint8_t *src, void *dest);
 	} fn[] = {
 		{ SEL(pal_update16), SEL(scr_update_1d1) },
-		{ pal_update32_ref, SEL(scr_update_1d2) },
+		{ SEL(pal_update32), SEL(scr_update_1d2) },
 	};
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
@@ -453,9 +455,13 @@ uint8_t *framebuffer_init(void) {
 	uint8_t *dest;
 
 	dest = malloc(size * 2 + size2 + 31);
-	dest = (void*)(dest + (-(intptr_t)dest & 31));
+	dest += -(intptr_t)dest & 31;
 	dest += size2;
 
+#ifdef USE_ASM
+	scr_update_data[0] = w << mode;
+	scr_update_data[1] = h << mode;
+#endif
 	app_pal_update = fn[mode].pal_update;
 	app_scr_update = fn[mode].scr_update;
 	return dest;

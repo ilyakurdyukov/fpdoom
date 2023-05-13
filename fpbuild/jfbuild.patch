@@ -520,7 +520,7 @@ index 06634eb..88b5e63 100644
  			default:
  				buildputs("Unknown token.\n"); break;
 diff --git a/src/engine.c b/src/engine.c
-index c7c92b2..3a86f11 100644
+index c7c92b2..aae9460 100644
 --- a/src/engine.c
 +++ b/src/engine.c
 @@ -39,6 +39,7 @@
@@ -581,9 +581,13 @@ index c7c92b2..3a86f11 100644
  
  static char kensmessage[128];
  char *engineerrstr = NULL;
-@@ -430,9 +448,16 @@ static inline int msqrtasm(unsigned int c)
+@@ -429,11 +447,22 @@ static inline int msqrtasm(unsigned int c)
+ 	return a;
  }
  
++#if defined(EMBEDDED) && defined(USE_ASM)
++int krecipasm(int i);
++#else
  static inline int krecipasm(int i)
 -{ // Ken did this
 +{
@@ -597,9 +601,38 @@ index c7c92b2..3a86f11 100644
  	return((reciptable[(i>>12)&2047]>>(((i-0x3f800000)>>23)&31))^(i>>31));
 +#endif
  }
++#endif
  
  
-@@ -2296,6 +2321,7 @@ static void parascan(int dax1, int dax2, int sectnum, unsigned char dastat, int
+ static inline int getclipmask(int a, int b, int c, int d)
+@@ -491,8 +520,14 @@ unsigned char globparaceilclip, globparaflorclip;
+ 
+ int viewingrangerecip;
+ 
++#if defined(EMBEDDED) && defined(USE_ASM)
++extern int asm1, asm2, globalx3, globaly3;
++extern intptr_t asm3;
++int asm4;
++#else
+ int asm1, asm2, asm4;
+ intptr_t asm3;
++#endif
+ int vplce[4], vince[4];
+ intptr_t palookupoffse[4], bufplce[4];
+ unsigned char globalxshift, globalyshift;
+@@ -500,7 +535,11 @@ int globalxpanning, globalypanning, globalshade;
+ short globalpicnum, globalshiftval;
+ int globalzd, globalyscale, globalorientation;
+ intptr_t globalbufplc;
++#if defined(EMBEDDED) && defined(USE_ASM)
++int globalx1, globaly1, globalx2, globaly2, globalzx;
++#else
+ int globalx1, globaly1, globalx2, globaly2, globalx3, globaly3, globalzx;
++#endif
+ int globalx, globaly, globalz;
+ 
+ short sectorborder[256], sectorbordercnt;
+@@ -2296,6 +2335,7 @@ static void parascan(int dax1, int dax2, int sectnum, unsigned char dastat, int
  	{
  		wallnum = thewall[z]; nextsectnum = wall[wallnum].nextsector;
  
@@ -607,7 +640,7 @@ index c7c92b2..3a86f11 100644
  		if (dastat == 0) j = sector[nextsectnum].ceilingstat;
  						else j = sector[nextsectnum].floorstat;
  
-@@ -2746,6 +2772,7 @@ static void drawalls(int bunch)
+@@ -2746,6 +2786,7 @@ static void drawalls(int bunch)
  //
  // drawvox
  //
@@ -615,7 +648,7 @@ index c7c92b2..3a86f11 100644
  static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  		  int daxscale, int dayscale, unsigned char daindex,
  		  signed char dashade, unsigned char dapal, int *daumost, int *dadmost)
-@@ -2802,8 +2829,13 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2802,8 +2843,13 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  	dayscalerecip = (1<<30)/dayscale;
  
  	longptr = (int *)davoxptr;
@@ -629,7 +662,7 @@ index c7c92b2..3a86f11 100644
  	davoxptr += (6<<2);
  
  	x = mulscale16(globalposx-dasprx,daxscalerecip);
-@@ -2901,7 +2933,11 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2901,7 +2947,11 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  
  		for(x=xs;x!=xe;x+=xi)
  		{
@@ -641,7 +674,7 @@ index c7c92b2..3a86f11 100644
  			shortptr = (short *)&davoxptr[((x*(daysiz+1))<<1)+xyvoxoffs];
  
  			nx = mulscale16(ggxstart+ggxinc[x],viewingrangerecip)+x1;
-@@ -2909,10 +2945,26 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2909,10 +2959,26 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  			for(y=ys;y!=ye;y+=yi,nx+=dagyinc,ny-=dagxinc)
  			{
  				if ((ny <= nytooclose) || (ny >= nytoofar)) continue;
@@ -668,7 +701,7 @@ index c7c92b2..3a86f11 100644
  				lx = mulscale32(nx>>3,distrecip[(ny+y1)>>14])+halfxdimen;
  				if (lx < 0) lx = 0;
  				rx = mulscale32((nx+nxoff)>>3,distrecip[(ny+y2)>>14])+halfxdimen;
-@@ -2922,6 +2974,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2922,6 +2988,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  
  				l1 = distrecip[(ny-yoff)>>14];
  				l2 = distrecip[(ny+yoff)>>14];
@@ -676,7 +709,7 @@ index c7c92b2..3a86f11 100644
  				for(;voxptr<voxend;voxptr+=voxptr[1]+3)
  				{
  					j = (voxptr[0]<<15)-syoff;
-@@ -2967,6 +3020,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2967,6 +3034,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  		}
  	}
  }
@@ -684,7 +717,7 @@ index c7c92b2..3a86f11 100644
  
  
  //
-@@ -3001,6 +3055,7 @@ static void drawsprite(int snum)
+@@ -3001,6 +3069,7 @@ static void drawsprite(int snum)
  	cstat = tspr->cstat;
  
  	if ((cstat&48)==48) vtilenum = tilenum;	// if the game wants voxels, it gets voxels
@@ -692,7 +725,7 @@ index c7c92b2..3a86f11 100644
  	else if ((cstat&48)!=48 && (usevoxels) && (tiletovox[tilenum] != -1)
  #if USE_POLYMOST && USE_OPENGL
  		 && (!(spriteext[tspr->owner].flags&SPREXT_NOTMD))
-@@ -3009,6 +3064,7 @@ static void drawsprite(int snum)
+@@ -3009,6 +3078,7 @@ static void drawsprite(int snum)
  		vtilenum = tiletovox[tilenum];
  		cstat |= 48;
  	}
@@ -700,7 +733,7 @@ index c7c92b2..3a86f11 100644
  
  	if ((cstat&48) != 48)
  	{
-@@ -3623,7 +3679,7 @@ static void drawsprite(int snum)
+@@ -3623,7 +3693,7 @@ static void drawsprite(int snum)
  			xsi[z] = scale(rxi[z],xdimen<<15,rzi[z]) + (xdimen<<15);
  			ysi[z] = scale(ryi[z],xdimen<<15,rzi[z]) + (globalhoriz<<16);
  			if (xsi[z] < 0) xsi[z] = 0;
@@ -709,7 +742,7 @@ index c7c92b2..3a86f11 100644
  			if (ysi[z] < ((int)0<<16)) ysi[z] = ((int)0<<16);
  			if (ysi[z] > ((int)ydimen<<16)) ysi[z] = ((int)ydimen<<16);
  			if (xsi[z] < lmax) lmax = xsi[z], lpoint = z;
-@@ -3757,9 +3813,12 @@ static void drawsprite(int snum)
+@@ -3757,9 +3827,12 @@ static void drawsprite(int snum)
  	}
  	else if ((cstat&48) == 48)
  	{
@@ -723,7 +756,7 @@ index c7c92b2..3a86f11 100644
  		for(x=lx;x<=rx;x++)
  		{
  			lwall[x] = (int)startumost[x+windowx1]-windowy1;
-@@ -3825,6 +3884,7 @@ static void drawsprite(int snum)
+@@ -3825,6 +3898,7 @@ static void drawsprite(int snum)
  		}
  
  		if (!(cstat&128)) tspr->z -= mulscale22(B_LITTLE32(longptr[5]),nyrepeat);
@@ -731,7 +764,7 @@ index c7c92b2..3a86f11 100644
  		yoff = (int)((signed char)((picanm[sprite[tspr->owner].picnum]>>16)&255))+((int)tspr->yoffset);
  		tspr->z -= mulscale14(yoff,nyrepeat);
  
-@@ -3884,8 +3944,10 @@ static void drawsprite(int snum)
+@@ -3884,8 +3958,10 @@ static void drawsprite(int snum)
  		i += spriteext[tspr->owner].angoff;
  #endif
  		drawvox(tspr->x,tspr->y,tspr->z,i,(int)tspr->xrepeat,(int)tspr->yrepeat,vtilenum,tspr->shade,tspr->pal,lwall,swall);
@@ -742,7 +775,7 @@ index c7c92b2..3a86f11 100644
  	if (automapping == 1) show2dsprite[spritenum>>3] |= pow2char[spritenum&7];
  }
  
-@@ -4877,9 +4939,13 @@ static void dosetaspect(void)
+@@ -4877,9 +4953,13 @@ static void dosetaspect(void)
  			if (j != 0) j = mulscale16((int)radarang[k+1]-(int)radarang[k],j);
  			radarang2[i] = (short)(((int)radarang[k]+j)>>6);
  		}
@@ -756,7 +789,7 @@ index c7c92b2..3a86f11 100644
  	}
  }
  
-@@ -4887,6 +4953,7 @@ static void dosetaspect(void)
+@@ -4887,6 +4967,7 @@ static void dosetaspect(void)
  //
  // loadtables (internal)
  //
@@ -764,7 +797,7 @@ index c7c92b2..3a86f11 100644
  static void calcbritable(void)
  {
  	int i,j;
-@@ -4898,12 +4965,17 @@ static void calcbritable(void)
+@@ -4898,12 +4979,17 @@ static void calcbritable(void)
  			britable[i][j] = (unsigned char)(pow((double)j,a)*b);
  	}
  }
@@ -782,7 +815,7 @@ index c7c92b2..3a86f11 100644
      for(i=0;i<2048;i++) {
          sintable[i] = (short)(16384*sin((double)i*3.14159265358979/1024));
          reciptable[i] = divscale30(2048L,i+2048);
-@@ -4922,6 +4994,7 @@ static int loadtables(void)
+@@ -4922,6 +5008,7 @@ static int loadtables(void)
          engineerrstr = "Calculation of radarang yielded unexpected results.";
          return 1;
      }
@@ -790,7 +823,7 @@ index c7c92b2..3a86f11 100644
  
  	return 0;
  }
-@@ -5373,7 +5446,9 @@ int preinitengine(void)
+@@ -5373,7 +5460,9 @@ int preinitengine(void)
  	assert(sizeof(spritetype) == 44);
  	assert((intptr_t)&sprite[1] - (intptr_t)&sprite[0] == sizeof(spritetype));
  	assert(sizeof(spriteexttype) == 12);
@@ -800,7 +833,7 @@ index c7c92b2..3a86f11 100644
  
  	if (initsystem()) exit(1);
  
-@@ -5423,6 +5498,7 @@ int initengine(void)
+@@ -5423,6 +5512,7 @@ int initengine(void)
  	parallaxtype = 2; parallaxyoffs = 0L; parallaxyscale = 65536;
  	showinvisibility = 0;
  
@@ -808,7 +841,7 @@ index c7c92b2..3a86f11 100644
  	for(i=1;i<1024;i++) lowrecip[i] = ((1<<24)-1)/i;
  	for(i=0;i<MAXVOXELS;i++)
  		for(j=0;j<MAXVOXMIPS;j++)
-@@ -5433,6 +5509,7 @@ int initengine(void)
+@@ -5433,6 +5523,7 @@ int initengine(void)
  	for(i=0;i<MAXTILES;i++)
  		tiletovox[i] = -1;
  	clearbuf(&voxscale[0],sizeof(voxscale)>>2,65536L);
@@ -816,7 +849,7 @@ index c7c92b2..3a86f11 100644
  
  	searchit = 0; searchstat = -1;
  
-@@ -5490,8 +5567,10 @@ void uninitengine(void)
+@@ -5490,8 +5581,10 @@ void uninitengine(void)
  
  	uninitsystem();
  
@@ -827,7 +860,7 @@ index c7c92b2..3a86f11 100644
  
  	if (artfil != -1) kclose(artfil);
  
-@@ -5625,6 +5704,7 @@ void drawrooms(int daposx, int daposy, int daposz,
+@@ -5625,6 +5718,7 @@ void drawrooms(int daposx, int daposy, int daposz,
  	if (inpreparemirror)
  	{
  		inpreparemirror = 0;
@@ -835,24 +868,24 @@ index c7c92b2..3a86f11 100644
  		mirrorsx1 = xdimen-1; mirrorsx2 = 0;
  		for(i=numscans-1;i>=0;i--)
  		{
-@@ -6179,6 +6259,9 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6179,6 +6273,9 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  
  	i = strlen(filename)-1;
  	if ((unsigned char)filename[i] == 255) { filename[i] = 0; fromwhere = 1; }	// JBF 20040119: "compatibility"
-+#ifdef EMBEDDED
++#if EMBEDDED == 1
 +	buildprintf("loadboard(\"%s\")\n", filename);
 +#endif
  	if ((fil = kopen4load(filename,fromwhere)) == -1)
  		{ mapversion = 7L; return(-1); }
  
-@@ -6221,6 +6304,14 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6221,6 +6318,14 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	kread(fil,dacursectnum,2); *dacursectnum = B_LITTLE16(*dacursectnum);
  
  	kread(fil,&numsectors,2); numsectors = B_LITTLE16(numsectors);
 +#ifdef EMBEDDED
 +#define NUMCHECK(n, m) \
-+	buildprintf("info: %s = %d\n", #n, n); \
-+	if (n > m) { buildprintf("error: %s > %s (%d)\n", #n, #m, m); return(-2); }
++	if (EMBEDDED == 1) buildprintf("info: %s = %d\n", #n, n); \
++	if (n > m) { buildprintf("error: %s (%d) > %s (%d)\n", #n, n, #m, m); return(-2); }
 +#else
 +#define NUMCHECK(n, m)
 +#endif
@@ -860,7 +893,7 @@ index c7c92b2..3a86f11 100644
  	if (numsectors > maxsectors) { kclose(fil); return(-2); }
  	kread(fil,&sector[0],sizeof(sectortype)*numsectors);
  	for (i=numsectors-1; i>=0; i--) {
-@@ -6240,6 +6331,7 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6240,6 +6345,7 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	}
  
  	kread(fil,&numwalls,2); numwalls = B_LITTLE16(numwalls);
@@ -868,7 +901,7 @@ index c7c92b2..3a86f11 100644
  	if (numwalls > maxwalls) { kclose(fil); return(-2); }
  	kread(fil,&wall[0],sizeof(walltype)*numwalls);
  	for (i=numwalls-1; i>=0; i--) {
-@@ -6257,6 +6349,8 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6257,6 +6363,8 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	}
  
  	kread(fil,&numsprites,2); numsprites = B_LITTLE16(numsprites);
@@ -877,7 +910,7 @@ index c7c92b2..3a86f11 100644
  	if (numsprites > maxsprites) { kclose(fil); return(-2); }
  	kread(fil,&sprite[0],sizeof(spritetype)*numsprites);
  	for (i=numsprites-1; i>=0; i--) {
-@@ -7800,6 +7894,12 @@ int loadpics(char *filename, int askedsize)
+@@ -7800,6 +7908,12 @@ int loadpics(char *filename, int askedsize)
  			kread(fil,&numtiles,4);       numtiles       = B_LITTLE32(numtiles);
  			kread(fil,&localtilestart,4); localtilestart = B_LITTLE32(localtilestart);
  			kread(fil,&localtileend,4);   localtileend   = B_LITTLE32(localtileend);
@@ -890,7 +923,7 @@ index c7c92b2..3a86f11 100644
  			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
  			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
  			kread(fil,&picanm[localtilestart],(localtileend-localtilestart+1)<<2);
-@@ -7830,10 +7930,14 @@ int loadpics(char *filename, int askedsize)
+@@ -7830,10 +7944,14 @@ int loadpics(char *filename, int askedsize)
  	//try dpmi_DETERMINEMAXREALALLOC!
  
  	//cachesize = min((int)((Bgetsysmemsize()/100)*60),max(artsize,askedsize));
@@ -905,7 +938,7 @@ index c7c92b2..3a86f11 100644
  	while ((pic = kmalloc(cachesize)) == NULL)
  	{
  		cachesize -= 65536L;
-@@ -7980,6 +8084,7 @@ void copytilepiece(int tilenume1, int sx1, int sy1, int xsiz, int ysiz,
+@@ -7980,6 +8098,7 @@ void copytilepiece(int tilenume1, int sx1, int sy1, int xsiz, int ysiz,
  //
  int qloadkvx(int voxindex, char *filename)
  {
@@ -913,7 +946,7 @@ index c7c92b2..3a86f11 100644
  	int i, fil, dasiz, lengcnt, lengtot;
  	unsigned char *ptr;
  
-@@ -8008,6 +8113,7 @@ int qloadkvx(int voxindex, char *filename)
+@@ -8008,6 +8127,7 @@ int qloadkvx(int voxindex, char *filename)
  		voxmodels[voxindex] = NULL;
  	}
  	voxmodels[voxindex] = voxload(filename);
@@ -921,7 +954,7 @@ index c7c92b2..3a86f11 100644
  #endif
  	return 0;
  }
-@@ -9599,9 +9705,13 @@ void getzrange(int x, int y, int z, short sectnum,
+@@ -9599,9 +9719,13 @@ void getzrange(int x, int y, int z, short sectnum,
  void setview(int x1, int y1, int x2, int y2)
  {
  	int i;
@@ -935,7 +968,7 @@ index c7c92b2..3a86f11 100644
  
  	windowx1 = x1; wx1 = (x1<<12);
  	windowy1 = y1; wy1 = (y1<<12);
-@@ -9612,7 +9722,11 @@ void setview(int x1, int y1, int x2, int y2)
+@@ -9612,7 +9736,11 @@ void setview(int x1, int y1, int x2, int y2)
  	xdimenrecip = divscale32(1L,xdimen);
  	ydimen = (y2-y1)+1;
  
@@ -947,7 +980,7 @@ index c7c92b2..3a86f11 100644
  
  	for(i=0;i<windowx1;i++) { startumost[i] = 1, startdmost[i] = 0; }
  	for(i=windowx1;i<=windowx2;i++)
-@@ -9831,8 +9945,12 @@ void setbrightness(int dabrightness, unsigned char *dapal, char noapply)
+@@ -9831,8 +9959,12 @@ void setbrightness(int dabrightness, unsigned char *dapal, char noapply)
  	if (!(noapply&4))
  		curbrightness = min(max((int)dabrightness,0),15);
  
@@ -960,7 +993,7 @@ index c7c92b2..3a86f11 100644
  
  	for(k=i=0;i<256;i++)
  	{
-@@ -10414,9 +10532,11 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+@@ -10414,9 +10546,11 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
  		plc = y1+mulscale12((2047-x1)&4095,inc);
  		i = ((x1+2048)>>12); daend = ((x2+2048)>>12);
  
@@ -972,7 +1005,7 @@ index c7c92b2..3a86f11 100644
  			if ((j >= startumost[i]) && (j < startdmost[i]))
  				drawpixel((void*)(frameplace+ylookup[j]+i),col);
  			plc += inc;
-@@ -10435,10 +10555,13 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+@@ -10435,10 +10569,13 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
  		plc = x1+mulscale12((2047-y1)&4095,inc);
  		i = ((y1+2048)>>12); daend = ((y2+2048)>>12);
  
@@ -986,7 +1019,7 @@ index c7c92b2..3a86f11 100644
  			if ((i >= startumost[j]) && (i < startdmost[j]))
  				drawpixel((void*)(j+p),col);
  			plc += inc; p += ylookup[1];
-@@ -11025,6 +11148,13 @@ void setpolymost2dview(void)
+@@ -11025,6 +11162,13 @@ void setpolymost2dview(void)
  #endif //USE_POLYMOST && USE_OPENGL
  
  
@@ -1000,7 +1033,7 @@ index c7c92b2..3a86f11 100644
  void buildprintf(const char *fmt, ...)
  {
  	char tmpstr[1024];
-@@ -11067,6 +11197,7 @@ void buildsetlogfile(const char *fn)
+@@ -11067,6 +11211,7 @@ void buildsetlogfile(const char *fn)
  	if (fn) logfile = Bfopen(fn,"w");
  	if (logfile) setvbuf(logfile, (char*)NULL, _IONBF, 0);
  }
