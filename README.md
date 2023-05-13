@@ -61,6 +61,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 15 | Energizer E12     | SC6531E  | GC9106 128x160 | 1          |
 | 16 | Itel it5626       | SC6531DA | GC9307 240x320 | left soft  |
 | 17 | Sunwind C2401     | SC6531E  | ST7789 240x320 | *          |
+| 18 | DEXP SD2810       | SC6531E  | ???    240x320 | 2          |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12, Sunwind C2401: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
