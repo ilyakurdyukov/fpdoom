@@ -309,22 +309,58 @@ CODE32_FN usb_send_asm
 	bls	2f
 	rsb	r5, r12, #32
 1:	ldr	r4, [r1, #4]!
+	subs	r2, #4
 	orr	r3, r3, r4, lsl r5
+	// r6 = bswap32(r3)
 	and	r6, lr, r3, ror #24
 	and	r3, lr, r3
 	orr	r6, r6, r3, ror #8
 	lsr	r3, r4, r12
 	str	r6, [r0]
-	subs	r2, #4
 	bhi	1b
 2:	add	r2, #4
-	lsr	r12, #3
-	subs	r2, r2, r12
+	subs	r2, r2, r12, lsr #3
 	and	r6, lr, r3, ror #24
 	and	r3, lr, r3
 	orr	r6, r6, r3, ror #8
 	strhi	r6, [r0]
-	mov	r0, r2
+	pop	{r4-r6,pc}
+
+CODE32_FN usb_recv_asm
+	tst	r2, r2
+	bxeq	lr
+	push	{r4-r6,lr}
+	ands	r12, r0, #3
+	ldrne	r3, [r0, -r12]!
+	lsl	r12, #3
+	rsb	r5, r12, #32
+	mov	lr, #0xff0000
+	lsl	r3, r5
+	orr	lr, #0xff
+	lsr	r3, r5
+1:	ldr	r4, [r1]
+	subs	r2, #4
+	// r6 = bswap32(r4)
+	and	r6, lr, r4, ror #24
+	and	r4, lr, r4
+	orr	r6, r6, r4, ror #8
+	orr	r3, r3, r6, lsl r12
+	str	r3, [r0], #4
+	lsr	r3, r6, r5
+	ldr	r4, [r1]	// 64-bit chunks
+	bls	2f
+	subs	r2, #4
+	// r6 = bswap32(r4)
+	and	r6, lr, r4, ror #24
+	and	r4, lr, r4
+	orr	r6, r6, r4, ror #8
+	orr	r3, r3, r6, lsl r12
+	str	r3, [r0], #4
+	lsr	r3, r6, r5
+	bhi	1b
+2:	add	r2, #4
+	subs	r2, r2, r5, lsr #3
+	strhi	r3, [r0]
 	pop	{r4-r6,pc}
 
 // sum, ptr, size

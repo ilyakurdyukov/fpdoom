@@ -31,7 +31,7 @@ static uint32_t _usb_base;
 
 typedef struct {
 	uint32_t rpos, wpos;
-	uint8_t buf[USB_BUFSIZE];
+	uint8_t buf[USB_BUFSIZE + USB_MAXREAD];
 } usb_buf_t;
 
 usb_buf_t usb_buf;
@@ -134,6 +134,7 @@ void usb_init_endp3() {
 #endif
 
 void usb_send_asm(void *dst, const void *src, size_t len);
+void usb_recv_asm(void *dst, const void *src, size_t len);
 
 // len = 0..0x7ff
 static void usb_send(uint32_t ep, const void *src, uint32_t len) {
@@ -154,7 +155,7 @@ static void usb_send(uint32_t ep, const void *src, uint32_t len) {
 		USB_MAXPSIZE(ctrl, len);
 		USB_TRSIZE(tr_size, len);
 
-#if 0
+#if 1
 		(void)i;
 		usb_send_asm(fifo, s, len);
 #else
@@ -190,10 +191,15 @@ static void usb_recv(uint32_t ep, uint32_t *dst, uint32_t len) {
 			fifo += 1;	// FIFO_entry_endp2
 		} else break;
 
+#if 1
+		(void)i;
+		usb_recv_asm(dst, fifo, len);
+#else
 		for (i = 0; i < len; i += 8) {
 			*dst++ = swap_be32(*(volatile uint32_t*)fifo);
 			*dst++ = swap_be32(*(volatile uint32_t*)fifo);
 		}
+#endif
 
 		USB_CR(ctrl) |= 1 << 28;
 	} while (0);
@@ -246,16 +252,27 @@ static void usb_int_endp2() {
 	usb_buf_t *p; int i, len, wpos;
 	USB_BASE_INIT
 	if (USB_CR(INT_STS_ENDP2) & 1) { // TRANSACTION_END
+#if 0
 		uint8_t buf[USB_MAXREAD];
-		len = USB_CR(ENDP2_CTRL) & (USB_BUFSIZE - 1);
+#endif
+		len = USB_CR(ENDP2_CTRL) & 0x3ff;
 		if (len > USB_MAXREAD) len = USB_MAXREAD;
+#if 1
+		(void)i;
+		p = &usb_buf; wpos = p->wpos;
+		usb_recv(3, (uint32_t*)(p->buf + wpos), len);
+		if ((wpos += len) > USB_BUFSIZE) {
+			wpos &= USB_BUFSIZE - 1;
+			memcpy(p->buf, p->buf + USB_BUFSIZE, wpos);
+		}
+#else
 		usb_recv(3, (uint32_t*)buf, len);
-		p = &usb_buf;
-		wpos = p->wpos;
+		p = &usb_buf; wpos = p->wpos;
 		for (i = 0; i < len; i++) {
 			p->buf[wpos++] = buf[i];
-			wpos &= (USB_BUFSIZE - 1);
+			wpos &= USB_BUFSIZE - 1;
 		}
+#endif
 		p->wpos = wpos;
 		USB_CR(ENDP2_CTRL) |= 1 << 28;
 	}
