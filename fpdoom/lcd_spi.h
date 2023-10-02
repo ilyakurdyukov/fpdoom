@@ -183,9 +183,9 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	{
 		int i, n = sizeof(lcd_config) / sizeof(*lcd_config);
 		for (i = 0; i < n; i++)
-			if ((id & lcd_config[i].id_mask) == lcd_config[i].id) break;
-		if (i == n || !lcd_config[i].spi.freq)
-			ERR_EXIT("unknown LCD\n");
+			if ((id & lcd_config[i].id_mask) == lcd_config[i].id &&
+					lcd_config[i].spi.freq) break;
+		if (i == n) ERR_EXIT("unknown LCD\n");
 		lcd_setup.lcd = lcd_config + i;
 	}
 

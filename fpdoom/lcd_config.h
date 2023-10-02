@@ -314,8 +314,103 @@ static const uint8_t cmd3033_init[] = {
 	LCM_CMD(0x44, 2), 0x00,0x3f,
 	//LCM_CMD(0x36, 1), 0x08, // Memory Access Control
 	LCM_CMD(0x3a, 1), 0x65, // Pixel Format Set
-	LCM_CMD(0x29, 0),
-	LCM_DELAY(10), // Display ON
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_DELAY(10),
+	LCM_END
+};
+
+static const uint8_t cmd80F6_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0x13, 0), // Normal Display Mode ON
+	LCM_CMD(0x38, 0), // Idle Mode OFF
+	LCM_CMD(0x20, 0), // Display Inversion OFF
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x44, 2), 0x00,0x10, // Set Tear Scanline
+	LCM_CMD(0x89, 1), 0x0b,
+	LCM_CMD(0xeb, 1), 0x02,
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd8552_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x55, // Pixel Format Set
+	LCM_CMD(0xb2, 5), 0x0c,0x0c,0x00,0x33,0x33, // Porch Setting
+	LCM_CMD(0xb7, 1), 0x35, // Gate Control
+	LCM_CMD(0xbb, 1), 0x35, // VCOM Setting
+	LCM_CMD(0xc0, 1), 0x2c, // LCM Control
+	LCM_CMD(0xc2, 1), 0x01, // VDV and VRH Command Enable
+	LCM_CMD(0xc3, 1), 0x0b, // VRH Set
+	LCM_CMD(0xc4, 1), 0x20, // VDV Set
+	LCM_CMD(0xc6, 1), 0x0b, // Frame Rate Control in Normal Mode
+	LCM_CMD(0xd0, 2), 0xa4,0xa1, // Power Control 1
+	// Set Gamma 1
+	LCM_CMD(0xe0, 14), 0xd0,0x00,0x02,0x07,
+		0x0b,0x1a,0x31,0x54, 0x40,0x29,0x12,0x12, 0x12,0x17,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 14), 0xd0,0x00,0x02,0x07,
+		0x05,0x25,0x2d,0x44, 0x45,0x1c,0x18,0x16, 0x1c,0x1d,
+	LCM_CMD(0x44, 2), 0x00,0x08, // Set Tear Scanline
+	LCM_CMD(0x35, 1), 0x01, // Tearing Effect Line ON
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd9304_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x55, // Pixel Format Set
+	LCM_CMD(0xe8, 2), 0x1f,0x40, // Frame Rate
+	LCM_CMD(0x35, 1), 0x01, // Tearing Effect Line ON
+	LCM_CMD(0x44, 2), 0x00,0x08, // Set Tear Scanline
+	LCM_CMD(0xe3, 2), 0x01,0x04,
+	LCM_CMD(0xa5, 2), 0x40,0x40,
+	LCM_CMD(0xa4, 2), 0x44,0x44, // Vcore voltage Control
+	LCM_CMD(0xab, 1), 0x08,
+	LCM_CMD(0xaa, 2), 0x88,0x88,
+	LCM_CMD(0xae, 1), 0x0b,
+	LCM_CMD(0xac, 1), 0x00,
+	LCM_CMD(0xaf, 1), 0x77,
+	LCM_CMD(0xad, 1), 0x77,
+	LCM_CMD(0xf0, 6), 0x02,0x00,0x00,0x00,0x03,0x08, // Set Gamma 1
+	LCM_CMD(0xf1, 6), 0x01,0x03,0x00,0x00,0x05,0x0c, // Set Gamma 2
+	LCM_CMD(0xf2, 6), 0x0a,0x07,0x32,0x05,0x05,0x46, // Set Gamma 3
+	LCM_CMD(0xf3, 6), 0x0d,0x09,0x3a,0x04,0x04,0x4b, // Set Gamma 4
+	LCM_CMD(0xf4, 6), 0x0e,0x17,0x15,0x1b,0x1e,0x00, // Set Gamma 5
+	LCM_CMD(0xf5, 6), 0x0c,0x1a,0x1c,0x17,0x1a,0x00, // Set Gamma 6
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd90FA_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x13, 0), // Normal Display Mode ON
+	LCM_CMD(0x38, 0), // Idle Mode OFF
+	LCM_CMD(0x20, 0), // Display Inversion OFF
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
+static const uint8_t cmd9290F6_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x29, 0), // Display ON
 	LCM_END
 };
 #endif
@@ -371,6 +466,7 @@ static const uint8_t cmd9108_init[] = {
 	LCM_END
 };
 
+// 240x240
 static const uint8_t cmd9307_init240[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
@@ -401,6 +497,7 @@ static const uint8_t cmd9307_init240[] = {
 	LCM_CMD(0x29, 0), // Display ON
 	LCM_END
 };
+
 static const uint8_t cmd9307_init[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
@@ -542,6 +639,8 @@ static const lcd_config_t lcd_config[] = {
 
 	// Sitronix ST7735
 	{ 0x1c80f3, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd1C80F3_init },
+	// Sitronix ST7735 (from another factory)
+	{ 0x7c80f3, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd1C80F3_init },
 
 /* BQ 3586 Tank Max */
 
@@ -552,6 +651,19 @@ static const lcd_config_t lcd_config[] = {
 
 	// ???
 	{ 0x003033, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 10, 150, 100, 15, 35, 35 }, { 0 }, 0x08, cmd3033_init },
+
+/* Nokia TA-1400 */
+
+	// ??? (untested)
+	{ 0x80f6, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd80F6_init },
+	// Sitronix ST7789 (untested)
+	{ 0x8552, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd8552_init },
+	// GlaxyCore GC9304 (untested)
+	{ 0x9304, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x48, cmd9304_init },
+	// ??? (untested)
+	{ 0x90fa, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd90FA_init },
+	// ???
+	{ 0x9290f6, 0xffffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd9290F6_init },
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -567,15 +679,15 @@ static const lcd_config_t lcd_config[] = {
 	// Sitronix ST7735S CTC
 	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7C89F0_init },
 
+/* DZ09 */
+
+	// GlaxyCore GC9307
+	{ 0x80009307, 0xffffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init240 },
+
 /* Itel it5626 */
 
 	// GlaxyCore GC9307
 	{ 0x009307, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 }, 0x48, cmd9307_init },
-
-/* DZ09 */
-
-	// GlaxyCore GC9307
-	{ 0x80009307, 0x80ffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init240 },
 
 /* Samsung B310E */
 

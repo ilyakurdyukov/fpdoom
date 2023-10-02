@@ -571,10 +571,9 @@ static void lcm_init(void) {
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
 	for (i = 0; i < n; i++)
-		if ((id & lcd_config[i].id_mask) == lcd_config[i].id) break;
-
-	if (i == n || !lcd_config[i].mcu_timing.rcss)
-		ERR_EXIT("unknown LCD\n");
+		if ((id & lcd_config[i].id_mask) == lcd_config[i].id &&
+				lcd_config[i].mcu_timing.rcss) break;
+	if (i == n) ERR_EXIT("unknown LCD\n");
 
 	lcm_set_freq(cs, clk_rate, lcd_config + i);
 	lcm_config_addr(cs);
