@@ -63,14 +63,16 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 17 | Sunwind C2401     | SC6531E  | ST7789 240x320 | *          |
 | 18 | DEXP SD2810       | SC6531E  | ???    240x320 | 2          |
 | 19 | Nokia TA-1400     | SC6531F  | ???    240x320 | right soft |
+| 20 | YX Q5 Kids Camera | SC6531DA | NV3023 128x160 | shutter    |
 
-* Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12, Sunwind C2401, DEXP SD2810: need keymap file
+* Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12, Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * Nokia TA-1174: use `--spi 1 --spi_mode 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * BQ 3586: use `--bl_gpio 19` for backlight to work properly
 * Fly TS114: use `--spi 1`
 * Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
+* YX Q5 Kids Camera: `--mac 0xa8` without `--rotate`
 
 ### Game controls
 
@@ -84,10 +86,15 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 2, 4, 5, 6     | up/left/down/right |
 | 1, 3           | strafe left/right  |
 | 7, 9           | prev/next weapon   |
+| Power + Center | use                |
+| Power + Up     | run on/off         |
+| Power + Down   | open/close menu    |
+| Power + L/R    | prev/next weapon   |
 
 * D-pad and keys 1-9 are rotated with the `--rotate` option (with screen or separately).
 * For phones without D-pad Center key (Nobby 170B) - up/down keys are used for fire.
 * If you don't like the controls - you can change it in [keytrn.c](fpdoom/keytrn.c).
+* Combinations with the power button are for the Children's Camera, which has only six keys. Don't hold down the power button for too long (7 seconds), as this may trigger the device to power off.
 
 ### Tweaks
 

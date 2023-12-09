@@ -724,6 +724,43 @@ void CHIP_FN(sys_framebuffer)(void *base) {
 	LCDC_CR(LCDC_OSD0_CTRL) |= 1;
 }
 
+static int read_eic_dbnc(int ch) {
+#if CHIP == 1 // SC6531E
+	uint32_t addr = 0x82001200;
+#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
+	uint32_t addr = 0x82001900;
+#endif
+	// EIC_DBNC_DMSK
+	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
+	// EIC_DBNC_DATA
+	return adi_read(addr) >> ch & 1;
+}
+
+static int check_power_button(void) {
+#if CHIP == 1 // SC6531E
+	return read_eic_dbnc(1);
+#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
+	int val = read_eic_dbnc(3);
+	// inverted on SC6531DA
+	if (sys_data.chip_id.ver >= 0x90003) val ^= 1;
+	return val;
+#endif
+}
+
+static void eic_enable(void) {
+	// EIC_A
+#if CHIP == 1 // SC6531E
+	adi_write(0x82001410, adi_read(0x82001410) | 8);
+	adi_write(0x82001408, adi_read(0x82001408) | 8);
+#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
+	adi_write(0x820010e4, 0x20);
+	adi_write(0x820010e0, 0x80);
+#endif
+	// EIC_D, not really needed
+	//APB_PWR_ON(0x4000000);
+	//APB_PWR_ON(0x2000000);
+}
+
 #define KEYPAD_CR(o) MEM4(0x87000000 + o)
 
 enum {
@@ -742,7 +779,11 @@ static void keypad_init(void) {
 	short *keymap = sys_data.keymap_addr;
 	int i, j, row = 0, col = 0, ctrl;
 	int nrow = _chip != 1 ? 8 : 5;
+#if 0	// Usually col < 5 for SC6531DA.
 	int ncol = _chip != 1 ? 5 : 8;
+#else // But the Children's Camera has UP at i=6, j=3.
+	int ncol = 8;
+#endif
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++)
@@ -769,6 +810,9 @@ static void keypad_init(void) {
 	ctrl |= 4; // long
 	ctrl |=	row << 16 | col << 8;
 	KEYPAD_CR(KPD_CTRL) = ctrl;
+
+	// Required to check the status of the power button.
+	eic_enable();
 }
 
 int CHIP_FN(sys_event)(int *rkey) {
@@ -776,6 +820,7 @@ int CHIP_FN(sys_event)(int *rkey) {
 	static uint32_t static_ev, static_st;
 	uint32_t event, status;
 	int i = static_i;
+	uint16_t *keytrn;
 
 	if (!sys_data.keymap_addr) return EVENT_END;
 	event = static_ev;
@@ -791,11 +836,13 @@ int CHIP_FN(sys_event)(int *rkey) {
 		static_st = status;
 	}
 
+	keytrn = sys_data.keytrn[check_power_button()];
+
 	for (; i < 8; i++) {
 		if (event >> i & 1) {
 			uint32_t k = status >> ((i & 3) * 8);
 			k = (k & 0x70) >> 1 | (k & 7);
-			k = sys_data.keytrn[k];
+			k = keytrn[k];
 			if (k) {
 				*rkey = k;
 				static_i = i + 1;
