@@ -159,14 +159,23 @@ void keytrn_init(void) {
 		KEY(STAR, KEY_Z) /* crouch */
 		KEY(0, KEY_RBRACKET) /* next item */
 		KEY(PLUS, KEY_TAB) /* map */
+	};
+	static const uint8_t keys_power[] = {
+		KEY(UP, KEY_CAPSLOCK)
+		KEY(LEFT, KEY_SEMICOLON)
+		KEY(RIGHT, KEY_APOSTROPHE)
+		KEY(DOWN, KEY_ESCAPE)
+		KEY(CENTER, KEY_ENTER)
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);
 
-	memset(rkeymap, 0, sizeof(rkeymap));
-
-	for (i = 0; i < (int)sizeof(keys); i += 2)
+#define FILL_RKEYMAP(keys) \
+	memset(rkeymap, 0, sizeof(rkeymap)); \
+	for (i = 0; i < (int)sizeof(keys); i += 2) \
 		rkeymap[keys[i]] = keys[i + 1];
+
+	FILL_RKEYMAP(keys)
 
 #define KEY(name) rkeymap[KEYPAD_##name]
 	// no center key
@@ -176,10 +185,17 @@ void keytrn_init(void) {
 	}
 #undef KEY
 
-	for (i = 0; i < 64; i++) {
-		unsigned a = keymap[i];
-		sys_data.keytrn[i] = a < 64 ? rkeymap[a] : 0;
+#define FILL_KEYTRN(j) \
+	for (i = 0; i < 64; i++) { \
+		unsigned a = keymap[i]; \
+		sys_data.keytrn[j][i] = a < 64 ? rkeymap[a] : 0; \
 	}
+
+	FILL_KEYTRN(0)
+	FILL_RKEYMAP(keys_power)
+	FILL_KEYTRN(1)
+#undef FILL_RKEYMAP
+#undef FILL_KEYTRN
 }
 
 const char *getkeyname(int num) {
