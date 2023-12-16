@@ -77,8 +77,9 @@ extern struct sys_data {
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	int brightness;
 	uint16_t keytrn[2][64];
+	uint8_t keycols;
 	uint8_t scaler;
-	/* key << 4 | screen */
+	/* rotate = key << 4 | screen */
 	uint8_t rotate, lcd_cs;
 	uint8_t spi_mode;
 	int8_t charge;

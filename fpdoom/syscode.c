@@ -782,7 +782,7 @@ static void keypad_init(void) {
 #if 0	// Usually col < 5 for SC6531DA.
 	int ncol = _chip != 1 ? 5 : 8;
 #else // But the Children's Camera has UP at i=6, j=3.
-	int ncol = 8;
+	int ncol = sys_data.keycols;
 #endif
 
 	for (i = 0; i < ncol; i++)

@@ -156,6 +156,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	sys_data.charge = -1;
 	sys_data.spi_mode = 3;
 	sys_data.bl_gpio = 0xff;
+	sys_data.keycols = 5;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -201,6 +202,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
 			sys_data.charge = atoi(argv[1]);
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--keycols")) {
+			unsigned a = atoi(argv[1]);
+			if (a <= 8) sys_data.keycols = a;
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
 			if (f) {
@@ -209,6 +214,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 				memset(sys_data.keytrn, -1, 64 * 2);
 				fread(sys_data.keytrn, 1, 64 * 2, f);
 				fclose(f);
+				sys_data.keycols = 8;
 			}
 			argc -= 2; argv += 2;
 		} else if (!strcmp(argv[0], "--")) {
