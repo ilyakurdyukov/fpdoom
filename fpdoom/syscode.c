@@ -779,11 +779,9 @@ static void keypad_init(void) {
 	short *keymap = sys_data.keymap_addr;
 	int i, j, row = 0, col = 0, ctrl;
 	int nrow = _chip != 1 ? 8 : 5;
-#if 0	// Usually col < 5 for SC6531DA.
-	int ncol = _chip != 1 ? 5 : 8;
-#else // But the Children's Camera has UP at i=6, j=3.
-	int ncol = sys_data.keycols;
-#endif
+	// Usually ncol = 5 for SC6531DA.
+	// But the Children's Camera has UP at i=6, j=3.
+	int ncol = _chip != 1 ? sys_data.keycols : 8;
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++)

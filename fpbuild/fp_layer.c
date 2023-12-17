@@ -114,6 +114,8 @@ enum { KEYPAD_ENUM(X) };
 enum {
 #define X(num, name) KEY_##name = num,
 	X(0x01, ESCAPE)
+	X(0x0c, MINUS)
+	X(0x0d, EQUALS)
 	X(0x0f, TAB)
 	X(0x1a, LBRACKET)
 	X(0x1b, RBRACKET)
@@ -166,6 +168,10 @@ void keytrn_init(void) {
 		KEY(RIGHT, KEY_APOSTROPHE)
 		KEY(DOWN, KEY_ESCAPE)
 		KEY(CENTER, KEY_ENTER)
+
+		KEY(LSOFT, KEY_EQUALS)
+		KEY(RSOFT, KEY_MINUS)
+		KEY(DIAL, KEY_TAB) /* map */
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);

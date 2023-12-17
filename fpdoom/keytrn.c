@@ -35,6 +35,10 @@ void keytrn_init(void) {
 		KEY(RIGHT, ']')
 		KEY(DOWN, KEY_ESCAPE)
 		KEY(CENTER, KEY_ENTER)
+
+		KEY(LSOFT, KEY_EQUALS)
+		KEY(RSOFT, KEY_MINUS)
+		KEY(DIAL, KEY_TAB) /* map */
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);

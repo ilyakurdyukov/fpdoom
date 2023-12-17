@@ -90,6 +90,9 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | Power + Up     | run on/off         |
 | Power + Down   | open/close menu    |
 | Power + L/R    | prev/next weapon   |
+| Power + LSoft  | zoom in            |
+| Power + RSoft  | zoom out           |
+| Power + Dial   | map                |
 
 * D-pad and keys 1-9 are rotated with the `--rotate` option (with screen or separately).
 * For phones without D-pad Center key (Nobby 170B) - up/down keys are used for fire.
