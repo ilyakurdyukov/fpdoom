@@ -661,6 +661,47 @@ static const uint8_t cmd333025_init[] = {
 	LCM_DELAY(10),
 	LCM_END
 };
+
+static const uint8_t cmd9102_nomi_init[] = {
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xa8, 3), 0x02,0x00,0x00,
+	LCM_CMD(0xa7, 1), 0x02,
+	LCM_CMD(0xea, 1), 0x3a,
+	LCM_CMD(0xb4, 1), 0x00, // Display Inversion Control
+	LCM_CMD(0xff, 1), 0x12, // Power Control 4
+	LCM_CMD(0xfd, 1), 0x08, // Power Control 3
+	LCM_CMD(0xa4, 1), 0x09,	// Power Control 1
+	LCM_CMD(0xe7, 2), 0x94,0x88,
+	LCM_CMD(0xed, 1), 0x11, // Power Control 2
+	LCM_CMD(0xe4, 1), 0xc5,
+	LCM_CMD(0xe2, 1), 0x80,
+	LCM_CMD(0xa3, 1), 0x09, // Frame Rate
+	LCM_CMD(0xe3, 1), 0x07,
+	LCM_CMD(0xe5, 1), 0x10,
+
+	LCM_CMD(0xf0, 1), 0x70,	// Set Gamma 1
+	LCM_CMD(0xf1, 1), 0x07,	// Set Gamma 2
+	LCM_CMD(0xf2, 1), 0x00,	// Set Gamma 3
+	LCM_CMD(0xf3, 1), 0x45,	// Set Gamma 4
+	LCM_CMD(0xf4, 1), 0x00,	// Set Gamma 5
+	LCM_CMD(0xf5, 1), 0x0c,	// Set Gamma 6
+	// 0xf6 skipped
+	LCM_CMD(0xf7, 1), 0x57,	// Set Gamma 7
+	LCM_CMD(0xf8, 1), 0x44, // Set Gamma 8
+	LCM_CMD(0xf9, 1), 0x66,	// Set Gamma 9
+	LCM_CMD(0xfa, 1), 0x22,	// Set Gamma 10
+	LCM_CMD(0xfb, 1), 0x04,	// Set Gamma 11
+	LCM_CMD(0xfc, 1), 0x00,	// Set Gamma 12
+
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_DELAY(50),
+	LCM_END
+};
 #endif
 
 static const lcd_config_t lcd_config[] = {
@@ -748,6 +789,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// NewVision NV3023
 	{ 0x333025, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 45, 120, 120, 30, 80, 80 }, { 0 }, 0x08, cmd333025_init },
+
+/* Nomi i184 */
+
+	// GlaxyCore GC9102
+	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 120, 120, 40, 50, 50 }, { 0 },  0xd0, cmd9102_nomi_init },
 #endif
 };
 
