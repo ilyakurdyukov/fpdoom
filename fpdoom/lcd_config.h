@@ -702,6 +702,39 @@ static const uint8_t cmd9102_nomi_init[] = {
 	LCM_DELAY(50),
 	LCM_END
 };
+
+static const uint8_t cmd9305_sigma_init[] = {
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
+	LCM_CMD(0xa4, 2), 0x44,0x44, // Vcore voltage Control
+	LCM_CMD(0xa5, 2), 0x42,0x42,
+	LCM_CMD(0xaa, 2), 0x88,0x88,
+	LCM_CMD(0xe8, 2), 0x21,0x0b, // Frame Rate
+	LCM_CMD(0xe3, 2), 0x01,0x18,
+	LCM_CMD(0xe1, 2), 0x01,0x0a,
+	LCM_CMD(0xac, 1), 0x00,
+	LCM_CMD(0xad, 1), 0x33,
+	LCM_CMD(0xae, 1), 0x2b,
+	LCM_CMD(0xaf, 1), 0x55,
+	LCM_CMD(0xa6, 2), 0x19,0x19, // Vreg1a voltage Control
+	LCM_CMD(0xa7, 2), 0x27,0x27, // Vreg1b voltage Control
+	LCM_CMD(0xa8, 2), 0x17,0x17, // Vreg2a voltage Control
+	LCM_CMD(0xa9, 2), 0x26,0x26, // Vreg2b voltage Control
+	LCM_CMD(0xf0, 6), 0x02,0x02,0x00,0x00,0x03,0x00, // Set Gamma 1
+	LCM_CMD(0xf1, 6), 0x01,0x00,0x00,0x00,0x02,0x11, // Set Gamma 2
+	LCM_CMD(0xf2, 6), 0x0a,0x0a,0x3a,0x03,0x04,0x53, // Set Gamma 3
+	LCM_CMD(0xf3, 6), 0x0b,0x0a,0x30,0x06,0x04,0x3d, // Set Gamma 4
+	LCM_CMD(0xf4, 6), 0x06,0x10,0x0f,0x30,0x3a,0x0f, // Set Gamma 5
+	LCM_CMD(0xf5, 6), 0x0f,0x1d,0x1f,0x08,0x3a,0x0f, // Set Gamma 6
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	// LCM_CMD(0x2c, 0), // Memory Write
+	LCM_END
+};
 #endif
 
 static const lcd_config_t lcd_config[] = {
@@ -794,6 +827,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// GlaxyCore GC9102
 	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 120, 120, 40, 50, 50 }, { 0 },  0xd0, cmd9102_nomi_init },
+
+/* Sigma mobile X-treme IO67 */
+
+	// GlaxyCore GC9305
+	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 50, 120, 75, 40, 50, 50 }, { 0 },  0x48, cmd9305_sigma_init },
 #endif
 };
 
