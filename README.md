@@ -42,30 +42,30 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 
 ### List of tested models
 
-|  # | Name              |   Chip   |      LCD       | Boot Key   |
-|----|-------------------|----------|----------------|------------|
-|  1 | F+ F256           | SC6531E  | GC9306 240x320 | *          |
-|  2 | Digma Linx B241   | SC6531E  | ST7789 240x320 | center     |
-|  3 | F+ Ezzy 4         | SC6531E  | GC9106 128x160 | 1          |
-|  4 | Joy's S21         | SC6531DA | GC9108 128x160 | 0          |
-|  5 | Vertex M115       | SC6531DA | ST7735 128x128 | up         |
-|  6 | Vertex С323       | SC6531DA | GC9106 128x160 | 0          |
-|  7 | Nobby 170B        | SC6531E  | GC9106 128x160 | #          |
-|  8 | SW DZ09           | SC6531DA | GC9307 240x240 | none       |
-|  9 | Nokia TA-1174     | SC6531E  | ST7735 128x160 | 7          |
-| 10 | BQ 3586           | SC6531H  | R61529 320x480 | #          |
-| 11 | Samsung B310E     | SC6530C  | ST7735 128x160 | center     |
-| 12 | Fontel FP200      | SC6531DA | GC9106 128x160 | left soft  |
-| 13 | Vertex D514       | SC6531E  | ???    240x320 | center     |
-| 14 | Fly TS114         | SC6531E  | GC9306 240x320 | right soft |
-| 15 | Energizer E12     | SC6531E  | GC9106 128x160 | 1          |
-| 16 | Itel it5626       | SC6531DA | GC9307 240x320 | left soft  |
-| 17 | Sunwind C2401     | SC6531E  | ST7789 240x320 | *          |
-| 18 | DEXP SD2810       | SC6531E  | ???    240x320 | 2          |
-| 19 | Nokia TA-1400     | SC6531F  | ???    240x320 | right soft |
-| 20 | YX Q5 Kids Camera | SC6531DA | NV3023 128x160 | shutter    |
-| 21 | Nomi i184         | SC6531DA | GC9102 128x160 | *          |
-| 22 | Sigma IO67        | SC6531DA | GC9305 240x320 | dial       |
+|  # | Name                   |   Chip   |      LCD        | Boot Key   |
+|----|------------------------|----------|-----------------|------------|
+|  1 | F+ F256                | SC6531E  | GC9306  240x320 | *          |
+|  2 | Digma Linx B241        | SC6531E  | ST7789  240x320 | center     |
+|  3 | F+ Ezzy 4              | SC6531E  | GC9106  128x160 | 1          |
+|  4 | Joy's S21              | SC6531DA | GC9108  128x160 | 0          |
+|  5 | Vertex M115            | SC6531DA | ST7735S 128x128 | up         |
+|  6 | Vertex С323            | SC6531DA | GC9106  128x160 | 0          |
+|  7 | Nobby 170B             | SC6531E  | GC9106  128x160 | #          |
+|  8 | SW DZ09                | SC6531DA | GC9307  240x240 | none       |
+|  9 | Nokia TA-1174          | SC6531E  | ST7735  128x160 | 7          |
+| 10 | BQ 3586                | SC6531H  | R61529  320x480 | #          |
+| 11 | Samsung B310E          | SC6530C  | ST7735  128x160 | center     |
+| 12 | Fontel FP200           | SC6531DA | GC9106  128x160 | left soft  |
+| 13 | Vertex D514            | SC6531E  | ???     240x320 | center     |
+| 14 | Fly TS114              | SC6531E  | GC9306  240x320 | right soft |
+| 15 | Energizer E12          | SC6531E  | GC9106  128x160 | 1          |
+| 16 | Itel it5626            | SC6531DA | GC9307  240x320 | left soft  |
+| 17 | Sunwind C2401          | SC6531E  | ST7789  240x320 | *          |
+| 18 | DEXP SD2810            | SC6531E  | NV3029G 240x320 | 2          |
+| 19 | Nokia TA-1400          | SC6531F  | ???     240x320 | right soft |
+| 20 | YX Q5 Kids Camera      | SC6531DA | NV3023  128x160 | shutter    |
+| 21 | Nomi i184              | SC6531DA | GC9102  128x160 | *          |
+| 22 | Sigma IO67             | SC6531DA | GC9305  240x320 | dial       |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12, Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
