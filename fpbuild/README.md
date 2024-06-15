@@ -7,11 +7,14 @@ Port of games on the Build Engine. Using [jfbuild](https://github.com/jonof/jfbu
 1. Download specific sources and apply patches:  
 `$ make -f helper.make all patch`
 
-2. Use the same instructions as for `fpdoom`. To select a game to build: use `GAME=duke3d` (Duke Nukem 3D) or `GAME=sw` (Shadow Warrior).
+2. Use the same instructions as for `fpdoom`. To select a game to build: use `GAME=duke3d` (Duke Nukem 3D), `GAME=sw` (Shadow Warrior) or `GAME=blood` (Blood).
+
+* The patch for NBlood is based on [NBlood-Amiga](https://github.com/BSzili/NBlood-Amiga).
 
 ### Build Engine options
 
-* `-cachesize N`, set the cache size to N kilobytes.
+* `-cachesize N`, set the cache size to N kilobytes. Shadow Warrior and Blood run with freezes on phones with 4MB memory due to frequent loading of textures. The default cache size leaves some memory for allocations, you can try increasing it until you encounter out of memory errors.
+
 * `-playanm 1`, to enable "video" playback (requires a lot of cache, you need an 8 MB phone).
 
 ### Game controls

@@ -216,20 +216,29 @@ sc6530_init_smc_asm_end:
 
 .if 1
 CODE32_FN memcpy
-	mov	r12, r0
 	orr	r3, r0, r1
+	mov	r12, r0
 	tst	r3, #3
-	bne	2f
-1:	subs	r2, #4
-	ldrhs	r3, [r1],#4
-	strhs	r3, [r0],#4
-	bhi	1b
-	and	r2, #3
-2:	subs	r2, #1
-	ldrbhs	r3, [r1],#1
-	strbhs	r3, [r0],#1
-	bhi	2b
-	mov	r0, r12
+	bne	3f
+	subs	r2, #4
+	blo	2f
+1:	ldr	r3, [r1], #4
+	subs	r2, #4
+	str	r3, [r12], #4
+	bhs	1b
+2:	lsls	r2, #31
+	ldrhcs	r3, [r1], #2
+	ldrbmi	r1, [r1]
+	strhcs	r3, [r12], #2
+	strbmi	r1, [r12]
+	bx	lr
+
+3:	tst	r2, r2
+	bxeq	lr
+4:	ldrb	r3, [r1], #1
+	subs	r2, #1
+	strb	r3, [r12], #1
+	bhi	4b
 	bx	lr
 
 	.global __aeabi_memcpy
@@ -275,13 +284,12 @@ CODE32_FN memset
 	orr	r1, r1, r1, lsr #8
 	orr	r1, r1, r1, lsr #16
 1:	subs	r2, #4
-	strhs	r1, [r0], #4
+	strhs	r1, [r3], #4
 	bhs	1b
 	and	r2, #3
 2:	subs	r2, #1
-	strbhs	r1, [r0], #1
+	strbhs	r1, [r3], #1
 	bhs	2b
-	mov	r0, r3
 	bx	lr
 
 CODE32_FN __aeabi_memclr

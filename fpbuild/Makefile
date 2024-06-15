@@ -42,6 +42,22 @@ GAME_SRCS = \
 	sprite sumo swconfig sync text track \
 	vator vis wallmove warp weapon zilla \
 	zombie saveable version
+else ifeq ($(GAME), blood)
+GAMESRC = NBlood/source/blood/src
+GAME_SRCS = \
+	actor ai aibat aibeast aiboneel aiburn \
+	aicaleb aicerber aicult aigarg aighost \
+	aigilbst aihand aihound aiinnoc aipod \
+	airat aispid aitchern aizomba aizombf \
+	blood callback choke common config \
+	db demo dude endgame eventq fire fx \
+	gamemenu getopt gfx gib globals gui \
+	inifile iob levels loadsave map2d \
+	messages misc network player qav qheap \
+	sectorfx seq sound trig triggers \
+	warp weapon controls credits gameutil \
+	menu mirrors osdcmd replace resource \
+	tile view screen compat version
 endif
 
 BUILD_SRCS = \
@@ -157,6 +173,15 @@ GAME_CFLAGS += -DMAXSPRITES=2048
 GAME_CFLAGS += -DNO_CONSOLE=1
 # saves 162KB
 GAME_CFLAGS += -DMAXWALLSB=2048 -DMAXSPRITESONSCREEN=1024
+else ifeq ($(GAME), blood)
+GAME_CFLAGS += -DGAME_BLOOD
+GAME_CFLAGS += -DMAXTILES=6144 -DMAXCACHEOBJECTS=MAXTILES
+# numwalls=8002 (cp09), numsprites=1200 (cp09)
+GAME_CFLAGS += -DMAXSPRITES=2048
+GAME_CFLAGS += -DMAXWALLSB=2048 -DMAXSPRITESONSCREEN=1024
+GAME_CFLAGS += -DNETCODE_DISABLE -DSMACKER_DISABLE
+GAME_CFLAGS += -D__AMIGA__ -U__ANDROID__
+CXXFLAGS += -Wno-char-subscripts -Wno-missing-braces
 endif
 GAME_CFLAGS += -I$(GAMESRC) -I$(ENGINEROOT)/include -I$(MACTROOT) -I$(AUDIOLIBROOT)/include
 GAME_CFLAGS += -Wno-unused -Wno-unused-parameter
@@ -208,7 +233,11 @@ $(OBJDIR)/sys/%.o: %.c | $(OBJDIR)
 	$(call compile_fn,$(GAME_CFLAGS) -I$(ENGINEROOT)/src -I$(FPDOOM))
 
 $(OBJDIR)/sys/%.o: $(FPDOOM)/%.c | $(OBJDIR)
+ifeq ($(GAME), blood)
+	$(call compile_fn,-DCXX_SUPPORT)
+else
 	$(call compile_fn,)
+endif
 
 $(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)

@@ -34,10 +34,11 @@ static uint8_t *framebuf = NULL;
 
 #ifdef GAME_DUKE3D
 // min=768
-unsigned maxcache1dsize = 1280 << 10;
+unsigned maxcache1dsize = (1648 - 64) << 10;
 #elif defined(GAME_SW)
-// SW: very slow with small cache
-unsigned maxcache1dsize = 1280 << 10;
+unsigned maxcache1dsize = (1552 - 64) << 10;
+#elif defined(GAME_BLOOD)
+unsigned maxcache1dsize = (1600 - 64) << 10;
 #else
 unsigned maxcache1dsize = 3 << 20;
 #endif
@@ -45,6 +46,17 @@ char playanm_flag = 0;
 
 int main(int argc, char **argv) {
 	int i, j, ret;
+
+	{
+		uint32_t ram_addr = (uint32_t)&main & 0xfc000000;
+		uint32_t ram_size = *(volatile uint32_t*)ram_addr;
+		uint32_t cachesize = maxcache1dsize;
+		cachesize += ram_size - (4 << 20);
+		// 160x128 mode uses less memory for the framebuffer
+		if (sys_data.display.h2 == 128) cachesize += 105 << 10;
+		if (cachesize > 4 << 20) cachesize = 4 << 20;
+		maxcache1dsize = cachesize;
+	}
 
 	for (i = j = 1; i < argc;) {
 		char *p = argv[i++];

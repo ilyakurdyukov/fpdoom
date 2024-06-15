@@ -1,5 +1,5 @@
 diff --git a/include/build.h b/include/build.h
-index 00df940..89be2d1 100644
+index 00df940..7eb53f5 100644
 --- a/include/build.h
 +++ b/include/build.h
 @@ -43,19 +43,40 @@ extern "C" {
@@ -43,7 +43,52 @@ index 00df940..89be2d1 100644
  #define MAXUNIQHUDID 256 //Extra slots so HUD models can store animation state without messing game sprites
  
  #define CLIPMASK0 (((1L)<<16)+1L)
-@@ -186,7 +207,9 @@ typedef struct {
+@@ -116,7 +137,12 @@ typedef struct
+ 	signed char floorshade;
+ 	unsigned char floorpal, floorxpanning, floorypanning;
+ 	unsigned char visibility, filler;
++#ifdef __cplusplus
++	union { short lotag, type; };
++	short hitag, extra;
++#else
+ 	short lotag, hitag, extra;
++#endif
+ } sectortype;
+ 
+ //cstat:
+@@ -140,7 +166,12 @@ typedef struct
+ 	short picnum, overpicnum;
+ 	signed char shade;
+ 	unsigned char pal, xrepeat, yrepeat, xpanning, ypanning;
++#ifdef __cplusplus
++	union { short lotag, type; };
++	short hitag, extra;
++#else
+ 	short lotag, hitag, extra;
++#endif
+ } walltype;
+ 
+ //cstat:
+@@ -168,8 +199,18 @@ typedef struct
+ 	unsigned char xrepeat, yrepeat;
+ 	signed char xoffset, yoffset;
+ 	short sectnum, statnum;
++#ifdef __cplusplus
++	short ang, owner;
++	union { short xvel, index; };
++	short yvel;
++	union { short zvel, inittype; };
++	union { short lotag, type; };
++	union { short hitag, flags; };
++	short extra;
++#else
+ 	short ang, owner, xvel, yvel, zvel;
+ 	short lotag, hitag, extra;
++#endif
+ } spritetype;
+ 
+ 	// 12 bytes
+@@ -186,7 +227,9 @@ typedef struct {
  EXTERN sectortype sector[MAXSECTORS];
  EXTERN walltype wall[MAXWALLS];
  EXTERN spritetype sprite[MAXSPRITES];
@@ -53,7 +98,19 @@ index 00df940..89be2d1 100644
  EXTERN int guniqhudid;
  
  EXTERN int spritesortcnt;
-@@ -211,7 +234,11 @@ EXTERN struct validmode_t validmode[MAXVALIDMODES];
+@@ -197,7 +240,11 @@ EXTERN spritetype tsprite[MAXSPRITESONSCREEN];
+ EXTERN int xdim, ydim, ylookup[MAXYDIM+1], numpages;
+ EXTERN int yxaspect, xyaspect, pixelaspect, widescreen, tallscreen, viewingrange;
+ 
++#if EMBEDDED == 2
++#define MAXVALIDMODES 2
++#else
+ #define MAXVALIDMODES 256
++#endif
+ EXTERN int validmodecnt;
+ struct validmode_t {
+ 	int xdim,ydim;
+@@ -211,7 +258,11 @@ EXTERN struct validmode_t validmode[MAXVALIDMODES];
  EXTERN short numsectors, numwalls;
  EXTERN /*volatile*/ int totalclock;
  EXTERN int numframes, randomseed;
@@ -65,6 +122,16 @@ index 00df940..89be2d1 100644
  EXTERN unsigned char palette[768];
  EXTERN short numpalookups;
  EXTERN unsigned char *palookup[MAXPALOOKUPS];
+@@ -230,7 +281,9 @@ EXTERN short nextspritesect[MAXSPRITES], nextspritestat[MAXSPRITES];
+ 
+ EXTERN short tilesizx[MAXTILES], tilesizy[MAXTILES];
+ EXTERN unsigned char walock[MAXTILES];
++#ifndef __cplusplus
+ EXTERN int numtiles, picanm[MAXTILES];
++#endif
+ EXTERN intptr_t waloff[MAXTILES];
+ 
+ 	//These variables are for auto-mapping with the draw2dscreen function.
 diff --git a/include/compat.h b/include/compat.h
 index 387f121..f977f3e 100644
 --- a/include/compat.h
@@ -520,10 +587,10 @@ index 06634eb..88b5e63 100644
  			default:
  				buildputs("Unknown token.\n"); break;
 diff --git a/src/engine.c b/src/engine.c
-index c7c92b2..aae9460 100644
+index c7c92b2..b03363a 100644
 --- a/src/engine.c
 +++ b/src/engine.c
-@@ -39,6 +39,7 @@
+@@ -39,10 +39,16 @@
  void *kmalloc(bsize_t size) { return(Bmalloc(size)); }
  void kfree(void *buffer) { Bfree(buffer); }
  
@@ -531,7 +598,16 @@ index c7c92b2..aae9460 100644
  void loadvoxel(int voxindex) { (void)voxindex; }
  int tiletovox[MAXTILES];
  int usevoxels = 1;
-@@ -57,7 +58,17 @@ int voxscale[MAXVOXELS];
++#ifdef GAME_BLOOD
++#define kloadvoxel _Z10qloadvoxeli
++void kloadvoxel(int32_t);
++#else
+ #define kloadvoxel loadvoxel
++#endif
+ 
+ int novoxmips = 0;
+ 
+@@ -57,7 +63,17 @@ int voxscale[MAXVOXELS];
  
  static int ggxinc[MAXXSIZ+1], ggyinc[MAXXSIZ+1];
  static int lowrecip[1024], nytooclose, nytoofar;
@@ -549,7 +625,7 @@ index c7c92b2..aae9460 100644
  
  static int *lookups = NULL;
  int dommxoverlay = 1, beforedrawrooms = 1;
-@@ -65,7 +76,9 @@ int dommxoverlay = 1, beforedrawrooms = 1;
+@@ -65,7 +81,9 @@ int dommxoverlay = 1, beforedrawrooms = 1;
  static int oxdimen = -1, oviewingrange = -1, oxyaspect = -1;
  
  int curbrightness = 0, gammabrightness = 0;
@@ -559,7 +635,7 @@ index c7c92b2..aae9460 100644
  
  	//Textured Map variables
  static unsigned char globalpolytype;
-@@ -90,7 +103,10 @@ int artsize = 0;
+@@ -90,7 +108,10 @@ int artsize = 0;
  size_t cachesize = 0;
  int editorgridextent = 131072;
  
@@ -571,7 +647,7 @@ index c7c92b2..aae9460 100644
  static unsigned short sqrtable[4096], shlookup[4096+256];
  unsigned char pow2char[8] = {1,2,4,8,16,32,64,128};
  int pow2long[32] =
-@@ -106,7 +122,9 @@ int pow2long[32] =
+@@ -106,7 +127,9 @@ int pow2long[32] =
  };
  int reciptable[2048], fpuasm;
  
@@ -581,7 +657,7 @@ index c7c92b2..aae9460 100644
  
  static char kensmessage[128];
  char *engineerrstr = NULL;
-@@ -429,11 +447,22 @@ static inline int msqrtasm(unsigned int c)
+@@ -429,11 +452,22 @@ static inline int msqrtasm(unsigned int c)
  	return a;
  }
  
@@ -605,7 +681,7 @@ index c7c92b2..aae9460 100644
  
  
  static inline int getclipmask(int a, int b, int c, int d)
-@@ -491,8 +520,14 @@ unsigned char globparaceilclip, globparaflorclip;
+@@ -491,8 +525,14 @@ unsigned char globparaceilclip, globparaflorclip;
  
  int viewingrangerecip;
  
@@ -620,7 +696,7 @@ index c7c92b2..aae9460 100644
  int vplce[4], vince[4];
  intptr_t palookupoffse[4], bufplce[4];
  unsigned char globalxshift, globalyshift;
-@@ -500,7 +535,11 @@ int globalxpanning, globalypanning, globalshade;
+@@ -500,7 +540,11 @@ int globalxpanning, globalypanning, globalshade;
  short globalpicnum, globalshiftval;
  int globalzd, globalyscale, globalorientation;
  intptr_t globalbufplc;
@@ -632,7 +708,37 @@ index c7c92b2..aae9460 100644
  int globalx, globaly, globalz;
  
  short sectorborder[256], sectorbordercnt;
-@@ -2296,6 +2335,7 @@ static void parascan(int dax1, int dax2, int sectnum, unsigned char dastat, int
+@@ -599,6 +643,10 @@ static inline int getpalookup(int davis, int dashade)
+ {
+ 	return(min(max(dashade+(davis>>8),0),numpalookups-1));
+ }
++#ifdef GAME_BLOOD
++int32_t _Z12qgetpalookupii(int32_t, int32_t);
++#define getpalookup _Z12qgetpalookupii
++#endif
+ 
+ 
+ //
+@@ -1098,6 +1146,10 @@ static void prepwall(int z, walltype *wal)
+ //
+ // animateoffs (internal)
+ //
++#ifdef GAME_BLOOD
++#define animateoffs _Z12qanimateoffsii
++int animateoffs(int a1, int a2);
++#else
+ int animateoffs(short tilenum, short fakevar)
+ {
+ 	int i, k, offs;
+@@ -1126,6 +1178,7 @@ int animateoffs(short tilenum, short fakevar)
+ 	}
+ 	return(offs);
+ }
++#endif
+ 
+ 
+ //
+@@ -2296,6 +2349,7 @@ static void parascan(int dax1, int dax2, int sectnum, unsigned char dastat, int
  	{
  		wallnum = thewall[z]; nextsectnum = wall[wallnum].nextsector;
  
@@ -640,7 +746,7 @@ index c7c92b2..aae9460 100644
  		if (dastat == 0) j = sector[nextsectnum].ceilingstat;
  						else j = sector[nextsectnum].floorstat;
  
-@@ -2746,6 +2786,7 @@ static void drawalls(int bunch)
+@@ -2746,6 +2800,7 @@ static void drawalls(int bunch)
  //
  // drawvox
  //
@@ -648,7 +754,7 @@ index c7c92b2..aae9460 100644
  static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  		  int daxscale, int dayscale, unsigned char daindex,
  		  signed char dashade, unsigned char dapal, int *daumost, int *dadmost)
-@@ -2802,8 +2843,13 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2802,8 +2857,13 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  	dayscalerecip = (1<<30)/dayscale;
  
  	longptr = (int *)davoxptr;
@@ -662,7 +768,7 @@ index c7c92b2..aae9460 100644
  	davoxptr += (6<<2);
  
  	x = mulscale16(globalposx-dasprx,daxscalerecip);
-@@ -2901,7 +2947,11 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2901,7 +2961,11 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  
  		for(x=xs;x!=xe;x+=xi)
  		{
@@ -674,7 +780,7 @@ index c7c92b2..aae9460 100644
  			shortptr = (short *)&davoxptr[((x*(daysiz+1))<<1)+xyvoxoffs];
  
  			nx = mulscale16(ggxstart+ggxinc[x],viewingrangerecip)+x1;
-@@ -2909,10 +2959,26 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2909,10 +2973,26 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  			for(y=ys;y!=ye;y+=yi,nx+=dagyinc,ny-=dagxinc)
  			{
  				if ((ny <= nytooclose) || (ny >= nytoofar)) continue;
@@ -701,7 +807,7 @@ index c7c92b2..aae9460 100644
  				lx = mulscale32(nx>>3,distrecip[(ny+y1)>>14])+halfxdimen;
  				if (lx < 0) lx = 0;
  				rx = mulscale32((nx+nxoff)>>3,distrecip[(ny+y2)>>14])+halfxdimen;
-@@ -2922,6 +2988,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2922,6 +3002,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  
  				l1 = distrecip[(ny-yoff)>>14];
  				l2 = distrecip[(ny+yoff)>>14];
@@ -709,7 +815,7 @@ index c7c92b2..aae9460 100644
  				for(;voxptr<voxend;voxptr+=voxptr[1]+3)
  				{
  					j = (voxptr[0]<<15)-syoff;
-@@ -2967,6 +3034,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
+@@ -2967,6 +3048,7 @@ static void drawvox(int dasprx, int daspry, int dasprz, int dasprang,
  		}
  	}
  }
@@ -717,7 +823,7 @@ index c7c92b2..aae9460 100644
  
  
  //
-@@ -3001,6 +3069,7 @@ static void drawsprite(int snum)
+@@ -3001,6 +3083,7 @@ static void drawsprite(int snum)
  	cstat = tspr->cstat;
  
  	if ((cstat&48)==48) vtilenum = tilenum;	// if the game wants voxels, it gets voxels
@@ -725,7 +831,7 @@ index c7c92b2..aae9460 100644
  	else if ((cstat&48)!=48 && (usevoxels) && (tiletovox[tilenum] != -1)
  #if USE_POLYMOST && USE_OPENGL
  		 && (!(spriteext[tspr->owner].flags&SPREXT_NOTMD))
-@@ -3009,6 +3078,7 @@ static void drawsprite(int snum)
+@@ -3009,6 +3092,7 @@ static void drawsprite(int snum)
  		vtilenum = tiletovox[tilenum];
  		cstat |= 48;
  	}
@@ -733,7 +839,7 @@ index c7c92b2..aae9460 100644
  
  	if ((cstat&48) != 48)
  	{
-@@ -3623,7 +3693,7 @@ static void drawsprite(int snum)
+@@ -3623,7 +3707,7 @@ static void drawsprite(int snum)
  			xsi[z] = scale(rxi[z],xdimen<<15,rzi[z]) + (xdimen<<15);
  			ysi[z] = scale(ryi[z],xdimen<<15,rzi[z]) + (globalhoriz<<16);
  			if (xsi[z] < 0) xsi[z] = 0;
@@ -742,7 +848,7 @@ index c7c92b2..aae9460 100644
  			if (ysi[z] < ((int)0<<16)) ysi[z] = ((int)0<<16);
  			if (ysi[z] > ((int)ydimen<<16)) ysi[z] = ((int)ydimen<<16);
  			if (xsi[z] < lmax) lmax = xsi[z], lpoint = z;
-@@ -3757,9 +3827,12 @@ static void drawsprite(int snum)
+@@ -3757,9 +3841,12 @@ static void drawsprite(int snum)
  	}
  	else if ((cstat&48) == 48)
  	{
@@ -756,7 +862,7 @@ index c7c92b2..aae9460 100644
  		for(x=lx;x<=rx;x++)
  		{
  			lwall[x] = (int)startumost[x+windowx1]-windowy1;
-@@ -3825,6 +3898,7 @@ static void drawsprite(int snum)
+@@ -3825,6 +3912,7 @@ static void drawsprite(int snum)
  		}
  
  		if (!(cstat&128)) tspr->z -= mulscale22(B_LITTLE32(longptr[5]),nyrepeat);
@@ -764,7 +870,7 @@ index c7c92b2..aae9460 100644
  		yoff = (int)((signed char)((picanm[sprite[tspr->owner].picnum]>>16)&255))+((int)tspr->yoffset);
  		tspr->z -= mulscale14(yoff,nyrepeat);
  
-@@ -3884,8 +3958,10 @@ static void drawsprite(int snum)
+@@ -3884,8 +3972,10 @@ static void drawsprite(int snum)
  		i += spriteext[tspr->owner].angoff;
  #endif
  		drawvox(tspr->x,tspr->y,tspr->z,i,(int)tspr->xrepeat,(int)tspr->yrepeat,vtilenum,tspr->shade,tspr->pal,lwall,swall);
@@ -775,7 +881,7 @@ index c7c92b2..aae9460 100644
  	if (automapping == 1) show2dsprite[spritenum>>3] |= pow2char[spritenum&7];
  }
  
-@@ -4877,9 +4953,13 @@ static void dosetaspect(void)
+@@ -4877,9 +4967,13 @@ static void dosetaspect(void)
  			if (j != 0) j = mulscale16((int)radarang[k+1]-(int)radarang[k],j);
  			radarang2[i] = (short)(((int)radarang[k]+j)>>6);
  		}
@@ -789,7 +895,7 @@ index c7c92b2..aae9460 100644
  	}
  }
  
-@@ -4887,6 +4967,7 @@ static void dosetaspect(void)
+@@ -4887,6 +4981,7 @@ static void dosetaspect(void)
  //
  // loadtables (internal)
  //
@@ -797,7 +903,7 @@ index c7c92b2..aae9460 100644
  static void calcbritable(void)
  {
  	int i,j;
-@@ -4898,12 +4979,17 @@ static void calcbritable(void)
+@@ -4898,12 +4993,17 @@ static void calcbritable(void)
  			britable[i][j] = (unsigned char)(pow((double)j,a)*b);
  	}
  }
@@ -815,7 +921,7 @@ index c7c92b2..aae9460 100644
      for(i=0;i<2048;i++) {
          sintable[i] = (short)(16384*sin((double)i*3.14159265358979/1024));
          reciptable[i] = divscale30(2048L,i+2048);
-@@ -4922,6 +5008,7 @@ static int loadtables(void)
+@@ -4922,6 +5022,7 @@ static int loadtables(void)
          engineerrstr = "Calculation of radarang yielded unexpected results.";
          return 1;
      }
@@ -823,7 +929,37 @@ index c7c92b2..aae9460 100644
  
  	return 0;
  }
-@@ -5373,7 +5460,9 @@ int preinitengine(void)
+@@ -4976,6 +5077,10 @@ static int loadpalette(void)
+ 	int fil = -1;
+ 	off_t flen;
+ 
++#ifdef GAME_BLOOD
++	void _Z12qloadpalettev(void);
++	_Z12qloadpalettev();
++#else
+ 	if ((fil = kopen4load("palette.dat",0)) < 0) goto badpalette;
+ 	flen = kfilelength(fil);
+ 
+@@ -5012,15 +5117,18 @@ static int loadpalette(void)
+ 		kclose(fil);
+ 		return 1;
+ 	}
++#endif
+ 
+ 	globalpalwritten = palookup[0]; globalpal = 0;
+ 	setpalookupaddress(globalpalwritten);
+ 
+ 	fixtransluscence(transluc);
+ 
++#ifndef GAME_BLOOD
+ 	kread(fil,palookup[globalpal],numpalookups<<8);
+ 	kread(fil,transluc,65536);
+ 	kclose(fil);
++#endif
+ 
+ 	initfastcolorlookup(30L,59L,11L);
+ 
+@@ -5373,7 +5481,9 @@ int preinitengine(void)
  	assert(sizeof(spritetype) == 44);
  	assert((intptr_t)&sprite[1] - (intptr_t)&sprite[0] == sizeof(spritetype));
  	assert(sizeof(spriteexttype) == 12);
@@ -833,7 +969,7 @@ index c7c92b2..aae9460 100644
  
  	if (initsystem()) exit(1);
  
-@@ -5423,6 +5512,7 @@ int initengine(void)
+@@ -5423,6 +5533,7 @@ int initengine(void)
  	parallaxtype = 2; parallaxyoffs = 0L; parallaxyscale = 65536;
  	showinvisibility = 0;
  
@@ -841,7 +977,7 @@ index c7c92b2..aae9460 100644
  	for(i=1;i<1024;i++) lowrecip[i] = ((1<<24)-1)/i;
  	for(i=0;i<MAXVOXELS;i++)
  		for(j=0;j<MAXVOXMIPS;j++)
-@@ -5433,6 +5523,7 @@ int initengine(void)
+@@ -5433,6 +5544,7 @@ int initengine(void)
  	for(i=0;i<MAXTILES;i++)
  		tiletovox[i] = -1;
  	clearbuf(&voxscale[0],sizeof(voxscale)>>2,65536L);
@@ -849,7 +985,7 @@ index c7c92b2..aae9460 100644
  
  	searchit = 0; searchstat = -1;
  
-@@ -5490,8 +5581,10 @@ void uninitengine(void)
+@@ -5490,8 +5602,10 @@ void uninitengine(void)
  
  	uninitsystem();
  
@@ -860,7 +996,19 @@ index c7c92b2..aae9460 100644
  
  	if (artfil != -1) kclose(artfil);
  
-@@ -5625,6 +5718,7 @@ void drawrooms(int daposx, int daposy, int daposz,
+@@ -5508,6 +5622,11 @@ void uninitengine(void)
+ //
+ void initspritelists(void)
+ {
++#ifdef GAME_BLOOD
++	void qinitspritelists(void);
++	qinitspritelists();
++	return;
++#endif
+ 	int i;
+ 
+ 	for (i=0;i<MAXSECTORS;i++)     //Init doubly-linked sprite sector lists
+@@ -5625,6 +5744,7 @@ void drawrooms(int daposx, int daposy, int daposz,
  	if (inpreparemirror)
  	{
  		inpreparemirror = 0;
@@ -868,7 +1016,15 @@ index c7c92b2..aae9460 100644
  		mirrorsx1 = xdimen-1; mirrorsx2 = 0;
  		for(i=numscans-1;i>=0;i--)
  		{
-@@ -6179,6 +6273,9 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6174,11 +6294,17 @@ void drawmapview(int dax, int day, int zoome, short ang)
+ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *daposz,
+ 			 short *daang, short *dacursectnum)
+ {
++#ifdef GAME_BLOOD
++	return(-1);
++#endif
+ 	short fil, i, numsprites;
+ 	short maxsectors, maxwalls, maxsprites;
  
  	i = strlen(filename)-1;
  	if ((unsigned char)filename[i] == 255) { filename[i] = 0; fromwhere = 1; }	// JBF 20040119: "compatibility"
@@ -878,7 +1034,7 @@ index c7c92b2..aae9460 100644
  	if ((fil = kopen4load(filename,fromwhere)) == -1)
  		{ mapversion = 7L; return(-1); }
  
-@@ -6221,6 +6318,14 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6221,6 +6347,14 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	kread(fil,dacursectnum,2); *dacursectnum = B_LITTLE16(*dacursectnum);
  
  	kread(fil,&numsectors,2); numsectors = B_LITTLE16(numsectors);
@@ -893,7 +1049,7 @@ index c7c92b2..aae9460 100644
  	if (numsectors > maxsectors) { kclose(fil); return(-2); }
  	kread(fil,&sector[0],sizeof(sectortype)*numsectors);
  	for (i=numsectors-1; i>=0; i--) {
-@@ -6240,6 +6345,7 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6240,6 +6374,7 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	}
  
  	kread(fil,&numwalls,2); numwalls = B_LITTLE16(numwalls);
@@ -901,7 +1057,7 @@ index c7c92b2..aae9460 100644
  	if (numwalls > maxwalls) { kclose(fil); return(-2); }
  	kread(fil,&wall[0],sizeof(walltype)*numwalls);
  	for (i=numwalls-1; i>=0; i--) {
-@@ -6257,6 +6363,8 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
+@@ -6257,6 +6392,8 @@ int loadboard(char *filename, char fromwhere, int *daposx, int *daposy, int *dap
  	}
  
  	kread(fil,&numsprites,2); numsprites = B_LITTLE16(numsprites);
@@ -910,7 +1066,43 @@ index c7c92b2..aae9460 100644
  	if (numsprites > maxsprites) { kclose(fil); return(-2); }
  	kread(fil,&sprite[0],sizeof(spritetype)*numsprites);
  	for (i=numsprites-1; i>=0; i--) {
-@@ -7800,6 +7908,12 @@ int loadpics(char *filename, int askedsize)
+@@ -7602,6 +7739,9 @@ int setgamemode(char davidoption, int daxdim, int daydim, int dabpp)
+ 	// vertically a little.
+ 	widescreen = 0;
+ 	tallscreen = 0;
++#ifdef EMBEDDED
++	if (xdim == 480 && ydim == 320) pixelaspect = 0x11111; else
++#endif
+ 	if ((xdim == 320 && ydim == 200) || (xdim == 640 && ydim == 400)) {
+ 		pixelaspect = 65536;
+ 	} else {
+@@ -7790,7 +7930,25 @@ int loadpics(char *filename, int askedsize)
+ 		artfilename[7] = (k%10)+48;
+ 		artfilename[6] = ((k/10)%10)+48;
+ 		artfilename[5] = ((k/100)%10)+48;
++#ifdef GAME_BLOOD
++#define ARTNAME_FIX(i) \
++	extern int GameVariant; \
++	const char *artfn_ptr = artfilename; \
++	if (GameVariant == 2) { \
++		if (i == 7) artfn_ptr = "cpart07.ar_"; \
++		if (i == 15) artfn_ptr = "cpart15.ar_"; \
++	}
++		ARTNAME_FIX(k)
++		fil = kopen4load(artfn_ptr,0);
++		if (fil == -1 && !k) {
++			Bstrcpy(artfilename,"share000.art");
++			fil = kopen4load(artfilename,0);
++			GameVariant = 1;
++		}
++		if (fil != -1)
++#else
+ 		if ((fil = kopen4load(artfilename,0)) != -1)
++#endif
+ 		{
+ 			kread(fil,&artversion,4); artversion = B_LITTLE32(artversion);
+ 			if (artversion != 1) {
+@@ -7800,6 +7958,12 @@ int loadpics(char *filename, int askedsize)
  			kread(fil,&numtiles,4);       numtiles       = B_LITTLE32(numtiles);
  			kread(fil,&localtilestart,4); localtilestart = B_LITTLE32(localtilestart);
  			kread(fil,&localtileend,4);   localtileend   = B_LITTLE32(localtileend);
@@ -923,7 +1115,7 @@ index c7c92b2..aae9460 100644
  			kread(fil,&tilesizx[localtilestart],(localtileend-localtilestart+1)<<1);
  			kread(fil,&tilesizy[localtilestart],(localtileend-localtilestart+1)<<1);
  			kread(fil,&picanm[localtilestart],(localtileend-localtilestart+1)<<2);
-@@ -7830,10 +7944,14 @@ int loadpics(char *filename, int askedsize)
+@@ -7830,10 +7994,14 @@ int loadpics(char *filename, int askedsize)
  	//try dpmi_DETERMINEMAXREALALLOC!
  
  	//cachesize = min((int)((Bgetsysmemsize()/100)*60),max(artsize,askedsize));
@@ -938,7 +1130,20 @@ index c7c92b2..aae9460 100644
  	while ((pic = kmalloc(cachesize)) == NULL)
  	{
  		cachesize -= 65536L;
-@@ -7980,6 +8098,7 @@ void copytilepiece(int tilenume1, int sx1, int sy1, int xsiz, int ysiz,
+@@ -7882,7 +8050,12 @@ void loadtile(short tilenume)
+ 		artfilename[7] = (i%10)+48;
+ 		artfilename[6] = ((i/10)%10)+48;
+ 		artfilename[5] = ((i/100)%10)+48;
++#ifdef GAME_BLOOD
++		ARTNAME_FIX(i)
++		artfil = kopen4load(artfn_ptr,0);
++#else
+ 		artfil = kopen4load(artfilename,0);
++#endif
+ 		faketimerhandler();
+ 	}
+ 
+@@ -7980,6 +8153,7 @@ void copytilepiece(int tilenume1, int sx1, int sy1, int xsiz, int ysiz,
  //
  int qloadkvx(int voxindex, char *filename)
  {
@@ -946,7 +1151,7 @@ index c7c92b2..aae9460 100644
  	int i, fil, dasiz, lengcnt, lengtot;
  	unsigned char *ptr;
  
-@@ -8008,6 +8127,7 @@ int qloadkvx(int voxindex, char *filename)
+@@ -8008,6 +8182,7 @@ int qloadkvx(int voxindex, char *filename)
  		voxmodels[voxindex] = NULL;
  	}
  	voxmodels[voxindex] = voxload(filename);
@@ -954,7 +1159,42 @@ index c7c92b2..aae9460 100644
  #endif
  	return 0;
  }
-@@ -9599,9 +9719,13 @@ void getzrange(int x, int y, int z, short sectnum,
+@@ -8178,6 +8353,16 @@ int setspritez(short spritenum, int newx, int newy, int newz)
+ }
+ 
+ 
++#ifdef GAME_BLOOD
++int qinsertsprite(short, short);
++int qdeletesprite(short);
++int qchangespritesect(short, short);
++int qchangespritestat(short, short);
++int insertsprite(short sectnum, short statnum) { return qinsertsprite(sectnum, statnum); }
++int deletesprite(short spritenum) { return qdeletesprite(spritenum); }
++int changespritesect(short spritenum, short newsectnum) { return qchangespritesect(spritenum, newsectnum); }
++int changespritestat(short spritenum, short newstatnum) { return qchangespritestat(spritenum, newstatnum); }
++#else
+ //
+ // insertsprite
+ //
+@@ -8224,6 +8409,7 @@ int changespritestat(short spritenum, short newstatnum)
+ 	insertspritestat(newstatnum);
+ 	return(0);
+ }
++#endif
+ 
+ 
+ //
+@@ -9086,7 +9272,9 @@ int clipmove (int *x, int *y, int *z, short *sectnum,
+ 				templong2 = dmulscale6(clipit[j].x2-clipit[j].x1,oxvect,clipit[j].y2-clipit[j].y1,oyvect);
+ 				if ((templong1^templong2) < 0)
+ 				{
++#ifndef GAME_BLOOD // ENGINE_19960925
+ 					updatesector(*x,*y,sectnum);
++#endif
+ 					return(retval);
+ 				}
+ 			}
+@@ -9599,9 +9787,13 @@ void getzrange(int x, int y, int z, short sectnum,
  void setview(int x1, int y1, int x2, int y2)
  {
  	int i;
@@ -968,7 +1208,7 @@ index c7c92b2..aae9460 100644
  
  	windowx1 = x1; wx1 = (x1<<12);
  	windowy1 = y1; wy1 = (y1<<12);
-@@ -9612,7 +9736,11 @@ void setview(int x1, int y1, int x2, int y2)
+@@ -9612,7 +9804,11 @@ void setview(int x1, int y1, int x2, int y2)
  	xdimenrecip = divscale32(1L,xdimen);
  	ydimen = (y2-y1)+1;
  
@@ -980,7 +1220,7 @@ index c7c92b2..aae9460 100644
  
  	for(i=0;i<windowx1;i++) { startumost[i] = 1, startdmost[i] = 0; }
  	for(i=windowx1;i<=windowx2;i++)
-@@ -9831,8 +9959,12 @@ void setbrightness(int dabrightness, unsigned char *dapal, char noapply)
+@@ -9831,8 +10027,12 @@ void setbrightness(int dabrightness, unsigned char *dapal, char noapply)
  	if (!(noapply&4))
  		curbrightness = min(max((int)dabrightness,0),15);
  
@@ -993,7 +1233,7 @@ index c7c92b2..aae9460 100644
  
  	for(k=i=0;i<256;i++)
  	{
-@@ -10414,9 +10546,11 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+@@ -10414,9 +10614,11 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
  		plc = y1+mulscale12((2047-x1)&4095,inc);
  		i = ((x1+2048)>>12); daend = ((x2+2048)>>12);
  
@@ -1005,7 +1245,7 @@ index c7c92b2..aae9460 100644
  			if ((j >= startumost[i]) && (j < startdmost[i]))
  				drawpixel((void*)(frameplace+ylookup[j]+i),col);
  			plc += inc;
-@@ -10435,10 +10569,13 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
+@@ -10435,10 +10637,13 @@ void drawline256(int x1, int y1, int x2, int y2, unsigned char col)
  		plc = x1+mulscale12((2047-y1)&4095,inc);
  		i = ((y1+2048)>>12); daend = ((y2+2048)>>12);
  
@@ -1019,7 +1259,7 @@ index c7c92b2..aae9460 100644
  			if ((i >= startumost[j]) && (i < startdmost[j]))
  				drawpixel((void*)(j+p),col);
  			plc += inc; p += ylookup[1];
-@@ -11025,6 +11162,13 @@ void setpolymost2dview(void)
+@@ -11025,6 +11230,13 @@ void setpolymost2dview(void)
  #endif //USE_POLYMOST && USE_OPENGL
  
  
@@ -1033,7 +1273,7 @@ index c7c92b2..aae9460 100644
  void buildprintf(const char *fmt, ...)
  {
  	char tmpstr[1024];
-@@ -11067,6 +11211,7 @@ void buildsetlogfile(const char *fn)
+@@ -11067,6 +11279,7 @@ void buildsetlogfile(const char *fn)
  	if (fn) logfile = Bfopen(fn,"w");
  	if (logfile) setvbuf(logfile, (char*)NULL, _IONBF, 0);
  }

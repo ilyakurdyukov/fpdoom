@@ -1,0 +1,5306 @@
+diff --git a/source/blood/src/_functio.h b/source/blood/src/_functio.h
+index e89cd87..f25d4db 100644
+--- a/source/blood/src/_functio.h
++++ b/source/blood/src/_functio.h
+@@ -171,7 +171,11 @@ const char oldkeydefaults[NUMGAMEFUNCTIONS*2][MAXGAMEFUNCLEN] =
+    "Z", "",
+    "LShift", "RShift",
+    "CapLck", "",
++#if EMBEDDED == 2
++   "Enter", "",
++#else
+    "Space", "",
++#endif
+    "LCtrl", "RCtrl",
+    "X", "",
+    "Home", "KPad7",
+@@ -191,7 +195,11 @@ const char oldkeydefaults[NUMGAMEFUNCTIONS*2][MAXGAMEFUNCLEN] =
+    "8", "",
+    "9", "",
+    "0", "",
++#if EMBEDDED == 2
++   "Space", "KpdEnt",
++#else
+    "Enter", "KpdEnt",
++#endif
+    "[", "",
+    "]", "",
+    "Tab", "",
+@@ -239,6 +247,14 @@ static const char * mouseanalogdefaults[MAXMOUSEAXES] =
+    };
+ #endif
+ 
++#ifdef EMBEDDED
++static const char * mouseanalogdefaults[MAXMOUSEAXES] =
++   {
++   "analog_turning",
++   "analog_lookingupanddown",
++   };
++#endif
++
+ #if defined(GEKKO)
+ static const char * joystickdefaults[MAXJOYBUTTONSANDHATS] =
+    {
+diff --git a/source/blood/src/actor.cpp b/source/blood/src/actor.cpp
+index a58f496..f248f4b 100644
+--- a/source/blood/src/actor.cpp
++++ b/source/blood/src/actor.cpp
+@@ -20,7 +20,9 @@ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
++#ifdef EDUKE32
+ #include <iostream>
++#endif
+ 
+ #include "build.h"
+ #include "pragmas.h"
+@@ -4373,8 +4375,17 @@ void actAirDrag(spritetype *pSprite, int a2)
+             v4 = mulscale30(vcx, Sin(pXSector->windAng));
+         }
+     }
++#ifdef __AMIGA__
++		if (vbp-xvel[pSprite->index])
++#endif
+     xvel[pSprite->index] += mulscale16(vbp-xvel[pSprite->index], a2);
++#ifdef __AMIGA__
++    if (v4-yvel[pSprite->index])
++#endif
+     yvel[pSprite->index] += mulscale16(v4-yvel[pSprite->index], a2);
++#ifdef __AMIGA__
++    if (zvel[pSprite->index])
++#endif
+     zvel[pSprite->index] -= mulscale16(zvel[pSprite->index], a2);
+ }
+ 
+@@ -4763,7 +4774,11 @@ void MoveDude(spritetype *pSprite)
+             sfxPlay3DSound(pSprite, 719, 0, 0);
+         }
+     }
++#ifndef EDUKE32
++    vec3_t const oldpos = {pSprite->x, pSprite->y, pSprite->z};
++#else
+     vec3_t const oldpos = pSprite->xyz;
++#endif
+     int nLink = CheckLink(pSprite);
+     if (nLink)
+     {
+@@ -6304,7 +6319,7 @@ spritetype * actSpawnThing(int nSector, int x, int y, int z, int nThingType)
+         pXThing->data2 = 0;
+         pXThing->data3 = 0;
+         pXThing->data4 = 318;
+-        pXThing->targetX = (int)gFrameClock+180.0;
++        pXThing->targetX = (int)gFrameClock+180;
+         pXThing->locked = 1;
+         pXThing->state = 1;
+         pXThing->triggerOnce = 0;
+@@ -6316,7 +6331,7 @@ spritetype * actSpawnThing(int nSector, int x, int y, int z, int nThingType)
+         pXThing->data2 = 0;
+         pXThing->data3 = 0;
+         pXThing->data4 = 319;
+-        pXThing->targetX = (int)gFrameClock+180.0;
++        pXThing->targetX = (int)gFrameClock+180;
+         pXThing->locked = 1;
+         pXThing->state = 1;
+         pXThing->triggerOnce = 0;
+diff --git a/source/blood/src/aipod.cpp b/source/blood/src/aipod.cpp
+index 4051a73..16418d5 100644
+--- a/source/blood/src/aipod.cpp
++++ b/source/blood/src/aipod.cpp
+@@ -115,7 +115,11 @@ static void sub_6FFA0(int, int nXSprite)
+     {
+     case kDudePodGreen:
+         dz += 8000;
++#if NO_FLOAT
++        if (pDudeInfo->seeDist < nDist*10)
++#else
+         if (pDudeInfo->seeDist*0.1 < nDist)
++#endif
+         {
+             if (Chance(0x8000))
+                 sfxPlay3DSound(pSprite, 2474, -1, 0);
+@@ -128,7 +132,11 @@ static void sub_6FFA0(int, int nXSprite)
+         break;
+     case kDudePodFire:
+         dz += 8000;
++#if NO_FLOAT
++        if (pDudeInfo->seeDist < nDist*10)
++#else
+         if (pDudeInfo->seeDist*0.1 < nDist)
++#endif
+         {
+             sfxPlay3DSound(pSprite, 2454, -1, 0);
+             pMissile = actFireThing(pSprite, 0, -8000, dz/128-14500, kThingPodFireBall, (nDist2<<23)/120);
+diff --git a/source/blood/src/blood.cpp b/source/blood/src/blood.cpp
+index 7d5243c..9d51d31 100644
+--- a/source/blood/src/blood.cpp
++++ b/source/blood/src/blood.cpp
+@@ -126,6 +126,9 @@ bool gPaused;
+ bool gSaveGameActive;
+ int gCacheMiss;
+ int gMenuPicnum = 2518; // default menu picnum
++#ifdef EMBEDDED
++int GameVariant = 0;
++#endif
+ 
+ enum gametokens
+ {
+@@ -456,16 +459,24 @@ void PreloadCache(void)
+     if (gDemo.at1)
+         return;
+     gSysRes.PurgeCache();
++#if !NO_SOUND
+     gSoundRes.PurgeCache();
+     gSysRes.PrecacheSounds();
+     gSoundRes.PrecacheSounds();
+     if (MusicRestartsOnLoadToggle)
+         sndTryPlaySpecialMusic(MUS_LOADING);
++#endif
+     PreloadTiles();
+     ClockTicks clock = totalclock;
+     int cnt = 0;
+     int percentDisplayed = -1;
+ 
++#ifndef EDUKE32
++    for (int i=0; i<kMaxTiles; i++) {
++        if (walock[i] == 0 || walock[i] >= 200) continue;
++        walock[i] = TestBitString(gotpic, i) ? 199 : 1;
++    }
++#endif
+     for (int i=0; i<kMaxTiles && !KB_KeyPressed(sc_Space); i++)
+     {
+         if (TestBitString(gotpic, i))
+@@ -519,6 +530,9 @@ void EndLevel(void)
+     seqKillAll();
+ }
+ 
++#ifndef EDUKE32
++void G_LoadMapHack(char* outbuf, const char* filename) {}
++#else
+ int G_TryMapHack(const char* mhkfile)
+ {
+     int const failure = engineLoadMHK(mhkfile);
+@@ -544,6 +558,7 @@ void G_LoadMapHack(char* outbuf, const char* filename)
+             G_TryMapHack(pMapInfo->mhkfile);
+     }
+ }
++#endif
+ 
+ #ifdef POLYMER
+ void G_RefreshLights(void)
+@@ -580,7 +595,11 @@ PLAYER gPlayerTemp[kMaxPlayers];
+ int gHealthTemp[kMaxPlayers];
+ 
+ vec3_t startpos;
++#ifndef EDUKE32
++extern short startang, startsectnum;
++#else
+ int16_t startang, startsectnum;
++#endif
+ 
+ void StartLevel(GAMEOPTIONS *gameOptions)
+ {
+@@ -645,6 +664,9 @@ void StartLevel(GAMEOPTIONS *gameOptions)
+     }
+     bVanilla = gDemo.at1 && gDemo.m_bLegacy;
+     drawLoadingScreen();
++#ifndef EDUKE32
++    videoNextPage();
++#endif
+     if (dbLoadMap(gameOptions->zLevelName,(int*)&startpos.x,(int*)&startpos.y,(int*)&startpos.z,&startang,&startsectnum,(unsigned int*)&gameOptions->uMapCRC))
+     {
+         gQuitGame = true;
+@@ -1035,6 +1057,9 @@ void ProcessFrame(void)
+         gPlayer[i].input.q16mlook = gFifoInput[gNetFifoTail&255][i].q16mlook;
+     }
+     gNetFifoTail++;
++#if NO_NET
++    if (0)
++#endif
+     if (!(gFrame&7))
+     {
+         CalcGameChecksum();
+@@ -1075,6 +1100,9 @@ void ProcessFrame(void)
+         }
+     }
+     viewClearInterpolations();
++#if EMBEDDED
++    if (0) // no demo writes
++#endif
+     if (!gDemo.at1)
+     {
+         if (gPaused || gEndGameMgr.at0 || (gGameOptions.nGameType == kGameTypeSinglePlayer && gGameMenuMgr.m_bActive))
+@@ -1117,6 +1145,9 @@ void ProcessFrame(void)
+     if ((gGameOptions.uGameFlags&kGameFlagContinuing) && !gStartNewGame)
+     {
+         ready2send = 0;
++#if NO_NET
++        if (0)
++#endif
+         if (gNetPlayers > 1 && gNetMode == NETWORK_SERVER && gPacketMode == PACKETMODE_1 && myconnectindex == connecthead)
+         {
+             while (gNetFifoMasterTail < gNetFifoTail)
+@@ -1483,7 +1514,9 @@ void ParseOptions(void)
+         case 36:
+             if (OptArgc < 1)
+                 ThrowError("Missing argument");
++#ifdef EDUKE32
+             Bstrncpyz(g_modDir, OptArgv[0], sizeof(g_modDir));
++#endif
+             G_AddPath(OptArgv[0]);
+             break;
+         case 37:
+@@ -1499,9 +1532,11 @@ void ParseOptions(void)
+             gNetPort = strtoul(OptArgv[0], NULL, 0);
+             break;
+         case 40:
++#ifdef EDUKE32
+             if (OptArgc < 1)
+                 ThrowError("Missing argument");
+             G_AddDef(OptArgv[0]);
++#endif
+             break;
+         case 41:
+             if (OptArgc < 1)
+@@ -1610,6 +1645,7 @@ int app_main(int argc, char const * const * argv)
+     if (!g_useCwd)
+         G_AddSearchPaths();
+ 
++#ifdef EDUKE32
+     // used with binds for fast function lookup
+     hash_init(&h_gamefuncs);
+     for (bssize_t i=NUMGAMEFUNCTIONS-1; i>=0; i--)
+@@ -1622,6 +1658,7 @@ int app_main(int argc, char const * const * argv)
+         hash_add(&h_gamefuncs,str,i,0);
+         Xfree(str);
+     }
++#endif
+     
+ #ifdef STARTUP_SETUP_WINDOW
+     int const readSetup =
+@@ -1664,11 +1701,15 @@ int app_main(int argc, char const * const * argv)
+     initprintf("Initializing OSD...\n");
+ 
+     //Bsprintf(tempbuf, HEAD2 " %s", s_buildRev);
++#ifdef EDUKE32
+     OSD_SetVersion("Blood", 10, 0);
+     OSD_SetParameters(0, 0, 0, 12, 2, 12, OSD_ERROR, OSDTEXT_RED, OSDTEXT_DARKRED, gamefunctions[gamefunc_Show_Console][0] == '\0' ? OSD_PROTECTED : 0);
++#endif
+     registerosdcommands();
+ 
++#ifndef EMBEDDED
+     auto const hasSetupFilename = strcmp(SetupFilename, SETUPFILENAME);
++#endif
+ 
+     // Not neccessary ?
+     // CONFIG_SetDefaultKeys(keydefaults, true);
+@@ -1677,10 +1718,17 @@ int app_main(int argc, char const * const * argv)
+ 
+ #ifdef USE_QHEAP
+     Resource::heap = new QHeap(nMaxAlloc);
++#endif
++#ifdef EMBEDDED
++    if (!Bstrcmp(pINISelected->zName, "CRYPTIC.INI")) GameVariant = 2;
++    if (!tileInit(0,NULL))
++        ThrowError("TILES###.ART files not found");
+ #endif
+     gSysRes.Init(pUserRFF ? pUserRFF : "BLOOD.RFF");
+     gGuiRes.Init("GUI.RFF");
++#if !NO_SOUND
+     gSoundRes.Init(pUserSoundRFF ? pUserSoundRFF : "SOUNDS.RFF");
++#endif
+ 
+     HookReplaceFunctions();
+ 
+@@ -1691,6 +1739,9 @@ int app_main(int argc, char const * const * argv)
+     scrCreateStdColors();
+     
+     initprintf("Loading tiles\n");
++#ifdef EMBEDDED
++    if (1); else
++#endif
+     if (pUserTiles)
+     {
+         strcpy(buffer,pUserTiles);
+@@ -1708,6 +1759,9 @@ int app_main(int argc, char const * const * argv)
+ 
+     levelLoadDefaults();
+ 
++#ifdef EMBEDDED
++    if (GameVariant != 0) gMenuPicnum = 2046;
++#else
+     if (!Bstrcmp(pINISelected->zName, "CRYPTIC.INI")) // if currently selected cryptic passage
+         gMenuPicnum = 2046;
+ 
+@@ -1722,6 +1776,7 @@ int app_main(int argc, char const * const * argv)
+         initprintf("Definitions file \"%s\" loaded in %d ms.\n", defsfile, etime-stime);
+     }
+     loaddefinitions_game(defsfile, FALSE);
++#endif
+     powerupInit();
+     initprintf("Loading cosine table\n");
+     trigInit(gSysRes);
+@@ -1737,6 +1792,9 @@ int app_main(int argc, char const * const * argv)
+     initprintf("There are %d demo(s) in the loop\n", gDemo.nDemosFound);
+     initprintf("Loading control setup\n");
+     ctrlInit();
++#ifdef EMBEDDED
++    inittimer(CLOCKTICKSPERSECOND, NULL);
++#else
+     timerInit(CLOCKTICKSPERSECOND);
+     timerSetCallback(ClockStrobe);
+     enginecompatibilitymode = ENGINE_19960925;
+@@ -1769,6 +1827,7 @@ int app_main(int argc, char const * const * argv)
+ 
+         OSD_Exec(buffer);
+     }
++#endif
+ 
+     // PORT-TODO: CD audio init
+ 
+@@ -1799,6 +1858,7 @@ RESTART:
+     gViewIndex = myconnectindex;
+     gMe = gView = &gPlayer[myconnectindex];
+     netBroadcastPlayerInfo(myconnectindex);
++    if (numplayers > 1)
+     initprintf("Waiting for network players!\n");
+     netWaitForEveryone(0);
+     if (gRestartGame)
+@@ -1840,7 +1900,9 @@ RESTART:
+         if (gGameStarted)
+         {
+             char gameUpdate = false;
++#ifdef EDUKE32
+             double const gameUpdateStartTime = timerGetFractionalTicks();
++#endif
+             while (gPredictTail < gNetFifoHead[myconnectindex] && !gPaused)
+             {
+                 viewUpdatePrediction(&gFifoInput[gPredictTail&255][myconnectindex]);
+@@ -1875,6 +1937,7 @@ RESTART:
+                     gameUpdate = true;
+                 } while (0);
+             }
++#ifdef EDUKE32
+             if (gameUpdate)
+             {
+                 g_gameUpdateTime = timerGetFractionalTicks() - gameUpdateStartTime;
+@@ -1882,6 +1945,7 @@ RESTART:
+                     g_gameUpdateAvgTime = g_gameUpdateTime;
+                 g_gameUpdateAvgTime = ((GAMEUPDATEAVGTIMENUMSAMPLES-1.f)*g_gameUpdateAvgTime+g_gameUpdateTime)/((float) GAMEUPDATEAVGTIMENUMSAMPLES);
+             }
++#endif
+             bDraw = engineFPSLimit() != 0;
+             if (gQuitRequest && gQuitGame)
+                 videoClearScreen(0);
+@@ -1891,7 +1955,9 @@ RESTART:
+                 if (bDraw)
+                 {
+                     viewDrawScreen();
++#ifdef EDUKE32
+                     g_gameUpdateAndDrawTime = timerGetFractionalTicks() - gameUpdateStartTime;
++#endif
+                 }
+             }
+         }
+@@ -2028,6 +2094,9 @@ static int32_t S_DefineAudioIfSupported(char *fn, const char *name)
+ //  -1: ID declaration was invalid:
+ static int32_t S_DefineMusic(const char *ID, const char *name)
+ {
++#if NO_SOUND
++    return 0;
++#else
+     int32_t sel = MUS_FIRST_SPECIAL;
+ 
+     Bassert(ID != NULL);
+@@ -2050,8 +2119,10 @@ static int32_t S_DefineMusic(const char *ID, const char *name)
+     int nEpisode = sel/kMaxLevels;
+     int nLevel = sel%kMaxLevels;
+     return S_DefineAudioIfSupported(gEpisodeInfo[nEpisode].levelsInfo[nLevel].Song, name);
++#endif
+ }
+ 
++#ifndef EMBEDDED
+ static int parsedefinitions_game(scriptfile *, int);
+ 
+ static void parsedefinitions_game_include(const char *fileName, scriptfile *pScript, const char *cmdtokptr, int const firstPass)
+@@ -2636,6 +2707,7 @@ int loaddefinitions_game(const char *fileName, int32_t firstPass)
+ 
+     return 0;
+ }
++#endif
+ 
+ INICHAIN *pINIChain;
+ INICHAIN const*pINISelected;
+@@ -2723,6 +2795,9 @@ void ScanINIFiles(void)
+ 
+ bool LoadArtFile(const char *pzFile)
+ {
++#ifndef EDUKE32
++    return false;
++#else
+     int hFile = kopen4loadfrommod(pzFile, 0);
+     if (hFile == -1)
+     {
+@@ -2745,6 +2820,7 @@ bool LoadArtFile(const char *pzFile)
+         tileUpdatePicSiz(i);
+     kclose(hFile);
+     return true;
++#endif
+ }
+ 
+ void LoadExtraArts(void)
+@@ -2761,9 +2837,11 @@ bool DemoRecordStatus(void) {
+     return gDemo.at0;
+ }
+ 
++#ifndef __AMIGA__
+ bool VanillaMode() {
+     return gDemo.m_bLegacy && gDemo.at1;
+ }
++#endif
+ 
+ bool fileExistsRFF(int id, const char *ext) {
+     return gSysRes.Lookup(id, ext);
+@@ -2771,6 +2849,7 @@ bool fileExistsRFF(int id, const char *ext) {
+ 
+ int sndTryPlaySpecialMusic(int nMusic)
+ {
++#if !NO_SOUND
+     int nEpisode = nMusic/kMaxLevels;
+     int nLevel = nMusic%kMaxLevels;
+     if (!sndPlaySong(gEpisodeInfo[nEpisode].levelsInfo[nLevel].Song, true))
+@@ -2778,11 +2857,13 @@ int sndTryPlaySpecialMusic(int nMusic)
+         strncpy(gGameOptions.zLevelSong, gEpisodeInfo[nEpisode].levelsInfo[nLevel].Song, BMAX_PATH);
+         return 0;
+     }
++#endif
+     return 1;
+ }
+ 
+ void sndPlaySpecialMusicOrNothing(int nMusic)
+ {
++#if !NO_SOUND
+     int nEpisode = nMusic/kMaxLevels;
+     int nLevel = nMusic%kMaxLevels;
+     if (sndTryPlaySpecialMusic(nMusic))
+@@ -2790,4 +2871,5 @@ void sndPlaySpecialMusicOrNothing(int nMusic)
+         sndStopSong();
+         strncpy(gGameOptions.zLevelSong, gEpisodeInfo[nEpisode].levelsInfo[nLevel].Song, BMAX_PATH);
+     }
++#endif
+ }
+diff --git a/source/blood/src/blood.h b/source/blood/src/blood.h
+index b3681d0..48b8017 100644
+--- a/source/blood/src/blood.h
++++ b/source/blood/src/blood.h
+@@ -80,7 +80,12 @@ void ScanINIFiles(void);
+ bool LoadArtFile(const char *pzFile);
+ void LoadExtraArts(void);
+ bool DemoRecordStatus(void);
++#ifdef __AMIGA__
++extern bool bVanilla;
++static inline bool VanillaMode() { return bVanilla; }
++#else
+ bool VanillaMode(void);
++#endif
+ bool fileExistsRFF(int id, const char* ext);
+ int sndTryPlaySpecialMusic(int nMusic);
+-void sndPlaySpecialMusicOrNothing(int nMusic);
+\ No newline at end of file
++void sndPlaySpecialMusicOrNothing(int nMusic);
+diff --git a/source/blood/src/callback.cpp b/source/blood/src/callback.cpp
+index 32a0640..c4fb4bc 100644
+--- a/source/blood/src/callback.cpp
++++ b/source/blood/src/callback.cpp
+@@ -498,6 +498,11 @@ void sleeveStopBouncing(spritetype* pSprite) {
+ 
+     pSprite->type = FX_51; // static spent casing
+     pSprite->xrepeat = pSprite->yrepeat = 10;
++#ifdef __AMIGA__
++    extern bool bVanilla;
++    if (!bVanilla) // remove spent casing after 4 seconds
++        evPost((int)pSprite->index, 3, 480, kCallbackRemove);
++#endif
+ }
+ 
+ 
+diff --git a/source/blood/src/common.cpp b/source/blood/src/common.cpp
+index 0632da7..06488a0 100644
+--- a/source/blood/src/common.cpp
++++ b/source/blood/src/common.cpp
+@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "build.h"
+ #include "baselayer.h"
+ #include "palette.h"
++#ifdef EDUKE32
+ #include "texcache.h"
++#endif
+ 
+ #ifdef _WIN32
+ # include "windows_inc.h"
+@@ -75,6 +77,7 @@ void G_SetupGlobalPsky(void)
+ {
+     int skyIdx = 0;
+ 
++#ifdef EDUKE32
+     // NOTE: Loop must be running backwards for the same behavior as the game
+     // (greatest sector index with matching parallaxed sky takes precedence).
+     for (bssize_t i = numsectors - 1; i >= 0; i--)
+@@ -88,6 +91,7 @@ void G_SetupGlobalPsky(void)
+     }
+ 
+     g_pskyidx = skyIdx;
++#endif
+ }
+ 
+ static char g_rootDir[BMAX_PATH];
+@@ -113,6 +117,7 @@ void G_ExtPreInit(int32_t argc,char const * const * argv)
+ 
+ void G_ExtInit(void)
+ {
++#ifndef EMBEDDED
+     char cwd[BMAX_PATH];
+ 
+ #ifdef EDUKE32_OSX
+@@ -175,6 +180,7 @@ void G_ExtInit(void)
+             Xfree(homedir);
+         }
+     }
++#endif
+ }
+ 
+ static int32_t G_TryLoadingGrp(char const * const grpfile)
+@@ -191,6 +197,7 @@ static int32_t G_TryLoadingGrp(char const * const grpfile)
+ 
+ void G_LoadGroups(int32_t autoload)
+ {
++#ifdef EDUKE32
+     if (g_modDir[0] != '/')
+     {
+         char cwd[BMAX_PATH];
+@@ -219,6 +226,7 @@ void G_LoadGroups(int32_t autoload)
+     }
+     const char *grpfile = G_GrpFile();
+     G_TryLoadingGrp(grpfile);
++#endif
+ 
+     if (autoload)
+     {
+@@ -228,6 +236,7 @@ void G_LoadGroups(int32_t autoload)
+         //    G_DoAutoload(grpfile);
+     }
+ 
++#ifdef EDUKE32
+     if (g_modDir[0] != '/')
+         G_LoadGroupsInDir(g_modDir);
+ 
+@@ -244,6 +253,7 @@ void G_LoadGroups(int32_t autoload)
+ 
+     loaddefinitions_game(BLOODWIDESCREENDEF, TRUE);
+     loaddefinitions_game(G_DefFile(), TRUE);
++#endif
+ 
+     struct strllist *s;
+ 
+@@ -300,8 +310,13 @@ static void Blood_AddSteamPaths(const char *basepath)
+ #endif
+ #endif
+ 
++#ifndef EDUKE32
++void G_AddSearchPaths(void) {}
++void G_CleanupSearchPaths(void) {}
++#else
+ void G_AddSearchPaths(void)
+ {
++#ifdef EDUKE32
+ #ifndef EDUKE32_TOUCH_DEVICES
+ #if defined __linux__ || defined EDUKE32_BSD
+     char buf[BMAX_PATH];
+@@ -402,12 +417,14 @@ void G_AddSearchPaths(void)
+     }
+ #endif
+ #endif
++#endif
+ }
+ 
+ void G_CleanupSearchPaths(void)
+ {
+     removesearchpaths_withuser(SEARCHPATH_REMOVE);
+ }
++#endif
+ 
+ //////////
+ 
+diff --git a/source/blood/src/common_game.h b/source/blood/src/common_game.h
+index 156578c..8a865f0 100644
+--- a/source/blood/src/common_game.h
++++ b/source/blood/src/common_game.h
+@@ -62,7 +62,11 @@ void _consoleSysMsg(const char* pMessage, ...);
+ 		_consoleSysMsg(__VA_ARGS__); \
+ 	}
+ 
++#ifndef _DEBUG
++#define dassert(x)
++#else
+ #define dassert(x) if (!(x)) __dassert(#x,__FILE__,__LINE__)
++#endif
+ 
+ 
+ #define kMaxSectors MAXSECTORS
+@@ -71,7 +75,11 @@ void _consoleSysMsg(const char* pMessage, ...);
+ 
+ #define kMaxTiles MAXTILES
+ #define kMaxStatus MAXSTATUS
++#if NO_NET
++#define kMaxPlayers 1
++#else
+ #define kMaxPlayers 8
++#endif
+ #define kMaxViewSprites maxspritesonscreen
+ 
+ #define kMaxVoxels MAXVOXELS
+@@ -527,6 +535,15 @@ kAiStatePatrolMax,
+ // -------------------------------
+ 
+ // NUKE-TODO:
++#ifndef EDUKE32
++// JFBuild OSD has no color code support
++#define OSDTEXT_DEFAULT   ""
++#define OSDTEXT_DARKRED   ""
++#define OSDTEXT_GREEN     ""
++#define OSDTEXT_RED       ""
++#define OSDTEXT_YELLOW    ""
++#define OSDTEXT_BRIGHT    ""
++#else
+ #define OSDTEXT_DEFAULT   "^00"
+ #define OSDTEXT_DARKRED   "^00"
+ #define OSDTEXT_GREEN     "^00"
+@@ -534,6 +551,7 @@ kAiStatePatrolMax,
+ #define OSDTEXT_YELLOW    "^00"
+ 
+ #define OSDTEXT_BRIGHT    "^S0"
++#endif
+ 
+ #define OSD_ERROR OSDTEXT_DARKRED OSDTEXT_BRIGHT
+ 
+@@ -561,12 +579,17 @@ extern void G_LoadGroups(int32_t autoload);
+ 
+ extern void G_SetupGlobalPsky(void);
+ 
++#ifndef EDUKE32
++#define G_ModDirSnprintf(buf, size, basename, ...) Bsnprintf(buf, size, basename, ##__VA_ARGS__)
++#define G_ModDirSnprintfLite(buf, size, basename) Bsnprintf(buf, size, "%s", basename)
++#else
+ #define G_ModDirSnprintf(buf, size, basename, ...)                                                                                          \
+     (((g_modDir[0] != '/') ? Bsnprintf(buf, size, "%s/" basename, g_modDir, ##__VA_ARGS__) : Bsnprintf(buf, size, basename, ##__VA_ARGS__)) \
+      >= ((int32_t)size) - 1)
+ 
+ #define G_ModDirSnprintfLite(buf, size, basename) \
+     ((g_modDir[0] != '/') ? Bsnprintf(buf, size, "%s/%s", g_modDir, basename) : Bsnprintf(buf, size, "%s", basename))
++#endif
+ 
+ static inline int gameHandleEvents(void)
+ {
+@@ -803,6 +826,12 @@ inline char TestBitString(char *pArray, int nIndex)
+     return pArray[nIndex>>3] & (1<<(nIndex&7));
+ }
+ 
++#ifndef EDUKE32
++#define SetBitString(a, i) SetBitString((char*)a, i)
++#define TestBitString(a, i) TestBitString((char*)a, i)
++#define ClearBitString(a, i) ClearBitString((char*)a, i)
++#endif
++
+ inline int scale(int a1, int a2, int a3, int a4, int a5)
+ {
+     return a4 + (a5-a4) * (a1-a2) / (a3-a2);
+@@ -841,6 +870,14 @@ inline int approxDist(int dx, int dy)
+     return dx+dy;
+ }
+ 
++#ifdef EMBEDDED
++inline int approxDist_abs(int dx, int dy) {
++	if (dx > dy) dy = (3*dy)>>3;
++	else dx = (3*dx)>>3;
++	return dx + dy;
++}
++#endif
++
+ class Rect {
+ public:
+     int x0, y0, x1, y1;
+diff --git a/source/blood/src/config.cpp b/source/blood/src/config.cpp
+index 4d53796..c59c763 100644
+--- a/source/blood/src/config.cpp
++++ b/source/blood/src/config.cpp
+@@ -21,12 +21,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
+ 
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "baselayer.h"
+ #include "common_game.h"
+ #include "build.h"
+ #include "cache1d.h"
+ #include "sndcards.h"
++#ifdef EDUKE32
+ #include "hash.h"
++#endif
+ #include "scriplib.h"
+ #include "renderlayer.h"
+ #include "function.h"
+@@ -53,11 +58,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #define __SETUP__   // JBF 20031211
+ #include "_functio.h"
+ 
++#ifdef EDUKE32
+ hashtable_t h_gamefuncs    = { NUMGAMEFUNCTIONS<<1, NULL };
++#endif
+ 
+ int32_t MouseDeadZone, MouseBias;
+ int32_t MouseFunctions[MAXMOUSEBUTTONS][2];
+ //int32_t MouseAnalogueAxes[MAXMOUSEAXES];
++#ifndef EDUKE32
++int32_t MouseAnalogueAxes[MAXMOUSEAXES];
++int32_t MouseAnalogueScale[MAXMOUSEAXES];
++#endif
+ int32_t JoystickFunctions[MAXJOYBUTTONSANDHATS][2];
+ int32_t JoystickDigitalFunctions[MAXJOYAXES][2];
+ int32_t JoystickAnalogueAxes[MAXJOYAXES];
+@@ -118,6 +129,48 @@ int32_t gFMPianoFix;
+ int gWeaponsV10x;
+ /////////
+ 
++#ifndef EDUKE32
++int CONFIG_FunctionNameToNum(const char *func) {
++    int i;
++    if (func)
++    for (i = 0; i < NUMGAMEFUNCTIONS; i++)
++        if (!Bstrcasecmp(func, gamefunctions[i])) return i;
++    return -1;
++}
++
++static inline
++int SCRIPT_GetString(int scripthandle, char const *sectionname, char const *entryname, char *dest) {
++    return SCRIPT_GetString(scripthandle, sectionname, entryname, dest, 40); // 40 is MAXRIDECULELENGTH
++}
++
++void CONFIG_ReadKeys(void) {
++    int i, numkeyentries, function;
++    char keyname1[80], keyname2[80];
++    kb_scancode key1, key2;
++
++    if (scripthandle < 0) return;
++    numkeyentries = SCRIPT_NumberEntries(scripthandle, "KeyDefinitions");
++
++    for (i = 0; i < numkeyentries; i++) {
++        function = CONFIG_FunctionNameToNum(SCRIPT_Entry(scripthandle, "KeyDefinitions", i));
++        if (function != -1) {
++            SCRIPT_GetDoubleString(scripthandle, "KeyDefinitions",
++                SCRIPT_Entry(scripthandle, "KeyDefinitions", i),
++                keyname1, keyname2, sizeof(keyname1), sizeof(keyname2));
++            key1 = *keyname1 ? KB_StringToScanCode(keyname1) : 0xff;
++            key2 = *keyname2 ? KB_StringToScanCode(keyname2) : 0xff;
++            KeyboardKeys[function][0] = key1;
++            KeyboardKeys[function][1] = key2;
++        }
++    }
++
++    for (i = 0; i < NUMGAMEFUNCTIONS; i++)
++        if (i == gamefunc_Show_Console)
++            OSD_CaptureKey(KeyboardKeys[i][0]);
++        else
++            CONTROL_MapKey(i, KeyboardKeys[i][0], KeyboardKeys[i][1]);
++}
++#else
+ int32_t CONFIG_FunctionNameToNum(const char *func)
+ {
+     int32_t i;
+@@ -138,6 +191,7 @@ int32_t CONFIG_FunctionNameToNum(const char *func)
+ 
+     return i;
+ }
++#endif
+ 
+ 
+ char *CONFIG_FunctionNumToName(int32_t func)
+@@ -213,6 +267,7 @@ void CONFIG_SetDefaultKeys(const char (*keyptr)[MAXGAMEFUNCLEN], bool lazy/*=fal
+         int const default0 = KB_StringToScanCode(keyptr[i<<1]);
+         int const default1 = KB_StringToScanCode(keyptr[(i<<1)+1]);
+ 
++#ifdef EDUKE32
+         // skip the function if the default key is already used
+         // or the function is assigned to another key
+         if (lazy && (key[0] != 0xff || (CONTROL_KeyIsBound(default0) && Bstrlen(CONTROL_KeyBinds[default0].cmdstr) > strlen_gamefunc_
+@@ -224,15 +279,18 @@ void CONFIG_SetDefaultKeys(const char (*keyptr)[MAXGAMEFUNCLEN], bool lazy/*=fal
+ #endif
+             continue;
+         }
++#endif
+ 
+         key[0] = default0;
+         key[1] = default1;
+ 
++#ifdef EDUKE32
+         if (key[0])
+             CONTROL_FreeKeyBind(key[0]);
+ 
+         if (key[1])
+             CONTROL_FreeKeyBind(key[1]);
++#endif
+ 
+         if (i == gamefunc_Show_Console)
+             OSD_CaptureKey(key[0]);
+@@ -275,8 +333,13 @@ void CONFIG_SetDefaults(void)
+     else
+ # endif
+     {
++#ifdef __AMIGA__
++        gSetup.xdim = 320;
++        gSetup.ydim = 200;
++#else
+         gSetup.xdim = 1024;
+         gSetup.ydim = 768;
++#endif
+     }
+ #endif
+ 
+@@ -407,6 +470,12 @@ void CONFIG_SetDefaults(void)
+     gMouseAim = 1;
+     gAutoAim = 1;
+     gWeaponSwitch = 1;
++#ifdef __AMIGA__
++    gPowerupDuration = 0; // TODO this is bugged with shrinked screens
++    gViewInterpolate = 0;
++    gBrightness = 0; // Blood has its own gamma system, make sure this is off
++    //gStereo = 0;
++#endif
+ 
+     Bstrcpy(szPlayerName, "Player");
+ 
+@@ -421,13 +490,21 @@ void CONFIG_SetDefaults(void)
+     Bstrcpy(CommbatMacro[8], "Amateurs!");
+     Bstrcpy(CommbatMacro[9], "Fool! You are already dead.");
+ 
++#if EMBEDDED == 2
++    CONFIG_SetDefaultKeys(oldkeydefaults);
++#else
+     CONFIG_SetDefaultKeys(keydefaults);
++#endif
+ 
+     memset(MouseFunctions, -1, sizeof(MouseFunctions));
+     memset(JoystickFunctions, -1, sizeof(JoystickFunctions));
+     memset(JoystickDigitalFunctions, -1, sizeof(JoystickDigitalFunctions));
+ 
++#ifndef EDUKE32
++    CONTROL_SetMouseSensitivity(DEFAULTMOUSESENSITIVITY);
++#else
+     CONTROL_MouseSensitivity = DEFAULTMOUSESENSITIVITY;
++#endif
+ 
+     for (int i=0; i<MAXMOUSEBUTTONS; i++)
+     {
+@@ -447,6 +524,16 @@ void CONFIG_SetDefaults(void)
+         CONTROL_MapAnalogAxis(i, MouseAnalogueAxes[i]);
+     }
+ #endif
++#ifdef EMBEDDED
++    for (int i=0; i<MAXMOUSEAXES; i++)
++    {
++        MouseAnalogueScale[i] = DEFAULTMOUSEANALOGUESCALE;
++        CONTROL_SetAnalogAxisScale(i, DEFAULTMOUSEANALOGUESCALE, controldevice_mouse);
++
++        MouseAnalogueAxes[i] = CONFIG_AnalogNameToNum(mouseanalogdefaults[i]);
++        CONTROL_MapAnalogAxis(i, MouseAnalogueAxes[i], controldevice_mouse);
++    }
++#endif
+ 
+ #if defined(GEKKO)
+     for (int i=0; i<MAXJOYBUTTONSANDHATS; i++)
+@@ -511,6 +598,9 @@ void CONFIG_SetDefaults(void)
+ // wrapper for CONTROL_MapKey(), generates key bindings to reflect changes to keyboard setup
+ void CONFIG_MapKey(int which, kb_scancode key1, kb_scancode oldkey1, kb_scancode key2, kb_scancode oldkey2)
+ {
++#ifndef EDUKE32
++    CONTROL_MapKey(which, key1, key2);
++#else
+     int const keys[] = { key1, key2, oldkey1, oldkey2 };
+     char buf[2*MAXGAMEFUNCLEN];
+     char tempbuf[128];
+@@ -554,6 +644,7 @@ void CONFIG_MapKey(int which, kb_scancode key1, kb_scancode oldkey1, kb_scancode
+             CONTROL_FreeKeyBind(keys[k]);
+         }
+     }
++#endif
+ }
+ 
+ 
+@@ -589,6 +680,20 @@ void CONFIG_SetupMouse(void)
+                 MouseAnalogueAxes[i] = CONFIG_AnalogNameToNum(temp);
+     }
+ #endif
++#ifndef EDUKE32
++    for (int i=0; i<MAXMOUSEAXES; i++)
++    {
++        Bsprintf(str,"MouseAnalogAxes%d",i);
++        temp[0] = 0;
++        if (!SCRIPT_GetString(scripthandle, "Controls", str,temp))
++            if (CONFIG_AnalogNameToNum(temp) != -1 || (!temp[0] && CONFIG_FunctionNameToNum(temp) != -1))
++                MouseAnalogueAxes[i] = CONFIG_AnalogNameToNum(temp);
++        Bsprintf(str,"MouseAnalogScale%d",i);
++        int32_t scale = MouseAnalogueScale[i];
++        SCRIPT_GetNumber(scripthandle, "Controls", str,&scale);
++        MouseAnalogueScale[i] = scale;
++    }
++#endif
+ 
+     for (int i=0; i<MAXMOUSEBUTTONS; i++)
+     {
+@@ -599,6 +704,13 @@ void CONFIG_SetupMouse(void)
+     for (int i=0; i<MAXMOUSEAXES; i++)
+         CONTROL_MapAnalogAxis(i, MouseAnalogueAxes[i]);
+ #endif
++#ifndef EDUKE32
++    for (int i=0; i<MAXMOUSEAXES; i++)
++    {
++        CONTROL_MapAnalogAxis(i, MouseAnalogueAxes[i], controldevice_mouse);
++        CONTROL_SetAnalogAxisScale(i, MouseAnalogueScale[i], controldevice_mouse);
++    }
++#endif
+ }
+ 
+ 
+@@ -685,7 +797,11 @@ void CONFIG_SetupJoystick(void)
+ 
+ int CONFIG_ReadSetup(void)
+ {
++#ifdef __AMIGA__
++    char tempbuf[64];
++#else
+     char tempbuf[1024];
++#endif
+ 
+     CONTROL_ClearAssignments();
+     CONFIG_SetDefaults();
+@@ -750,6 +866,7 @@ int CONFIG_ReadSetup(void)
+     if (cachesize > MAXCACHE1DSIZE)
+         MAXCACHE1DSIZE = cachesize;
+ 
++#ifdef EDUKE32
+     if (gNoSetup == 0 && g_modDir[0] == '/')
+     {
+         struct Bstat st;
+@@ -764,6 +881,7 @@ int CONFIG_ReadSetup(void)
+             }
+         }
+     }
++#endif
+ 
+     //if (g_grpNamePtr == NULL && g_addonNum == 0)
+     //{
+@@ -778,12 +896,15 @@ int CONFIG_ReadSetup(void)
+     //    SCRIPT_GetString(scripthandle, "Screen Setup", "Password", &ud.pwlockout[0]);
+     //}
+ 
++#ifdef EDUKE32
+     SCRIPT_GetNumber(scripthandle, "Screen Setup", "MaxRefreshFreq", (int32_t *)&maxrefreshfreq);
++#endif
+     SCRIPT_GetNumber(scripthandle, "Screen Setup", "ScreenBPP", &gSetup.bpp);
+     SCRIPT_GetNumber(scripthandle, "Screen Setup", "ScreenHeight", &gSetup.ydim);
+     SCRIPT_GetNumber(scripthandle, "Screen Setup", "ScreenMode", &gSetup.fullscreen);
+     SCRIPT_GetNumber(scripthandle, "Screen Setup", "ScreenWidth", &gSetup.xdim);
+ 
++#ifdef EDUKE32
+     vec2_t windowPos;
+     if (!SCRIPT_GetNumber(scripthandle, "Screen Setup", "WindowPosX", &windowPos.x)
+         && !SCRIPT_GetNumber(scripthandle, "Screen Setup", "WindowPosY", &windowPos.y))
+@@ -791,6 +912,49 @@ int CONFIG_ReadSetup(void)
+         g_windowPos = windowPos;
+         g_windowPosValid = true;
+     }
++#endif
++
++#ifndef EDUKE32
++    CONFIG_ReadKeys();
++
++#define NUM_OPTION_ENUM(X) \
++  X("Options", "Detail", gDetail) \
++  X("Options", "MouseAim", gMouseAim) \
++  X("Options", "AutoRun", gAutoRun) \
++  X("Options", "Interpolation", gViewInterpolate) \
++  X("Options", "ViewHBobbing", gViewHBobbing) \
++  X("Options", "ViewVBobbing", gViewVBobbing) \
++  X("Options", "FollowMap", gFollowMap) \
++  X("Options", "OverlayMap", gOverlayMap) \
++  X("Options", "RotateMap", gRotateMap) \
++  X("Options", "AimReticle", gAimReticle) \
++  X("Options", "SlopeTilting", gSlopeTilting) \
++  X("Options", "MessageState", gMessageState) \
++  X("Options", "MessageCount", gMessageCount) \
++  X("Options", "MessageTime", gMessageTime) \
++  X("Options", "MessageFont", gMessageFont) \
++  /* X("Options", "AdultContent", gbAdultContent) */ \
++  X("Options", "Doppler", gStereo) \
++  X("Options", "ShowWeapon", gShowWeapon) \
++  \
++  X("Controls", "UseJoystick", gSetup.usejoystick) \
++  X("Controls", "UseMouse", gSetup.usemouse) \
++  X("Controls", "MouseAimingFlipped", gMouseAimingFlipped) \
++  X("Controls", "AimingFlag", gMouseAim) \
++  X("Controls", "MouseSensitivity", gMouseSensitivity) \
++  X("Controls", "RunKeyBehaviour", gRunKeyMode) \
++  \
++  X("Screen Setup", "Size", gViewSize) \
++  X("Screen Setup", "Gamma", gGamma)
++
++#define X(section, name, num) \
++  SCRIPT_GetNumber(scripthandle, section, name, &num);
++    gMouseSensitivity = 32768;
++    NUM_OPTION_ENUM(X)
++    CONTROL_SetMouseSensitivity(gMouseSensitivity);
++#undef X
++    //SCRIPT_GetString(scripthandle, "Options", "AdultPassword", gzAdultPassword);
++#endif
+ 
+     if (gSetup.bpp < 8) gSetup.bpp = 32;
+ 
+@@ -814,6 +978,7 @@ int CONFIG_ReadSetup(void)
+ 
+ void CONFIG_WriteSettings(void) // save binds and aliases to <cfgname>_settings.cfg
+ {
++#ifndef EMBEDDED
+     char filename[BMAX_PATH];
+     auto const hasSetupFilename = strcmp(SetupFilename, SETUPFILENAME);
+ 
+@@ -860,6 +1025,7 @@ void CONFIG_WriteSettings(void) // save binds and aliases to <cfgname>_settings.
+     }
+ 
+     OSD_Printf("Error writing %s: %s\n", filename, strerror(errno));
++#endif
+ }
+ 
+ void CONFIG_WriteSetup(uint32_t flags)
+@@ -901,6 +1067,7 @@ void CONFIG_WriteSetup(uint32_t flags)
+         return;
+     }
+ 
++#ifdef EDUKE32
+     SCRIPT_PutNumber(scripthandle, "Screen Setup", "MaxRefreshFreq", maxrefreshfreq, FALSE, FALSE);
+ 
+     if (g_windowPosValid)
+@@ -908,6 +1075,7 @@ void CONFIG_WriteSetup(uint32_t flags)
+         SCRIPT_PutNumber(scripthandle, "Screen Setup", "WindowPosX", g_windowPos.x, FALSE, FALSE);
+         SCRIPT_PutNumber(scripthandle, "Screen Setup", "WindowPosY", g_windowPos.y, FALSE, FALSE);
+     }
++#endif
+ 
+     //if (!NAM_WW2GI)
+     //{
+@@ -939,6 +1107,15 @@ void CONFIG_WriteSetup(uint32_t flags)
+             Bsprintf(buf, "MouseAnalogAxes%d", i);
+             SCRIPT_PutString(scripthandle, "Controls", buf, CONFIG_AnalogNumToName(MouseAnalogueAxes[i]));
+         }
++#endif
++#ifdef EDUKE32
++        for (int i=0; i<MAXMOUSEAXES; i++)
++        {
++            Bsprintf(buf, "MouseAnalogAxes%d", i);
++            SCRIPT_PutString(scripthandle, "Controls", buf, CONFIG_AnalogNumToName(MouseAnalogueAxes[i]));
++            Bsprintf(buf,"MouseAnalogScale%d",i);
++            SCRIPT_PutNumber(scripthandle, "Controls", buf, MouseAnalogueScale[i], FALSE, FALSE);
++        }
+ #endif
+     }
+ 
+@@ -992,6 +1169,19 @@ void CONFIG_WriteSetup(uint32_t flags)
+     ///////
+     SCRIPT_PutNumber(scripthandle, "Game Options", "WeaponsV10x", gWeaponsV10x, FALSE, FALSE);
+     ///////
++#ifndef EDUKE32
++    for(int dummy=0;dummy<NUMGAMEFUNCTIONS;dummy++) {
++        SCRIPT_PutDoubleString( scripthandle, "KeyDefinitions", CONFIG_FunctionNumToName(dummy),
++        KB_ScanCodeToString(KeyboardKeys[dummy][0]), KB_ScanCodeToString(KeyboardKeys[dummy][1]));
++    }
++
++#define X(section, name, num) \
++  SCRIPT_PutNumber(scripthandle, section, name, num, false, false);
++    gMouseSensitivity = CONTROL_GetMouseSensitivity();
++    NUM_OPTION_ENUM(X)
++#undef X
++    //SCRIPT_PutString(scripthandle, "Options", "AdultPassword", gzAdultPassword);
++#endif
+     
+     SCRIPT_Save(scripthandle, SetupFilename);
+ 
+diff --git a/source/blood/src/config.h b/source/blood/src/config.h
+index 436020e..bb2cb4d 100644
+--- a/source/blood/src/config.h
++++ b/source/blood/src/config.h
+@@ -29,7 +29,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "control.h"
+ #include "_control.h"
+ #include "gamedefs.h"
++#ifdef EDUKE32
+ #include "hash.h"
++#endif
+ 
+ #define MAXRIDECULE 10
+ #define MAXRIDECULELENGTH 40
+@@ -39,6 +41,10 @@ extern int32_t MouseDeadZone, MouseBias;
+ extern int32_t SmoothInput;
+ extern int32_t MouseFunctions[MAXMOUSEBUTTONS][2];
+ // extern int32_t MouseAnalogueAxes[MAXMOUSEAXES];
++#ifndef EDUKE32
++extern int32_t MouseAnalogueAxes[MAXMOUSEAXES];
++extern int32_t MouseAnalogueScale[MAXMOUSEAXES];
++#endif
+ extern int32_t JoystickFunctions[MAXJOYBUTTONSANDHATS][2];
+ extern int32_t JoystickDigitalFunctions[MAXJOYAXES][2];
+ extern int32_t JoystickAnalogueAxes[MAXJOYAXES];
+@@ -85,7 +91,9 @@ extern int32_t gRunKeyMode;
+ extern bool gNoClip;
+ extern bool gInfiniteAmmo;
+ extern bool gFullMap;
++#ifdef EDUKE32
+ extern hashtable_t h_gamefuncs;
++#endif
+ extern int32_t gUpscaleFactor;
+ extern int32_t gLevelStats;
+ extern int32_t gPowerupDuration;
+diff --git a/source/blood/src/controls.cpp b/source/blood/src/controls.cpp
+index 9f10a14..6d2dace 100644
+--- a/source/blood/src/controls.cpp
++++ b/source/blood/src/controls.cpp
+@@ -75,8 +75,16 @@ void ctrlInit(void)
+     CONTROL_MouseEnabled = (gSetup.usemouse && CONTROL_MousePresent);
+ 
+     // JBF 20040215: evil and nasty place to do this, but joysticks are evil and nasty too
++#ifndef EDUKE32
++    for (int i=0; i<MAXJOYAXES; i++)
++    {
++        CONTROL_SetJoyAxisDead(i, JoystickAnalogueDead[i]);
++        CONTROL_SetJoyAxisSaturate(i, JoystickAnalogueSaturate[i]);
++    }
++#else
+     for (int i = 0; i < joystick.numAxes; i++)
+         JOYSTICK_SetDeadZone(i, JoystickAnalogueDead[i], JoystickAnalogueSaturate[i]);
++#endif
+     CONTROL_DefineFlag(gamefunc_Move_Forward, false);
+     CONTROL_DefineFlag(gamefunc_Move_Backward, false);
+     CONTROL_DefineFlag(gamefunc_Turn_Left, false);
+@@ -157,6 +165,20 @@ void ctrlGetInput(void)
+     }
+ 
+     GINPUT input = {};
++#ifdef EMBEDDED
++    static unsigned lastInputTicks = 0;
++    unsigned currentHiTicks = timerGetTicks(); // freq 1000
++    unsigned elapsedInputTicks = currentHiTicks - lastInputTicks;
++
++    if (elapsedInputTicks > 1000) elapsedInputTicks = 1000;
++    lastInputTicks = currentHiTicks;
++    // elapsedInputTicks = (elapsedInputTicks << 16) / 1000;
++    elapsedInputTicks = (elapsedInputTicks * 4294967) >> 16;
++
++#undef fix16_from_float
++#define fix16_from_float(x) x
++#define scaleAdjustmentToInterval(x) ((x) * kTicsPerSec * elapsedInputTicks)
++#else
+     static double lastInputTicks;
+     auto const    currentHiTicks    = timerGetFractionalTicks();
+     double const  elapsedInputTicks = currentHiTicks - lastInputTicks;
+@@ -164,6 +186,7 @@ void ctrlGetInput(void)
+     lastInputTicks = currentHiTicks;
+ 
+     auto scaleAdjustmentToInterval = [=](double x) { return x * kTicsPerSec / (1000.0 / elapsedInputTicks); };
++#endif
+ 
+     CONTROL_ProcessBinds();
+ 
+@@ -196,6 +219,7 @@ void ctrlGetInput(void)
+ 
+     CONTROL_GetInput(&info);
+ 
++#ifdef EDUKE32
+     if (MouseDeadZone)
+     {
+         if (info.mousey > 0)
+@@ -216,6 +240,7 @@ void ctrlGetInput(void)
+         else
+             info.mousex = tabledivide32_noinline(info.mousex, MouseBias);
+     }
++#endif
+ 
+     if (gQuitRequest)
+         gInput.keyFlags.quit = 1;
+@@ -472,18 +497,39 @@ void ctrlGetInput(void)
+     if ((run2 || run) && turnHeldTime > 24)
+         input.q16turn <<= 1;
+ 
++#if !NO_MOUSE
+     if (BUTTON(gamefunc_Strafe))
++#ifndef EDUKE32
++        input.strafe -= info.dyaw << 5;
++#else
+         input.strafe -= info.mousex;
++#endif
+     else
++#ifndef EDUKE32
++        input.q16turn = fix16_sadd(input.q16turn, fix16_from_int(info.dyaw));
++#else
+         input.q16turn = fix16_sadd(input.q16turn, fix16_sdiv(fix16_from_int(info.mousex), F16(32)));
++#endif
+ 
+     if (gMouseAim)
++#ifndef EDUKE32
++        input.q16mlook = fix16_sadd(input.q16mlook, fix16_from_int(info.dpitch)/4);
++#else
+         input.q16mlook = fix16_sadd(input.q16mlook, fix16_sdiv(fix16_from_int(info.mousey), F16(128)));
++#endif
+     else
++#ifndef EDUKE32
++        input.forward -= info.dpitch << 7;
++#else
+         input.forward -= info.mousey;
++#endif
+ 
+     if (CONTROL_JoystickEnabled) // controller input
+     {
++#ifndef EDUKE32
++        input.strafe -= info.dx<<4;
++        input.forward -= info.dz<<4;
++#else
+         input.strafe -= info.dx>>1;
+         input.forward -= info.dz>>1;
+         if (info.mousey == 0)
+@@ -495,9 +541,11 @@ void ctrlGetInput(void)
+         }
+         if (input.q16turn == 0)
+             input.q16turn = fix16_sadd(input.q16mlook, fix16_sdiv(fix16_from_int(info.dyaw>>4), F16(32)));
++#endif
+     }
+     if (!gMouseAimingFlipped)
+         input.q16mlook = -input.q16mlook;
++#endif
+ 
+     if (KB_KeyPressed(sc_Pause)) // 0xc5 in disassembly
+     {
+@@ -508,7 +556,11 @@ void ctrlGetInput(void)
+     if (!gViewMap.bFollowMode && gViewMode == 4)
+     {
+         gViewMap.turn += input.q16turn<<2;
++#ifndef EDUKE32
++        gViewMap.forward += gMouseAim ? input.forward : clamp(fix16_sadd(input.forward, -info.dpitch), -2048, 2048);
++#else
+         gViewMap.forward += gMouseAim ? input.forward : clamp(fix16_sadd(input.forward, fix16_sdiv(fix16_from_int(-info.mousey), F16(8192))), -2048, 2048);
++#endif
+         gViewMap.strafe += input.strafe;
+         input.q16turn = 0;
+         input.forward = 0;
+@@ -520,6 +572,17 @@ void ctrlGetInput(void)
+     gInput.q16mlook = fix16_clamp(fix16_sadd(gInput.q16mlook, input.q16mlook), F16(-127)>>2, F16(127)>>2);
+     if (gMe && gMe->pXSprite->health != 0 && !gPaused)
+     {
++#ifndef EDUKE32
++        gViewAngle = (gViewAngle + input.q16turn) & 0x7ffffff; 
++        if (gViewLookRecenter)
++        {
++            if (gViewLook < 0)
++                gViewLook = fix16_min(gViewLook+F16(4), F16(0));
++            if (gViewLook > 0)
++                gViewLook = fix16_max(gViewLook-F16(4), F16(0));
++        }
++        gViewLook = fix16_clamp(gViewLook+input.q16mlook, F16(-60), F16(60));
++#else
+         CONSTEXPR int upAngle = 289;
+         CONSTEXPR int downAngle = -347;
+         CONSTEXPR double lookStepUp = 4.0*upAngle/60.0;
+@@ -537,5 +600,6 @@ void ctrlGetInput(void)
+             gViewLook = fix16_clamp(gViewLook+fix16_from_float(scaleAdjustmentToInterval(gViewLookAdjust)), F16(downAngle), F16(upAngle));
+         }
+         gViewLook = fix16_clamp(gViewLook+(input.q16mlook << 3), F16(downAngle), F16(upAngle));
++#endif
+     }
+ }
+diff --git a/source/blood/src/credits.cpp b/source/blood/src/credits.cpp
+index fb93fb8..ac8a65f 100644
+--- a/source/blood/src/credits.cpp
++++ b/source/blood/src/credits.cpp
+@@ -23,7 +23,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "credits.h"
+ #include "build.h"
+ #include "compat.h"
++#ifndef SMACKER_DISABLE
+ #include "SmackerDecoder.h"
++#endif
+ #include "fx_man.h"
+ #include "keyboard.h"
+ #include "common_game.h"
+@@ -189,6 +191,9 @@ char credPlaySmk(const char *_pzSMK, const char *_pzWAV, int nWav)
+     }
+     smkPlayer.sub_82E6C(pzSMK, pzWAV);
+ #endif
++#ifdef SMACKER_DISABLE
++    return FALSE;
++#else
+     if (Bstrlen(_pzSMK) == 0)
+         return false;
+     char *pzSMK = Xstrdup(_pzSMK);
+@@ -320,4 +325,5 @@ char credPlaySmk(const char *_pzSMK, const char *_pzWAV, int nWav)
+     Xfree(pzWAV_);
+ 
+     return TRUE;
++#endif
+ }
+diff --git a/source/blood/src/db.cpp b/source/blood/src/db.cpp
+index b1048ae..91318f3 100644
+--- a/source/blood/src/db.cpp
++++ b/source/blood/src/db.cpp
+@@ -28,7 +28,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "compat.h"
+ #include "common_game.h"
+ #include "crc32.h"
++#ifdef EMBEDDED
++#define md4once(a,b,c) (void)0
++#else
+ #include "md4.h"
++#endif
+ 
+ //#include "actor.h"
+ #include "globals.h"
+@@ -58,7 +62,9 @@ int xvel[kMaxSprites], yvel[kMaxSprites], zvel[kMaxSprites];
+ PolymerLight_t gPolymerLight[kMaxSprites];
+ #endif
+ 
++#ifdef EDUKE32
+ char qsprite_filler[kMaxSprites], qsector_filler[kMaxSectors];
++#endif
+ 
+ int gVisibility;
+ const char *gItemText[] = {
+@@ -265,6 +271,9 @@ void RemoveSpriteStat(int nSprite)
+     gStatCount[nStat]--;
+ }
+ 
++#ifdef EMBEDDED
++extern "C" {
++#endif
+ void qinitspritelists(void) // Replace
+ {
+     for (short i = 0; i <= kMaxSectors; i++)
+@@ -377,6 +386,9 @@ int qchangespritestat(short nSprite, short nStatus)
+ {
+     return ChangeSpriteStat(nSprite, nStatus);
+ }
++#ifdef EMBEDDED
++}
++#endif
+ 
+ unsigned short nextXSprite[kMaxXSprites];
+ unsigned short nextXWall[kMaxXWalls];
+@@ -682,6 +694,9 @@ unsigned int dbReadMapCRC(const char *pPath)
+ 
+     Bstrncpy(name2, pPath, BMAX_PATH);
+     Bstrupr(name2);
++#ifdef EMBEDDED
++    DICTNODE* pNode = gSysRes.Lookup(name2, "MAP");
++#else
+     DICTNODE* pNode = *gSysRes.Probe(name2, "MAP");
+     if (pNode && pNode->flags & DICT_EXTERNAL)
+     {
+@@ -695,6 +710,7 @@ unsigned int dbReadMapCRC(const char *pPath)
+         ChangeExtension(name2, "");
+         pNode = gSysRes.Lookup(name2, "MAP");
+     }
++#endif
+ 
+     if (!pNode)
+     {
+@@ -743,7 +759,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+     memset(show2dsector,0,sizeof(show2dsector));
+     memset(show2dwall,0,sizeof(show2dwall));
+     memset(show2dsprite,0,sizeof(show2dsprite));
++#if USE_POLYMOST && USE_OPENGL
+     memset(spriteext,0,kMaxSprites*sizeof(spriteext_t));
++#endif
+ 
+     memset(xvel,0,sizeof(xvel));
+     memset(yvel,0,sizeof(yvel));
+@@ -764,6 +782,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+ 
+     Bstrncpy(name2, pPath, BMAX_PATH);
+     Bstrupr(name2);
++#ifdef EMBEDDED
++    DICTNODE* pNode = gSysRes.Lookup(name2, "MAP");
++#else
+     DICTNODE* pNode = *gSysRes.Probe(name2, "MAP");
+     if (pNode && pNode->flags & DICT_EXTERNAL)
+     {
+@@ -778,6 +799,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+         ChangeExtension(name2, "");
+         pNode = gSysRes.Lookup(name2, "MAP");
+     }
++#endif
+ 
+     if (!pNode)
+     {
+@@ -801,6 +823,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+         return -1;
+     }
+     byte_1A76C8 = 0;
++    if ((header.version & 0xff00) == 0x600); else /* Shareware */
+     if ((header.version & 0xff00) == 0x700) {
+         byte_1A76C8 = 1;
+         
+@@ -849,15 +872,21 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+     mapHeader.at23 = B_LITTLE16(mapHeader.at23);
+ #endif
+ 
++#ifdef EDUKE32
+     psky_t *pSky = tileSetupSky(0);
+     pSky->horizfrac = 65536;
++#endif
+ 
+     *pX = mapHeader.at0;
+     *pY = mapHeader.at4;
+     *pZ = mapHeader.at8;
+     *pAngle = mapHeader.atc;
+     *pSector = mapHeader.ate;
++#ifndef EDUKE32
++    pskybits = mapHeader.at10;
++#else
+     pSky->lognumtiles = mapHeader.at10;
++#endif
+     gVisibility = g_visibility = mapHeader.at12;
+     gSongId = mapHeader.at16;
+     if (byte_1A76C8)
+@@ -887,6 +916,17 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+     gMapRev = mapHeader.at1b;
+     numsectors = mapHeader.at1f;
+     numwalls = mapHeader.at21;
++#ifdef EMBEDDED
++#define NUMCHECK(n, m) \
++    if (EMBEDDED == 1) buildprintf("info: %s = %d\n", #n, n); \
++    if (n > m) { buildprintf("error: %s > %s (%d)\n", #n, #m, m); return(-2); }
++    if (EMBEDDED == 1) initprintf("loadboard(\"%s.map\")\n", pPath);
++    int numsprites = mapHeader.at23;
++    NUMCHECK(numsectors, MAXSECTORS)
++    NUMCHECK(numwalls, MAXWALLS)
++    NUMCHECK(numsprites, MAXSPRITES)
++#undef NUMCHECK
++#endif
+     dbInit();
+     if (byte_1A76C8)
+     {
+@@ -902,7 +942,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+     {
+         memset(&byte_19AE44, 0, 128);
+     }
++#ifndef EDUKE32
++    gSkyCount = 1<<pskybits;
++#else
+     gSkyCount = 1<<pSky->lognumtiles;
++#endif
+     IOBuffer1.Read(tpskyoff, gSkyCount*sizeof(tpskyoff[0]));
+     if (byte_1A76C8)
+     {
+@@ -910,7 +954,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+     }
+     for (int i = 0; i < ClipHigh(gSkyCount, MAXPSKYTILES); i++)
+     {
++#ifndef EDUKE32
++        pskyoff[i] = B_LITTLE16(tpskyoff[i]);
++#else
+         pSky->tileofs[i] = B_LITTLE16(tpskyoff[i]);
++#endif
+     }
+     for (int i = 0; i < numsectors; i++)
+     {
+@@ -935,8 +983,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+         pSector->hitag = B_LITTLE16(pSector->hitag);
+         pSector->extra = B_LITTLE16(pSector->extra);
+ #endif
++#ifdef EDUKE32
+         qsector_filler[i] = pSector->fogpal;
+         pSector->fogpal = 0;
++#endif
+         if (sector[i].extra > 0)
+         {
+             char pBuffer[nXSectorSize];
+@@ -1143,8 +1193,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+         InsertSpriteStat(i, sprite[i].statnum);
+         Numsprites++;
+         sprite[i].index = i;
++#ifdef EDUKE32
+         qsprite_filler[i] = pSprite->blend;
+         pSprite->blend = 0;
++#endif
+         if (sprite[i].extra > 0)
+         {
+             char pBuffer[nXSpriteSize];
+@@ -1360,6 +1412,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+ 
+ int dbSaveMap(const char *pPath, int nX, int nY, int nZ, short nAngle, short nSector)
+ {
++#ifdef EDUKE32
+     char sMapExt[BMAX_PATH];
+     //char sBakExt[BMAX_PATH];
+     int16_t tpskyoff[256];
+@@ -1713,6 +1766,7 @@ int dbSaveMap(const char *pPath, int nX, int nY, int nZ, short nAngle, short nSe
+     }
+     Bclose(nHandle);
+     Xfree(pData);
++#endif
+     return 0;
+ #if 0
+     char *pExt = strchr(sMapExt, '.');
+diff --git a/source/blood/src/db.h b/source/blood/src/db.h
+index c603622..f096140 100644
+--- a/source/blood/src/db.h
++++ b/source/blood/src/db.h
+@@ -22,9 +22,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ //-------------------------------------------------------------------------
+ #pragma once
+ 
++#ifndef EDUKE32
++#define kMaxXSprites 2048
++#define kMaxXWalls 512
++#define kMaxXSectors 512
++#else
+ #define kMaxXSprites 16384
+ #define kMaxXWalls 16384
+ #define kMaxXSectors 4096
++#endif
+ 
+ #ifdef NOONE_EXTENSIONS
+ extern uint8_t gModernMap;
+@@ -349,6 +355,9 @@ void InsertSpriteSect(int nSprite, int nSector);
+ void RemoveSpriteSect(int nSprite);
+ void InsertSpriteStat(int nSprite, int nStat);
+ void RemoveSpriteStat(int nSprite);
++#ifdef EMBEDDED
++extern "C" {
++#endif
+ void qinitspritelists(void);
+ int InsertSprite(int nSector, int nStat);
+ int qinsertsprite(short nSector, short nStat);
+@@ -358,6 +367,9 @@ int ChangeSpriteSect(int nSprite, int nSector);
+ int qchangespritesect(short nSprite, short nSector);
+ int ChangeSpriteStat(int nSprite, int nStatus);
+ int qchangespritestat(short nSprite, short nStatus);
++#ifdef EMBEDDED
++}
++#endif
+ void InitFreeList(unsigned short *pList, int nCount);
+ void InsertFree(unsigned short *pList, int nIndex);
+ unsigned short dbInsertXSprite(int nSprite);
+diff --git a/source/blood/src/demo.cpp b/source/blood/src/demo.cpp
+index 9353228..b6bcda8 100644
+--- a/source/blood/src/demo.cpp
++++ b/source/blood/src/demo.cpp
+@@ -22,6 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ //-------------------------------------------------------------------------
+ #include <stdio.h>
+ #include <string.h>
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "common.h"
+ #include "common_game.h"
+ #include "keyboard.h"
+@@ -124,6 +127,9 @@ CDemo::~CDemo()
+ 
+ bool CDemo::Create(const char *pzFile)
+ {
++#if EMBEDDED
++    return false;
++#endif
+     char buffer[BMAX_PATH];
+     char vc = 0;
+     if (at0 || at1)
+@@ -210,6 +216,9 @@ void CDemo::Write(GINPUT *pPlayerInputs)
+ 
+ void CDemo::Close(void)
+ {
++#if EMBEDDED
++    if (0)
++#endif
+     if (at0)
+     {
+         if (atb&(kInputBufferSize-1))
+@@ -392,10 +401,10 @@ _DEMOPLAYBACK:
+                 //memcpy(connectpoint2, aimHeight.connectPoints, sizeof(aimHeight.connectPoints));
+                 memcpy(&gGameOptions, &m_gameOptions, sizeof(GAMEOPTIONS));
+                 gSkill = gGameOptions.nDifficulty;
+-                for (int i = 0; i < 8; i++)
++                for (int i = 0; i < kMaxPlayers; i++)
+                     playerInit(i, 0);
+                 StartLevel(&gGameOptions);
+-                for (int i = 0; i < 8; i++)
++                for (int i = 0; i < kMaxPlayers; i++)
+                 {
+                     gProfile[i].nAutoAim = 1;
+                     gProfile[i].nWeaponSwitch = 1;
+@@ -517,7 +526,11 @@ const int nInputSizeLegacy = 22;
+ 
+ void CDemo::FlushInput(int nCount)
+ {
++#ifdef EMBEDDED
++    char *pBuffer = (char*)malloc(nInputSizeLegacy*kInputBufferSize);
++#else
+     char pBuffer[nInputSize*kInputBufferSize];
++#endif
+     BitWriter bitWriter(pBuffer, sizeof(pBuffer));
+     for (int i = 0; i < nCount; i++)
+     {
+@@ -561,13 +574,23 @@ void CDemo::FlushInput(int nCount)
+         bitWriter.skipBits(1);
+     }
+     fwrite(pBuffer, 1, nInputSize*nCount, hRFile);
++#ifdef EMBEDDED
++    free(pBuffer);
++#endif
+ }
+ 
+ void CDemo::ReadInput(int nCount)
+ {
++#ifdef EMBEDDED
++    char *pBuffer;
++#endif
+     if (m_bLegacy)
+     {
++#ifdef EMBEDDED
++        pBuffer = (char*)malloc(nInputSizeLegacy*kInputBufferSize);
++#else
+         char pBuffer[nInputSizeLegacy*kInputBufferSize];
++#endif
+         kread(hPFile, pBuffer, nInputSizeLegacy*nCount);
+         BitReader bitReader(pBuffer, sizeof(pBuffer));
+         memset(at1aa, 0, nCount * sizeof(GINPUT));
+@@ -619,7 +642,11 @@ void CDemo::ReadInput(int nCount)
+     }
+     else
+     {
++#ifdef EMBEDDED
++        pBuffer = (char*)malloc(nInputSize*kInputBufferSize);
++#else
+         char pBuffer[nInputSize*kInputBufferSize];
++#endif
+         kread(hPFile, pBuffer, nInputSize*nCount);
+         BitReader bitReader(pBuffer, sizeof(pBuffer));
+         memset(at1aa, 0, nCount * sizeof(GINPUT));
+@@ -665,4 +692,7 @@ void CDemo::ReadInput(int nCount)
+             bitReader.skipBits(1);
+         }
+     }
++#ifdef EMBEDDED
++    free(pBuffer);
++#endif
+ }
+diff --git a/source/blood/src/endgame.cpp b/source/blood/src/endgame.cpp
+index e04891c..15c8a60 100644
+--- a/source/blood/src/endgame.cpp
++++ b/source/blood/src/endgame.cpp
+@@ -115,7 +115,9 @@ extern bool gStartNewGame;
+ void CEndGameMgr::Finish(void)
+ {
+     levelSetupOptions(gGameOptions.nEpisode, gNextLevel);
++#if !NO_NET
+     gInitialNetPlayers = numplayers;
++#endif
+     //if (FXDevice != -1)
+         FX_StopAllSounds();
+     sndKillAllSounds();
+@@ -177,7 +179,11 @@ void CKillMgr::CountTotalKills(void)
+ void CKillMgr::Draw(void)
+ {
+     char pBuffer[40];
++#if NO_NET
++    if (1)
++#else
+     if (gGameOptions.nGameType == kGameTypeSinglePlayer)
++#endif
+     {
+         viewDrawText(1, "KILLS:", 75, 50, -128, 0, 0, 1);
+         sprintf(pBuffer, "%2d", at4);
+diff --git a/source/blood/src/eventq.cpp b/source/blood/src/eventq.cpp
+index b0f9e27..76d7299 100644
+--- a/source/blood/src/eventq.cpp
++++ b/source/blood/src/eventq.cpp
+@@ -60,6 +60,18 @@ public:
+ };
+ 
+ EventQueue eventQ;
++#ifdef EMBEDDED
++#define EventQueue_Kill(args, match) \
++void EventQueue::Kill args { \
++    for (unsigned int i = 1; i <= PQueue->fNodeCount;) { \
++        EVENT &nItem = PQueue->queueItems[i].at4; \
++        if (nItem.index == a1 && nItem.type == a2 && match) PQueue->Delete(i); else i++; \
++    } \
++}
++EventQueue_Kill((int a1, int a2), true)
++EventQueue_Kill((int a1, int a2, int causer), nItem.causer == causer)
++EventQueue_Kill((int a1, int a2, CALLBACK_ID a3), nItem.cmd == kCmdCallback && nItem.funcID == (unsigned int)a3)
++#else
+ void EventQueue::Kill(int a1, int a2)
+ {
+     PQueue->Kill([=](const EVENT &nItem)->bool {return (nItem.index == a1 && nItem.type == a2); });
+@@ -74,6 +86,7 @@ void EventQueue::Kill(int a1, int a2, CALLBACK_ID a3)
+ {
+     PQueue->Kill([=](const EVENT &nItem)->bool {return (nItem.index == a1 && nItem.type == a2 && nItem.cmd == kCmdCallback && nItem.funcID == (unsigned int)a3); });
+ }
++#endif
+ 
+ RXBUCKET rxBucket[kChannelMax+1];
+ 
+@@ -644,8 +657,13 @@ void EventQLoadSave::Load()
+ 
+ void EventQLoadSave::Save()
+ {
++#ifdef EMBEDDED
++    EVENT *events = new EVENT[1024];
++    unsigned int *eventstime = new unsigned int[1024];
++#else
+     EVENT events[1024];
+     unsigned int eventstime[1024];
++#endif
+     Write(&eventQ, sizeof(eventQ));
+     int nEvents = eventQ.PQueue->Size();
+     Write(&nEvents, sizeof(nEvents));
+@@ -663,6 +681,10 @@ void EventQLoadSave::Save()
+     }
+     Write(rxBucket, sizeof(rxBucket));
+     Write(bucketHead, sizeof(bucketHead));
++#ifdef EMBEDDED
++    delete[] events;
++    delete[] eventstime;
++#endif
+ }
+ 
+ static EventQLoadSave *myLoadSave;
+diff --git a/source/blood/src/fx.cpp b/source/blood/src/fx.cpp
+index d48da10..c15ec5f 100644
+--- a/source/blood/src/fx.cpp
++++ b/source/blood/src/fx.cpp
+@@ -179,7 +179,11 @@ spritetype * CFX::fxSpawn(FX_ID nFx, int nSector, int x, int y, int z, unsigned
+     pSprite->cstat |= pFX->cstat;
+     pSprite->shade = pFX->shade;
+     pSprite->pal = pFX->pal;
++#ifndef EDUKE32
++    pSprite->filler = pFX->detail;
++#else
+     qsprite_filler[pSprite->index] = pFX->detail;
++#endif
+     if (pFX->xrepeat > 0)
+         pSprite->xrepeat = pFX->xrepeat;
+     if (pFX->yrepeat > 0)
+@@ -195,6 +199,11 @@ spritetype * CFX::fxSpawn(FX_ID nFx, int nSector, int x, int y, int z, unsigned
+     }
+     if (duration == 0) // no override duration set, load from global fx data struct
+         duration = pFX->duration;
++#ifdef __AMIGA__
++    extern bool bVanilla;
++    if (!bVanilla && duration == 0 && nFx == FX_43)
++        duration = 480; // remove bullet holes after 4 seconds
++#endif
+     if (duration)
+         evPost((int)pSprite->index, 3, duration+Random2(duration>>1), kCallbackRemove);
+     return pSprite;
+@@ -212,6 +221,10 @@ void CFX::fxProcess(void)
+         dassert(nSector >= 0 && nSector < kMaxSectors);
+         dassert(pSprite->type < kFXMax);
+         FXDATA *pFXData = &gFXData[pSprite->type];
++#ifdef __AMIGA__
++        // don't run airdrag if the effect doesn't need it
++        if (pFXData->airdrag)
++#endif
+         actAirDrag(pSprite, pFXData->airdrag);
+         if (xvel[nSprite])
+             pSprite->x += xvel[nSprite]>>12;
+diff --git a/source/blood/src/gamedefs.h b/source/blood/src/gamedefs.h
+index 092f2fc..e0255eb 100644
+--- a/source/blood/src/gamedefs.h
++++ b/source/blood/src/gamedefs.h
+@@ -46,7 +46,11 @@ extern "C" {
+ #define MAXMOUSEAXES 2
+ 
+ // KEEPINSYNC mact/include/_control.h, build/src/sdlayer.cpp
++#ifdef EMBEDDED
++#define MAXJOYAXES 12
++#else
+ #define MAXJOYAXES 9
++#endif
+ #define MAXJOYDIGITAL (MAXJOYAXES*2)
+ 
+ // default mouse scale
+diff --git a/source/blood/src/gamemenu.cpp b/source/blood/src/gamemenu.cpp
+index 81682b1..37482ff 100644
+--- a/source/blood/src/gamemenu.cpp
++++ b/source/blood/src/gamemenu.cpp
+@@ -102,6 +102,7 @@ void CGameMenuMgr::DeInitializeMenu(void)
+ 
+ bool CGameMenuMgr::Push(CGameMenu *pMenu, int nItem)
+ {
++#ifdef EDUKE32
+     if (nMenuPointer == 0)
+     {
+         m_mouselastactivity = -M_MOUSETIMEOUT;
+@@ -110,6 +111,7 @@ bool CGameMenuMgr::Push(CGameMenu *pMenu, int nItem)
+         mouseMoveToCenter();
+         mouseReadAbs(&m_prevmousepos, &g_mouseAbs);
+     }
++#endif
+     dassert(pMenu != NULL);
+     if (nMenuPointer == 8)
+         return false;
+@@ -160,6 +162,7 @@ void CGameMenuMgr::Draw(void)
+         m_postPop = false;
+     }
+ 
++#ifdef EDUKE32
+     int32_t mousestatus = mouseReadAbs(&m_mousepos, &g_mouseAbs);
+     if (mousestatus && g_mouseClickState == MOUSE_PRESSED)
+         m_mousedownpos = m_mousepos;
+@@ -203,6 +206,7 @@ void CGameMenuMgr::Draw(void)
+     }
+     else
+         g_mouseClickState = MOUSE_IDLE;
++#endif
+ }
+ 
+ void CGameMenuMgr::Clear(void)
+@@ -314,7 +318,9 @@ void CGameMenuMgr::Deactivate(void)
+     keyFlushChars();
+     m_bActive = false;
+ 
++#ifdef EDUKE32
+     mouseLockToWindow(1);
++#endif
+     gInputMode = INPUT_MODE_0;
+ }
+ 
+@@ -339,6 +345,9 @@ CGameMenu::CGameMenu(int unk)
+ 
+ CGameMenu::~CGameMenu()
+ {
++#ifdef EMBEDDED
++    return; // never deleted
++#endif
+     if (!atc)
+         return;
+     for (int i = 0; i < m_nItems; i++)
+@@ -497,6 +506,7 @@ bool CGameMenuItem::Event(CGameMenuEvent &event)
+ bool CGameMenuItem::MouseEvent(CGameMenuEvent &event)
+ {
+     event.at0 = kMenuEventNone;
++#ifdef EDUKE32
+     if (MOUSEINACTIVECONDITIONAL(MOUSE_GetButtons()&M_LEFTBUTTON))
+     {
+         event.at0 = kMenuEventEnter;
+@@ -529,6 +539,7 @@ bool CGameMenuItem::MouseEvent(CGameMenuEvent &event)
+         MOUSE_ClearButton(M_WHEELDOWN);
+         event.at0 = kMenuEventDown;
+     }
++#endif
+     return event.at0 != kMenuEventNone;
+ }
+ 
+@@ -651,6 +662,7 @@ void CGameMenuItemZBool::Draw(void)
+     int width, height;
+     gMenuTextMgr.GetFontInfo(m_nFont, value, &width, &height);
+     gMenuTextMgr.DrawText(value, m_nFont, m_nWidth-1+m_nX-width, m_nY, shade, pal, false);
++#ifndef EMBEDDED
+     int mx = m_nX<<16;
+     int my = m_nY<<16;
+     int mw = m_nWidth<<16;
+@@ -674,6 +686,7 @@ void CGameMenuItemZBool::Draw(void)
+                 gGameMenuMgr.PostPop();
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemZBool::Event(CGameMenuEvent &event)
+@@ -739,6 +752,7 @@ void CGameMenuItemChain::Draw(void)
+         break;
+     }
+     gMenuTextMgr.DrawText(m_pzText, m_nFont, x, m_nY, shade, pal, true);
++#ifndef EMBEDDED
+     if (bEnable && MOUSEACTIVECONDITIONAL(!gGameMenuMgr.MouseOutsideBounds(&gGameMenuMgr.m_mousepos, x<<16, y<<16, width<<16, height<<16)))
+     {
+         if (MOUSEWATCHPOINTCONDITIONAL(!gGameMenuMgr.MouseOutsideBounds(&gGameMenuMgr.m_prevmousepos, x<<16, y<<16, width<<16, height<<16)))
+@@ -758,6 +772,7 @@ void CGameMenuItemChain::Draw(void)
+                 gGameMenuMgr.PostPop();
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemChain::Event(CGameMenuEvent &event)
+@@ -1082,6 +1097,9 @@ CGameMenuItemBitmapLS::CGameMenuItemBitmapLS(const char *a1, int a2, int a3, int
+     m_nX = a3;
+     m_nY = a4;
+     at28 = a5;
++#ifdef __AMIGA__
++    bCanSelect = 0;
++#endif
+ }
+ 
+ void CGameMenuItemBitmapLS::Draw(void)
+@@ -1217,6 +1235,7 @@ void CGameMenuItemKeyList::Draw(void)
+             gMenuTextMgr.GetFontInfo(m_nFont, buffer2, &width, 0);
+             viewDrawText(m_nFont, buffer2, m_nX+m_nWidth-1-width, y, 24, 0, 0, false);
+         }
++#ifdef EDUKE32
+         int mx = m_nX<<16;
+         int my = y<<16;
+         int mw = m_nWidth<<16;
+@@ -1234,6 +1253,7 @@ void CGameMenuItemKeyList::Draw(void)
+                 bClick = true;
+             }
+         }
++#endif
+     }
+     nTopDelta += nNewFocus-nFocus;
+     nFocus = nNewFocus;
+@@ -1345,6 +1365,7 @@ bool CGameMenuItemKeyList::Event(CGameMenuEvent &event)
+ bool CGameMenuItemKeyList::MouseEvent(CGameMenuEvent &event)
+ {
+     event.at0 = kMenuEventNone;
++#ifndef EMBEDDED
+     if (MOUSEACTIVECONDITIONAL(MOUSE_GetButtons()&M_WHEELUP))
+     {
+         gGameMenuMgr.m_mouselastactivity = (int)totalclock;
+@@ -1359,6 +1380,7 @@ bool CGameMenuItemKeyList::MouseEvent(CGameMenuEvent &event)
+     }
+     else
+         return CGameMenuItem::MouseEvent(event);
++#endif
+     return event.at0 != kMenuEventNone;
+ }
+ 
+@@ -1456,7 +1478,11 @@ void CGameMenuItemSlider::Draw(void)
+         sprintf(buffer, "%i%% ", roundscale(value, 100, nRange));
+         break;
+     case kMenuSliderQ16:
++#if NO_FLOAT
++        snprintf(buffer, 16, "%d.%03u ", (nValue + 32) >> 16, ((nValue + 32) & 0xffff) * 1000 >> 16);
++#else
+         snprintf(buffer, 16, "%.3f ", nValue/65536.f);
++#endif
+         break;
+     }
+     int valueWidth;
+@@ -1464,6 +1490,7 @@ void CGameMenuItemSlider::Draw(void)
+     int valueX = m_nX+m_nWidth-1-tilesiz[nSliderTile].x-valueWidth;
+     gMenuTextMgr.DrawText(buffer, m_nFont, valueX, m_nY, 32, 0, false);
+ 
++#ifdef EDUKE32
+     int mx = m_nX;
+     int my = m_nY;
+     int mw = m_nWidth;
+@@ -1521,6 +1548,7 @@ void CGameMenuItemSlider::Draw(void)
+             }
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemSlider::Event(CGameMenuEvent &event)
+@@ -1563,6 +1591,7 @@ bool CGameMenuItemSlider::Event(CGameMenuEvent &event)
+ bool CGameMenuItemSlider::MouseEvent(CGameMenuEvent &event)
+ {
+     event.at0 = kMenuEventNone;
++#ifndef EMBEDDED
+     if (MOUSEINACTIVECONDITIONAL((MOUSE_GetButtons()&M_LEFTBUTTON) && (MOUSE_GetButtons()&M_WHEELUP)))
+     {
+         MOUSE_ClearButton(M_WHEELUP);
+@@ -1590,6 +1619,7 @@ bool CGameMenuItemSlider::MouseEvent(CGameMenuEvent &event)
+         MOUSE_ClearButton(M_LEFTBUTTON);
+         event.at0 = kMenuEventDown;
+     }
++#endif
+     return event.at0 != kMenuEventNone;
+ }
+ 
+@@ -1609,6 +1639,7 @@ CGameMenuItemSliderFloat::CGameMenuItemSliderFloat()
+     nShowValue = kMenuSliderNone;
+ }
+ 
++#if !NO_FLOAT
+ CGameMenuItemSliderFloat::CGameMenuItemSliderFloat(const char *_pzText, int _nFont, int _nX, int _nY, int _nWidth, float _fValue, float _fRangeLow, float _fRangeHigh, float _fStep, void(*_pCallback)(CGameMenuItemSliderFloat *), int _nSliderTile, int _nCursorTile, int _nShowValue)
+ {
+     m_pzText = _pzText;
+@@ -1693,6 +1724,7 @@ void CGameMenuItemSliderFloat::Draw(void)
+     int valueX = m_nX+m_nWidth-1-tilesiz[nSliderTile].x-valueWidth;
+     gMenuTextMgr.DrawText(buffer, m_nFont, valueX, m_nY, 32, 0, false);
+ 
++#ifdef EDUKE32
+     int mx = m_nX;
+     int my = m_nY;
+     int mw = m_nWidth;
+@@ -1750,6 +1782,7 @@ void CGameMenuItemSliderFloat::Draw(void)
+             }
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemSliderFloat::Event(CGameMenuEvent &event)
+@@ -1788,6 +1821,7 @@ bool CGameMenuItemSliderFloat::Event(CGameMenuEvent &event)
+     }
+     return CGameMenuItem::Event(event);
+ }
++#endif
+ 
+ CGameMenuItemZEdit::CGameMenuItemZEdit()
+ {
+@@ -1877,6 +1911,7 @@ void CGameMenuItemZEdit::Draw(void)
+     if (at30 && ((int)totalclock & 32))
+         gMenuTextMgr.DrawText("_", m_nFont, x, m_nY, shade, 0, false);
+ 
++#ifdef EDUKE32
+     int mx = m_nX<<16;
+     int my = m_nY<<16;
+     int mw = m_nWidth<<16;
+@@ -1901,6 +1936,7 @@ void CGameMenuItemZEdit::Draw(void)
+                 gGameMenuMgr.PostPop();
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemZEdit::Event(CGameMenuEvent &event)
+@@ -2069,6 +2105,7 @@ void CGameMenuItemZEditBitmap::Draw(void)
+     if (bScan && ((int)totalclock & 32))
+         gMenuTextMgr.DrawText("_", m_nFont, x, m_nY, shade, pal, false);
+ 
++#ifdef EDUKE32
+     int mx = m_nX<<16;
+     int my = m_nY<<16;
+     int mw = m_nWidth<<16;
+@@ -2093,6 +2130,7 @@ void CGameMenuItemZEditBitmap::Draw(void)
+                 gGameMenuMgr.PostPop();
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemZEditBitmap::Event(CGameMenuEvent &event)
+@@ -2131,6 +2169,11 @@ bool CGameMenuItemZEditBitmap::Event(CGameMenuEvent &event)
+             return false;
+         }
+         strncpy(buffer, at20, at24);
++#ifdef EMBEDDED
++        if (at37 > 100)
++           sprintf(at20, "GAME %u\n", at37 - 100);
++        else
++#endif
+         if (at37)
+             at20[0] = 0;
+         buffer[at24-1] = 0;
+@@ -2240,6 +2283,7 @@ void CGameMenuItemQAV::Draw(void)
+         gFrameClock = backFC;
+     }
+ 
++#ifdef EDUKE32
+     if (bEnable && !gGameMenuMgr.m_mousecaught && g_mouseClickState == MOUSE_RELEASED)
+     {
+         pMenu->SetFocusItem(this);
+@@ -2251,6 +2295,7 @@ void CGameMenuItemQAV::Draw(void)
+         if (Event(event))
+             gGameMenuMgr.PostPop();
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemQAV::Event(CGameMenuEvent &event)
+@@ -2356,6 +2401,7 @@ void CGameMenuItemZCycleSelect::Draw(void)
+         {
+             viewDrawText(3, m_pzStrings[k], m_nX, y, 24, 0, 0, false);
+         }
++#ifdef EDUKE32
+         int mx = m_nX<<16;
+         int my = y<<16;
+         int mw = m_nWidth<<16;
+@@ -2373,6 +2419,7 @@ void CGameMenuItemZCycleSelect::Draw(void)
+                 bClick = true;
+             }
+         }
++#endif
+     }
+     m_nTopDelta += nNewFocus-m_nFocus;
+     m_nFocus = nNewFocus;
+@@ -2445,6 +2492,7 @@ bool CGameMenuItemZCycleSelect::Event(CGameMenuEvent &event)
+ bool CGameMenuItemZCycleSelect::MouseEvent(CGameMenuEvent &event)
+ {
+     event.at0 = kMenuEventNone;
++#ifndef EMBEDDED
+     if (MOUSEACTIVECONDITIONAL(MOUSE_GetButtons()&M_WHEELUP))
+     {
+         gGameMenuMgr.m_mouselastactivity = (int)totalclock;
+@@ -2459,6 +2507,7 @@ bool CGameMenuItemZCycleSelect::MouseEvent(CGameMenuEvent &event)
+     }
+     else
+         return CGameMenuItem::MouseEvent(event);
++#endif
+     return event.at0 != kMenuEventNone;
+ }
+ 
+@@ -2552,6 +2601,7 @@ void CGameMenuItemZCycle::Draw(void)
+     dassert(pzText != NULL);
+     gMenuTextMgr.GetFontInfo(m_nFont, pzText, &width, NULL);
+     gMenuTextMgr.DrawText(pzText, m_nFont, m_nX + m_nWidth - 1 - width, y, shade, pal, false);
++#ifdef EDUKE32
+     if (bEnable && MOUSEACTIVECONDITIONAL(!gGameMenuMgr.MouseOutsideBounds(&gGameMenuMgr.m_mousepos, x<<16, y<<16, m_nWidth<<16, height<<16)))
+     {
+         if (MOUSEWATCHPOINTCONDITIONAL(!gGameMenuMgr.MouseOutsideBounds(&gGameMenuMgr.m_prevmousepos, x<<16, y<<16, m_nWidth<<16, height<<16)))
+@@ -2571,6 +2621,7 @@ void CGameMenuItemZCycle::Draw(void)
+                 gGameMenuMgr.PostPop();
+         }
+     }
++#endif
+ }
+ 
+ bool CGameMenuItemZCycle::Event(CGameMenuEvent &event)
+@@ -2736,6 +2787,7 @@ void CGameMenuItemYesNoQuit::Draw(void)
+     }
+     gMenuTextMgr.DrawText(m_pzText, m_nFont, x, m_nY, shade, 0, true);
+ 
++#ifdef EDUKE32
+     if (bEnable && !gGameMenuMgr.m_mousecaught && g_mouseClickState == MOUSE_RELEASED)
+     {
+         pMenu->SetFocusItem(this);
+@@ -2747,6 +2799,7 @@ void CGameMenuItemYesNoQuit::Draw(void)
+         if (Event(event))
+             gGameMenuMgr.PostPop();
+     }
++#endif
+ }
+ 
+ extern void Restart(CGameMenuItemChain *pItem);
+@@ -3067,13 +3120,26 @@ CGameMenuFileSelect::CGameMenuFileSelect(const char* _pzText, int _nFont, int _x
+     doPop = _doPop;
+ }
+ 
++#ifndef EDUKE32
++#define rotatesprite_y_offset 0
++#define rotatesprite_yxaspect 65536
++#endif
++
+ static int32_t xdim_from_320_16(int32_t x)
+ {
++#ifndef EDUKE32
++    //if (xdim == 320) return x>>16;
++    if (pixelaspect == 65536) return (x * (xdim / 320))>>16;
++#endif
+     const int32_t screenwidth = scale(240<<16, xdim, ydim);
+     return scale(x + (screenwidth>>1) - (160<<16), xdim, screenwidth);
+ }
+ static int32_t ydim_from_200_16(int32_t y)
+ {
++#ifndef EDUKE32
++    //if (ydim == 200) return y>>16;
++    if (pixelaspect == 65536) return (y * (ydim / 200))>>16;
++#endif
+     y = mulscale16(y + rotatesprite_y_offset - (200<<15), rotatesprite_yxaspect) + (200<<15);
+     return scale(y, ydim, 200<<16);
+ }
+@@ -3151,6 +3217,7 @@ void CGameMenuFileSelect::Draw(void)
+                 {
+                     gMenuTextMgr.GetFontInfo(m_nFont, tempbuf, &width, &height);
+                     viewDrawText(m_nFont, tempbuf, thisx, thisy, bSelected ? 32-((int)totalclock&63) : 32, 0, 0, 0);
++#ifdef EDUKE32
+                     int mx = thisx<<16;
+                     int my = thisy<<16;
+                     int mw = width<<16;
+@@ -3171,6 +3238,7 @@ void CGameMenuFileSelect::Draw(void)
+                             bClick = true;
+                         }
+                     }
++#endif
+                 }
+             }
+         }
+@@ -3330,6 +3398,7 @@ void CGameMenuFileSelect::FileSelectInit(void)
+ 
+     if (destination[0] == 0)
+     {
++#ifndef EMBEDDED
+         BDIR * usermaps = Bopendir(startdir);
+         if (usermaps)
+         {
+@@ -3337,6 +3406,7 @@ void CGameMenuFileSelect::FileSelectInit(void)
+             Bstrcpy(destination, startdir);
+         }
+         else
++#endif
+             Bstrcpy(destination, "./");
+     }
+     Bcorrectfilename(destination, 1);
+@@ -3384,6 +3454,7 @@ void CGameMenuFileSelect::MovementVerify(void)
+ bool CGameMenuFileSelect::MouseEvent(CGameMenuEvent &event)
+ {
+     event.at0 = kMenuEventNone;
++#ifndef EMBEDDED
+     if (MOUSEACTIVECONDITIONAL(MOUSE_GetButtons()&M_WHEELUP))
+     {
+         gGameMenuMgr.m_mouselastactivity = (int)totalclock;
+@@ -3398,6 +3469,7 @@ bool CGameMenuFileSelect::MouseEvent(CGameMenuEvent &event)
+     }
+     else
+         return CGameMenuItem::MouseEvent(event);
++#endif
+     return event.at0 != kMenuEventNone;
+ }
+ 
+diff --git a/source/blood/src/gamemenu.h b/source/blood/src/gamemenu.h
+index dd0c175..48aad4f 100644
+--- a/source/blood/src/gamemenu.h
++++ b/source/blood/src/gamemenu.h
+@@ -31,8 +31,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ 
+ #define M_MOUSETIMEOUT 210
+ 
++#ifdef EMBEDDED
++#define kMaxGameMenuItems 16
++#define kMaxGameCycleItems 16
++#else
+ #define kMaxGameMenuItems 128
+ #define kMaxGameCycleItems 128
++#endif
+ #define kMaxPicCycleItems 128
+ #define kMaxTitleLength 32
+ 
+diff --git a/source/blood/src/gameutil.cpp b/source/blood/src/gameutil.cpp
+index 94dadb5..fdfb33d 100644
+--- a/source/blood/src/gameutil.cpp
++++ b/source/blood/src/gameutil.cpp
+@@ -164,7 +164,11 @@ bool CheckProximity(spritetype *pSprite, int nX, int nY, int nZ, int nSector, in
+     int oZ = klabs(nZ-pSprite->z)>>8;
+     if (oZ >= nDist) return 0;
+ 
++#ifdef EMBEDDED
++    if (approxDist_abs(oX, oY) >= nDist) return 0;
++#else
+     if (approxDist(oX, oY) >= nDist) return 0;
++#endif
+ 
+     int bottom, top;
+     GetSpriteExtents(pSprite, &top, &bottom);
+@@ -191,7 +195,11 @@ bool CheckProximityPoint(int nX1, int nY1, int nZ1, int nX2, int nY2, int nZ2, i
+         if (oZ >= nDist)
+             return 0;
+     }
++#ifdef EMBEDDED
++    if (approxDist_abs(oX, oY) >= nDist) return 0;
++#else
+     if (approxDist(oX, oY) >= nDist) return 0;
++#endif
+     return 1;
+ }
+ 
+@@ -827,7 +835,11 @@ int GetClosestSectors(int nSector, int x, int y, int nDist, short *pSectors, cha
+             int dy = klabs(wall[pWall->point2].y - y)>>4;
+             if (dx < nDist && dy < nDist)
+             {
++#ifdef EMBEDDED
++                if (approxDist_abs(dx, dy) < nDist)
++#else
+                 if (approxDist(dx, dy) < nDist)
++#endif
+                 {
+                     if (pSectBit)
+                         SetBitString(pSectBit, nNextSector);
+diff --git a/source/blood/src/gui.cpp b/source/blood/src/gui.cpp
+index c87db5e..f4e6b1b 100644
+--- a/source/blood/src/gui.cpp
++++ b/source/blood/src/gui.cpp
+@@ -762,6 +762,7 @@ GEVENT_TYPE GetEvent(GEVENT* event)
+     event->at6.mouse.at8 = MouseX;
+     event->at6.mouse.atc = MouseY;
+ 
++#ifdef EDUKE32
+     static int oldbuttons;
+     static ClockTicks clickTime[5], downTime[5];
+     int buttons = mouseReadButtons();
+@@ -806,6 +807,7 @@ GEVENT_TYPE GetEvent(GEVENT* event)
+             }
+         }
+     }
++#endif
+     return GEVENT_TYPE_NONE;
+ }
+ 
+@@ -840,8 +842,10 @@ MODAL_RESULT ShowModal(Container* container)
+         videoEndDrawing();
+     }
+ 
++#ifdef EDUKE32
+     MouseX = scale(g_mouseAbs.x, xdim, xres);
+     MouseY = scale(g_mouseAbs.y, ydim, yres);
++#endif
+ 
+     container->at24 = 1;
+     while (container->at24)
+@@ -852,6 +856,7 @@ MODAL_RESULT ShowModal(Container* container)
+         gameHandleEvents();
+         MUSIC_Update();
+ 
++#ifdef EDUKE32
+         int nMouseX, nMouseY;
+ 
+         nMouseX = scale(g_mouseAbs.x, xdim, xres);
+@@ -862,6 +867,7 @@ MODAL_RESULT ShowModal(Container* container)
+ 
+         MouseX = nMouseX;
+         MouseY = nMouseY;
++#endif
+ 
+         GEVENT event;
+         GetEvent(&event);
+diff --git a/source/blood/src/inifile.cpp b/source/blood/src/inifile.cpp
+index 280fb21..ec69fdd 100644
+--- a/source/blood/src/inifile.cpp
++++ b/source/blood/src/inifile.cpp
+@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include <stdlib.h>
+ #include <ctype.h>
+ #include <string.h>
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "common_game.h"
+ 
+ #include "inifile.h"
+diff --git a/source/blood/src/levels.cpp b/source/blood/src/levels.cpp
+index 2557742..4715c35 100644
+--- a/source/blood/src/levels.cpp
++++ b/source/blood/src/levels.cpp
+@@ -90,8 +90,10 @@ void levelPlayIntroScene(int nEpisode)
+     sfxKillAllSounds();
+     ambKillAll();
+     seqKillAll();
++#ifndef SMACKER_DISABLE
+     EPISODEINFO *pEpisode = &gEpisodeInfo[nEpisode];
+     credPlaySmk(pEpisode->cutsceneASmkPath, pEpisode->cutsceneAWavPath, pEpisode->cutsceneAWavRsrcID);
++#endif
+     scrSetDac();
+     viewResizeView(gViewSize);
+     credReset();
+@@ -109,8 +111,10 @@ void levelPlayEndScene(int nEpisode)
+     sfxKillAllSounds();
+     ambKillAll();
+     seqKillAll();
++#ifndef SMACKER_DISABLE
+     EPISODEINFO *pEpisode = &gEpisodeInfo[nEpisode];
+     credPlaySmk(pEpisode->cutsceneBSmkPath, pEpisode->cutsceneBWavPath, pEpisode->cutsceneBWavRsrcID);
++#endif
+     scrSetDac();
+     viewResizeView(gViewSize);
+     credReset();
+@@ -167,10 +171,17 @@ char * levelGetMessage(int nMessage)
+     int nEpisode = gGameOptions.nEpisode;
+     int nLevel = gGameOptions.nLevel;
+     dassert(nMessage < kMaxMessages);
++#ifdef EMBEDDED
++    auto *p = gEpisodeInfo[nEpisode].levelsInfo[nLevel].Messages;
++    for (; p; p = p->next)
++        if (p->num == nMessage) return p->msg;
++    return NULL;
++#else
+     char *pMessage = gEpisodeInfo[nEpisode].levelsInfo[nLevel].Messages[nMessage];
+     if (*pMessage == 0)
+         return NULL;
+     return pMessage;
++#endif
+ }
+ 
+ char * levelGetTitle(void)
+@@ -183,6 +194,7 @@ char * levelGetTitle(void)
+     return pTitle;
+ }
+ 
++#ifndef EMBEDDED
+ char * levelGetAuthor(void)
+ {
+     int nEpisode = gGameOptions.nEpisode;
+@@ -192,6 +204,7 @@ char * levelGetAuthor(void)
+         return NULL;
+     return pAuthor;
+ }
++#endif
+ 
+ void levelSetupOptions(int nEpisode, int nLevel)
+ {
+@@ -200,16 +213,22 @@ void levelSetupOptions(int nEpisode, int nLevel)
+     strcpy(gGameOptions.zLevelName, gEpisodeInfo[nEpisode].levelsInfo[nLevel].Filename);
+     gGameOptions.uMapCRC = dbReadMapCRC(gGameOptions.zLevelName);
+     // strcpy(gGameOptions.zLevelSong, gEpisodeInfo[nEpisode].at28[nLevel].atd0);
++#if !NO_SOUND
+     gGameOptions.nTrackNumber = gEpisodeInfo[nEpisode].levelsInfo[nLevel].SongId;
++#endif
+ }
+ 
+ void levelLoadMapInfo(IniFile *pIni, LEVELINFO *pLevelInfo, const char *pzSection)
+ {
+     char buffer[16];
+     strncpy(pLevelInfo->Title, pIni->GetKeyString(pzSection, "Title", pLevelInfo->Filename), 31);
++#ifndef EMBEDDED
+     strncpy(pLevelInfo->Author, pIni->GetKeyString(pzSection, "Author", ""), 31);
++#endif
++#if !NO_SOUND
+     strncpy(pLevelInfo->Song, pIni->GetKeyString(pzSection, "Song", ""), BMAX_PATH);
+     pLevelInfo->SongId = pIni->GetKeyInt(pzSection, "Track", -1);
++#endif
+     pLevelInfo->EndingA = pIni->GetKeyInt(pzSection, "EndingA", -1);
+     pLevelInfo->EndingB = pIni->GetKeyInt(pzSection, "EndingB", -1);
+     pLevelInfo->Fog = pIni->GetKeyInt(pzSection, "Fog", -0);
+@@ -217,7 +236,18 @@ void levelLoadMapInfo(IniFile *pIni, LEVELINFO *pLevelInfo, const char *pzSectio
+     for (int i = 0; i < kMaxMessages; i++)
+     {
+         sprintf(buffer, "Message%d", i+1);
++#ifdef EMBEDDED
++        const char *msg = pIni->GetKeyString(pzSection, buffer, "");
++        if (*msg) {
++            int len = strlen(msg);
++            LEVELINFO::LEVELMSG *p = (LEVELINFO::LEVELMSG*)malloc(len + sizeof(void*) + 2);
++            p->next = pLevelInfo->Messages;
++            pLevelInfo->Messages = p;
++            p->num = i; strcpy(p->msg, msg);
++        }
++#else
+         strncpy(pLevelInfo->Messages[i], pIni->GetKeyString(pzSection, buffer, ""), 63);
++#endif
+     }
+ }
+ 
+@@ -229,7 +259,9 @@ void levelLoadDefaults(void)
+     char buffer2[16];
+     levelInitINI(pINISelected->zName);
+     memset(gEpisodeInfo, 0, sizeof(gEpisodeInfo));
++#if !NO_SOUND
+     strncpy(gEpisodeInfo[MUS_INTRO/kMaxLevels].levelsInfo[MUS_INTRO%kMaxLevels].Song, "PESTIS", BMAX_PATH);
++#endif
+     int i;
+     for (i = 0; i < kMaxEpisodes; i++)
+     {
+@@ -238,6 +270,7 @@ void levelLoadDefaults(void)
+             break;
+         EPISODEINFO *pEpisodeInfo = &gEpisodeInfo[i];
+         strncpy(pEpisodeInfo->title, BloodINI->GetKeyString(buffer, "Title", buffer), 31);
++#ifndef SMACKER_DISABLE
+         strncpy(pEpisodeInfo->cutsceneASmkPath, BloodINI->GetKeyString(buffer, "CutSceneA", ""), BMAX_PATH);
+         pEpisodeInfo->cutsceneAWavRsrcID = BloodINI->GetKeyInt(buffer, "CutWavA", -1);
+         if (pEpisodeInfo->cutsceneAWavRsrcID == 0)
+@@ -250,6 +283,7 @@ void levelLoadDefaults(void)
+             strncpy(pEpisodeInfo->cutsceneBWavPath, BloodINI->GetKeyString(buffer, "CutWavB", ""), BMAX_PATH);
+         else
+             pEpisodeInfo->cutsceneBWavPath[0] = 0;
++#endif
+ 
+         pEpisodeInfo->bloodbath = BloodINI->GetKeyInt(buffer, "BloodBathOnly", 0);
+         pEpisodeInfo->cutALevel = BloodINI->GetKeyInt(buffer, "CutSceneALevel", 0);
+@@ -381,6 +415,7 @@ int levelGetMusicIdx(const char *str)
+     return (ep * kMaxLevels) + lev;
+ }
+ 
++#if !NO_SOUND
+ bool levelTryPlayMusic(int nEpisode, int nLevel, bool bSetLevelSong)
+ {
+     char buffer[BMAX_PATH];
+@@ -393,11 +428,14 @@ bool levelTryPlayMusic(int nEpisode, int nLevel, bool bSetLevelSong)
+         strncpy(gGameOptions.zLevelSong, buffer, BMAX_PATH);
+     return bReturn;
+ }
++#endif
+ 
+ void levelTryPlayMusicOrNothing(int nEpisode, int nLevel)
+ {
++#if !NO_SOUND
+     if (levelTryPlayMusic(nEpisode, nLevel, true))
+         sndStopSong();
++#endif
+ }
+ 
+ class LevelsLoadSave : public LoadSave
+diff --git a/source/blood/src/levels.h b/source/blood/src/levels.h
+index f8d9a58..33df260 100644
+--- a/source/blood/src/levels.h
++++ b/source/blood/src/levels.h
+@@ -78,12 +78,21 @@ struct LEVELINFO
+ {
+     char Filename[BMAX_PATH];
+     char Title[32];
++#ifndef EMBEDDED
+     char Author[32];
++#endif
++#if !NO_SOUND
+     char Song[BMAX_PATH];
+     int SongId;
++#endif
++#ifdef EMBEDDED
++    struct LEVELMSG { LEVELMSG *next; char num, msg[]; } *Messages;
++    unsigned char EndingA, EndingB;
++#else
+     int EndingA;
+     int EndingB;
+     char Messages[kMaxMessages][64];
++#endif
+     char Fog;
+     char Weather;
+ }; // 0x8ee bytes
+@@ -95,12 +104,17 @@ struct EPISODEINFO
+     unsigned int bloodbath : 1;
+     unsigned int cutALevel : 4;
+     LEVELINFO levelsInfo[kMaxLevels];
++#ifndef SMACKER_DISABLE
+     char cutsceneASmkPath[BMAX_PATH];
+     char cutsceneBSmkPath[BMAX_PATH];
+     int cutsceneAWavRsrcID;
+     int cutsceneBWavRsrcID;
+     char cutsceneAWavPath[BMAX_PATH];
+     char cutsceneBWavPath[BMAX_PATH];
++#else
++    char cutsceneASmkPath[1];
++    char cutsceneBSmkPath[1];
++#endif
+ };
+ 
+ extern EPISODEINFO gEpisodeInfo[];
+diff --git a/source/blood/src/loadsave.cpp b/source/blood/src/loadsave.cpp
+index a8a3798..a1bc145 100644
+--- a/source/blood/src/loadsave.cpp
++++ b/source/blood/src/loadsave.cpp
+@@ -137,18 +137,22 @@ void LoadSave::LoadGame(char *pzFile)
+     yax_update(numyaxbunches > 0 ? 2 : 1);
+ #endif
+     calc_sector_reachability();
++#if !NO_NET
+     memset(myMinLag, 0, sizeof(myMinLag));
+     otherMinLag = 0;
+     myMaxLag = 0;
++#endif
+     gNetFifoClock = 0;
+     gNetFifoTail = 0;
+     memset(gNetFifoHead, 0, sizeof(gNetFifoHead));
+     gPredictTail = 0;
+     gNetFifoMasterTail = 0;
+     memset(gFifoInput, 0, sizeof(gFifoInput));
++#if !NO_NET
+     memset(gChecksum, 0, sizeof(gChecksum));
+     memset(gCheckFifo, 0, sizeof(gCheckFifo));
+     memset(gCheckHead, 0, sizeof(gCheckHead));
++#endif
+     gSendCheckTail = 0;
+     gCheckTail = 0;
+     gBufferJitter = 0;
+@@ -257,7 +261,9 @@ public:
+ 
+ void MyLoadSave::Load(void)
+ {
++#ifdef EDUKE32
+     psky_t *pSky = tileSetupSky(0);
++#endif
+     int id;
+     Read(&id, sizeof(id));
+     if (id != 0x5653424e/*'VSBN'*/)
+@@ -275,24 +281,37 @@ void MyLoadSave::Load(void)
+     memset(sector, 0, sizeof(sector[0])*kMaxSectors);
+     memset(wall, 0, sizeof(wall[0])*kMaxWalls);
+     memset(sprite, 0, sizeof(sprite[0])*kMaxSprites);
++#if USE_POLYMOST && USE_OPENGL
+     memset(spriteext, 0, sizeof(spriteext[0])*kMaxSprites);
++#endif
+     Read(sector, sizeof(sector[0])*numsectors);
+     Read(wall, sizeof(wall[0])*numwalls);
+     Read(sprite, sizeof(sprite[0])*kMaxSprites);
++#if USE_POLYMOST && USE_OPENGL
+     Read(spriteext, sizeof(spriteext[0])*kMaxSprites);
++#endif
++#ifdef EDUKE32
+     Read(qsector_filler, sizeof(qsector_filler[0])*numsectors);
+     Read(qsprite_filler, sizeof(qsprite_filler[0])*kMaxSprites);
++#endif
+     Read(&randomseed, sizeof(randomseed));
+     Read(&parallaxtype, sizeof(parallaxtype));
+     Read(&showinvisibility, sizeof(showinvisibility));
++#ifdef EDUKE32
+     Read(&pSky->horizfrac, sizeof(pSky->horizfrac));
+     Read(&pSky->yoffs, sizeof(pSky->yoffs));
+     Read(&pSky->yscale, sizeof(pSky->yscale));
++#endif
+     Read(&gVisibility, sizeof(gVisibility));
+     Read(&g_visibility, sizeof(g_visibility));
+     Read(&parallaxvisibility, sizeof(parallaxvisibility));
++#ifndef EDUKE32
++    Read(pskyoff, sizeof(pskyoff));
++    Read(&pskybits, sizeof(pskybits));
++#else
+     Read(pSky->tileofs, sizeof(pSky->tileofs));
+     Read(&pSky->lognumtiles, sizeof(pSky->lognumtiles));
++#endif
+     Read(headspritesect, sizeof(headspritesect));
+     Read(headspritestat, sizeof(headspritestat));
+     Read(prevspritesect, sizeof(prevspritesect));
+@@ -309,7 +328,7 @@ void MyLoadSave::Load(void)
+     Read(&gFrameTicks, sizeof(gFrameTicks));
+     Read(&gFrame, sizeof(gFrame));
+     ClockTicks nGameClock;
+-    Read(&totalclock, sizeof(totalclock));
++    Read(&nGameClock, sizeof(nGameClock));
+     totalclock = nGameClock;
+     Read(&gLevelTime, sizeof(gLevelTime));
+     Read(&gPaused, sizeof(gPaused));
+@@ -365,17 +384,21 @@ void MyLoadSave::Load(void)
+ #ifdef YAX_ENABLE
+     Read(&numyaxbunches, sizeof(numyaxbunches));
+ #endif
++#ifdef EDUKE32
+     psky_t skyInfo;
+     Read(&skyInfo, sizeof(skyInfo));
+ 
+     *tileSetupSky(0) = skyInfo;
++#endif
+     gCheatMgr.ResetCheats();
+ 
+ }
+ 
+ void MyLoadSave::Save(void)
+ {
++#ifdef EDUKE32
+     psky_t *pSky = tileSetupSky(0);
++#endif
+     int nNumSprites = 0;
+     int id = 0x5653424e/*'VSBN'*/;
+     Write(&id, sizeof(id));
+@@ -396,20 +419,31 @@ void MyLoadSave::Save(void)
+     Write(sector, sizeof(sector[0])*numsectors);
+     Write(wall, sizeof(wall[0])*numwalls);
+     Write(sprite, sizeof(sprite[0])*kMaxSprites);
++#if USE_POLYMOST && USE_OPENGL
+     Write(spriteext, sizeof(spriteext[0])*kMaxSprites);
++#endif
++#ifdef EDUKE32
+     Write(qsector_filler, sizeof(qsector_filler[0])*numsectors);
+     Write(qsprite_filler, sizeof(qsprite_filler[0])*kMaxSprites);
++#endif
+     Write(&randomseed, sizeof(randomseed));
+     Write(&parallaxtype, sizeof(parallaxtype));
+     Write(&showinvisibility, sizeof(showinvisibility));
++#ifdef EDUKE32
+     Write(&pSky->horizfrac, sizeof(pSky->horizfrac));
+     Write(&pSky->yoffs, sizeof(pSky->yoffs));
+     Write(&pSky->yscale, sizeof(pSky->yscale));
++#endif
+     Write(&gVisibility, sizeof(gVisibility));
+     Write(&g_visibility, sizeof(g_visibility));
+     Write(&parallaxvisibility, sizeof(parallaxvisibility));
++#ifndef EDUKE32
++    Write(pskyoff, sizeof(pskyoff));
++    Write(&pskybits, sizeof(pskybits));
++#else
+     Write(pSky->tileofs, sizeof(pSky->tileofs));
+     Write(&pSky->lognumtiles, sizeof(pSky->lognumtiles));
++#endif
+     Write(headspritesect, sizeof(headspritesect));
+     Write(headspritestat, sizeof(headspritestat));
+     Write(prevspritesect, sizeof(prevspritesect));
+@@ -478,12 +512,24 @@ void MyLoadSave::Save(void)
+ #ifdef YAX_ENABLE
+     Write(&numyaxbunches, sizeof(numyaxbunches));
+ #endif
++#ifdef EDUKE32
+     psky_t skyInfo = *tileSetupSky(0);
+     Write(&skyInfo, sizeof(skyInfo));
++#endif
+ }
+ 
+ void LoadSavedInfo(void)
+ {
++#ifdef EMBEDDED
++    CACHE1D_FIND_REC *pList = NULL;
++    int nCount = 0;
++    for (nCount = 0; nCount < 10; nCount++)
++    {
++        char name[16];
++        sprintf(name, "game%04u.sav", nCount);
++        int hFile = kopen4loadfrommod(name, 0);
++        if (hFile == -1) continue;
++#else
+     auto pList = klistpath("./", "game*.sav", BUILDVFS_FIND_FILE);
+     int nCount = 0;
+     for (auto pIterator = pList; pIterator != NULL && nCount < 10; pIterator = pIterator->next, nCount++)
+@@ -491,6 +537,7 @@ void LoadSavedInfo(void)
+         int hFile = kopen4loadfrommod(pIterator->name, 0);
+         if (hFile == -1)
+             ThrowError("Error loading save file header.");
++#endif
+         int vc;
+         short v4;
+         vc = 0;
+@@ -564,4 +611,4 @@ void LoadSaveSetup(void)
+ #ifdef NOONE_EXTENSIONS
+     nnExtLoadSaveConstruct();
+ #endif
+-}
+\ No newline at end of file
++}
+diff --git a/source/blood/src/map2d.cpp b/source/blood/src/map2d.cpp
+index 9a68fb8..b7953da 100644
+--- a/source/blood/src/map2d.cpp
++++ b/source/blood/src/map2d.cpp
+@@ -31,7 +31,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ void sub_2541C(int x, int y, int z, short a)
+ {
+     int tmpydim = (xdim * 5) / 8;
++#ifdef EDUKE32
+     renderSetAspect(65536, divscale16(tmpydim * 320, xdim * 200));
++#endif
+     int nCos = z*sintable[(0-a)&2047];
+     int nSin = z*sintable[(1536-a)&2047];
+     int nCos2 = mulscale16(nCos, yxaspect);
+diff --git a/source/blood/src/menu.cpp b/source/blood/src/menu.cpp
+index c2fe4df..49bbe8f 100644
+--- a/source/blood/src/menu.cpp
++++ b/source/blood/src/menu.cpp
+@@ -61,7 +61,11 @@ void SetWeaponsV10X(CGameMenuItemZBool*);
+ void SetSlopeTilting(CGameMenuItemZBool *);
+ void SetViewBobbing(CGameMenuItemZBool *);
+ void SetViewSwaying(CGameMenuItemZBool *);
++#ifndef EDUKE32
++void SetMouseSensitivity(CGameMenuItemSlider *);
++#else
+ void SetMouseSensitivity(CGameMenuItemSliderFloat *);
++#endif
+ void SetMouseAimFlipped(CGameMenuItemZBool *);
+ void SetTurnSpeed(CGameMenuItemSlider *);
+ void ResetKeys(CGameMenuItemChain *);
+@@ -218,7 +222,11 @@ CGameMenuItemTitle itemMainTitle("BLOOD", 1, 160, 20, 2038);
+ CGameMenuItemChain itemMain1("NEW GAME", 1, 0, 45, 320, 1, &menuEpisode, -1, NULL, 0);
+ //CGameMenuItemChain itemMain2("PLAY ONLINE", 1, 0, 65, 320, 1, &menuPlayOnline, -1, NULL, 0);
+ CGameMenuItemChain itemMain2("MULTIPLAYER", 1, 0, 65, 320, 1, &menuNetwork, -1, NULL, 0);
++#ifndef EDUKE32
++CGameMenuItemChain itemMain3("OPTIONS", 1, 0, 85, 320, 1, &menuOptionsOld, -1, NULL, 0);
++#else
+ CGameMenuItemChain itemMain3("OPTIONS", 1, 0, 85, 320, 1, &menuOptions, -1, NULL, 0);
++#endif
+ CGameMenuItemChain itemMain4("LOAD GAME", 1, 0, 105, 320, 1, &menuLoadGame, -1, NULL, 0);
+ CGameMenuItemChain itemMain5("HELP", 1, 0, 125, 320, 1, &menuOrder, -1, NULL, 0);
+ CGameMenuItemChain itemMain6("CREDITS", 1, 0, 145, 320, 1, &menuCredits, -1, NULL, 0);
+@@ -227,7 +235,11 @@ CGameMenuItemChain itemMain7("QUIT", 1, 0, 165, 320, 1, &menuQuit, -1, NULL, 0);
+ CGameMenuItemTitle itemMainSaveTitle("BLOOD", 1, 160, 20, 2038);
+ CGameMenuItemChain itemMainSave1("NEW GAME", 1, 0, 45, 320, 1, &menuEpisode, -1, NULL, 0);
+ //CGameMenuItemChain itemMainSave2("PLAY ONLINE", 1, 0, 60, 320, 1, &menuPlayOnline, -1, NULL, 0);
++#ifndef EDUKE32
++CGameMenuItemChain itemMainSave2("OPTIONS", 1, 0, 60, 320, 1, &menuOptionsOld, -1, NULL, 0);
++#else
+ CGameMenuItemChain itemMainSave2("OPTIONS", 1, 0, 60, 320, 1, &menuOptions, -1, NULL, 0);
++#endif
+ CGameMenuItemChain itemMainSave3("SAVE GAME", 1, 0, 75, 320, 1, &menuSaveGame, -1, SaveGameProcess, 0);
+ CGameMenuItemChain itemMainSave4("LOAD GAME", 1, 0, 90, 320, 1, &menuLoadGame, -1, NULL, 0);
+ CGameMenuItemChain itemMainSave5("HELP", 1, 0, 105, 320, 1, &menuOrder, -1, NULL, 0);
+@@ -263,11 +275,19 @@ CGameMenuItemZCycle itemCycleShowWeapons("SHOW WEAPONS:", 3, 66, 120, 180, 0, Se
+ CGameMenuItemZBool boolSlopeTilting("SLOPE TILTING:", 3, 66, 130, 180, gSlopeTilting, SetSlopeTilting, NULL, NULL);
+ CGameMenuItemZBool boolViewBobbing("VIEW BOBBING:", 3, 66, 140, 180, gViewVBobbing, SetViewBobbing, NULL, NULL);
+ CGameMenuItemZBool boolViewSwaying("VIEW SWAYING:", 3, 66, 150, 180, gViewHBobbing, SetViewSwaying, NULL, NULL);
++#ifndef EDUKE32
++CGameMenuItemChain itemOption2("VIDEO MODE...", 3, 0, 160, 320, 1, &menuOptionsDisplayMode, -1, SetupVideoModeMenu, 0);
++#else
+ CGameMenuItem7EE34 itemOption2("VIDEO MODE...", 3, 0, 160, 320, 1);
++#endif
+ CGameMenuItemChain itemChainParentalLock("PARENTAL LOCK", 3, 0, 170, 320, 1, &menuParentalLock, -1, NULL, 0);
+ 
+ CGameMenuItemTitle itemControlsTitle("CONTROLS", 1, 160, 20, 2038);
++#ifndef EDUKE32
++CGameMenuItemSlider sliderMouseSpeed("Mouse Sensitivity:", 1, 10, 70, 300, gMouseSensitivity, 0, 0x20000, 0x1000, SetMouseSensitivity, -1,-1);
++#else
+ CGameMenuItemSliderFloat sliderMouseSpeed("Mouse Sensitivity:", 1, 10, 70, 300, CONTROL_MouseSensitivity, .1f, 100.f, 50.f, SetMouseSensitivity, -1,-1);
++#endif
+ CGameMenuItemZBool boolMouseFlipped("Invert Mouse Aim:", 1, 10, 90, 300, gMouseAimingFlipped, SetMouseAimFlipped, NULL, NULL);
+ CGameMenuItemSlider sliderTurnSpeed("Key Turn Speed:", 1, 10, 110, 300, gTurnSpeed, 64, 128, 4, SetTurnSpeed, -1, -1);
+ CGameMenuItemChain itemChainKeyList("Configure Keys...", 1, 0, 130, 320, 1, &menuKeys, -1, NULL, 0);
+@@ -313,6 +333,7 @@ CGameMenuItemZEditBitmap itemLoadGame9(NULL, 3, 20, 140, 320, strRestoreGameStri
+ CGameMenuItemZEditBitmap itemLoadGame10(NULL, 3, 20, 150, 320, strRestoreGameStrings[9], 16, 1, LoadGame, 9);
+ CGameMenuItemBitmapLS itemLoadGamePic(NULL, 3, 0, 0, 2518);
+ 
++#if !NO_NET
+ CGameMenu menuMultiUserMaps;
+ 
+ CGameMenuItemTitle itemNetStartUserMapTitle("USER MAP", 1, 160, 20, 2038);
+@@ -331,6 +352,7 @@ CGameMenuItemZCycle itemNetStart9("PLAYER KEYS:", 3, 66, 140, 180, 0, 0, zPlayer
+ CGameMenuItemZBool itemNetStart10("V1.0x WEAPONS BALANCE:", 3, 66, 150, 180, false, 0, NULL, NULL);
+ CGameMenuItemChain itemNetStart11("USER MAP", 3, 66, 160, 180, 0, &menuMultiUserMaps, 0, NULL, 0);
+ CGameMenuItemChain itemNetStart12("START GAME", 1, 66, 175, 280, 0, 0, -1, StartNetGame, 0);
++#endif
+ 
+ CGameMenuItemText itemLoadingText("LOADING...", 1, 160, 100, 1);
+ 
+@@ -348,6 +370,7 @@ CGameMenuItemTitle itemRestartTitle("RESTART GAME", 1, 160, 20, 2038);
+ CGameMenuItemText itemRestartText1("Do you really want to restart game?", 0, 160, 100, 1);
+ CGameMenuItemYesNoQuit itemRestartYesNo("[Y/N]", 0, 20, 110, 280, 1, 1);
+ 
++#ifndef EMBEDDED
+ CGameMenuItemPicCycle itemCreditsPicCycle(0, 0, NULL, NULL, 0, 0);
+ CGameMenuItemPicCycle itemOrderPicCycle(0, 0, NULL, NULL, 0, 0);
+ 
+@@ -371,6 +394,7 @@ CGameMenuItem7EA1C unk_26E140("HEAT", 1, 0, 85, 320, "matt", "HEAT", 1, -1, NULL
+ CGameMenuItem7EA1C unk_26E198("KALI", 1, 0, 105, 320, "matt", "KALI", 1, -1, NULL, 0);
+ CGameMenuItem7EA1C unk_26E1F0("MPATH", 1, 0, 125, 320, "matt", "MPATH", 1, -1, NULL, 0);
+ CGameMenuItem7EA1C unk_26E248("TEN", 1, 0, 145, 320, "matt", "TEN", 1, -1, TenProcess, 0);
++#endif
+ 
+ 
+ // static int32_t newresolution, newrendermode, newfullscreen, newvsync;
+@@ -408,6 +432,7 @@ CGameMenu menuOptionsControl;
+ void SetupOptionsSound(CGameMenuItemChain *pItem);
+ 
+ CGameMenuItemTitle itemOptionsTitle("OPTIONS", 1, 160, 20, 2038);
++#ifndef EMBEDDED
+ CGameMenuItemChain itemOptionsChainGame("GAME SETUP", 1, 0, 50, 320, 1, &menuOptionsGame, -1, NULL, 0);
+ CGameMenuItemChain itemOptionsChainDisplay("DISPLAY SETUP", 1, 0, 70, 320, 1, &menuOptionsDisplay, -1, NULL, 0);
+ CGameMenuItemChain itemOptionsChainSound("SOUND SETUP", 1, 0, 90, 320, 1, &menuOptionsSound, -1, SetupOptionsSound, 0);
+@@ -462,6 +487,7 @@ CGameMenuItemSlider itemOptionsDisplayFOV("FOV:", 3, 66, 150, 180, &gFov, 75, 14
+ #ifdef USE_OPENGL
+ CGameMenuItemChain itemOptionsDisplayPolymost("POLYMOST SETUP", 3, 66, 160, 180, 0, &menuOptionsDisplayPolymost, -1, SetupVideoPolymostMenu, 0);
+ #endif
++#endif
+ 
+ const char *pzRendererStrings[] = {
+     "CLASSIC",
+@@ -514,19 +540,23 @@ CGameMenuItemTitle itemOptionsDisplayModeTitle("VIDEO MODE", 1, 160, 20, 2038);
+ CGameMenuItemZCycle itemOptionsDisplayModeResolution("RESOLUTION:", 3, 66, 60, 180, 0, NULL, NULL, 0, 0, true);
+ CGameMenuItemZCycle itemOptionsDisplayModeRenderer("RENDERER:", 3, 66, 70, 180, 0, NULL, pzRendererStrings, 2, 0);
+ CGameMenuItemZBool itemOptionsDisplayModeFullscreen("FULLSCREEN:", 3, 66, 80, 180, 0, NULL, NULL, NULL);
++#ifdef EDUKE32
+ CGameMenuItemZCycle itemOptionsDisplayModeVSync("VSYNC:", 3, 66, 90, 180, 0, NULL, pzVSyncStrings, 3, 0);
+ CGameMenuItemZCycle itemOptionsDisplayModeFrameLimit("FRAMERATE LIMIT:", 3, 66, 100, 180, 0, UpdateVideoModeMenuFrameLimit, pzFrameLimitStrings, 8, 0);
+ // CGameMenuItemSlider itemOptionsDisplayModeFPSOffset("FPS OFFSET:", 3, 66, 110, 180, 0, -10, 10, 1, UpdateVideoModeMenuFPSOffset, -1, -1, kMenuSliderValue);
++#endif
+ CGameMenuItemChain itemOptionsDisplayModeApply("APPLY CHANGES", 3, 66, 125, 180, 0, NULL, 0, SetVideoMode, 0);
+ 
+ void PreDrawDisplayColor(CGameMenuItem *);
+ 
++#ifndef EMBEDDED
+ CGameMenuItemTitle itemOptionsDisplayColorTitle("COLOR CORRECTION", 1, 160, 20, -1);
+ CGameMenuItemSliderFloat itemOptionsDisplayColorGamma("GAMMA:", 3, 66, 140, 180, &g_videoGamma, 0.3f, 4.f, 0.1f, UpdateVideoColorMenu, -1, -1, kMenuSliderValue);
+ CGameMenuItemSliderFloat itemOptionsDisplayColorContrast("CONTRAST:", 3, 66, 150, 180, &g_videoContrast, 0.1f, 2.7f, 0.05f, UpdateVideoColorMenu, -1, -1, kMenuSliderValue);
+ CGameMenuItemSliderFloat itemOptionsDisplayColorBrightness("BRIGHTNESS:", 3, 66, 160, 180, &g_videoBrightness, -0.8f, 0.8f, 0.05f, UpdateVideoColorMenu, -1, -1, kMenuSliderValue);
+ CGameMenuItemSliderFloat itemOptionsDisplayColorVisibility("VISIBILITY:", 3, 66, 170, 180, &r_ambientlight, 0.125f, 4.f, 0.125f, UpdateVideoColorMenu, -1, -1, kMenuSliderValue);
+ CGameMenuItemChain itemOptionsDisplayColorReset("RESET TO DEFAULTS", 3, 66, 180, 180, 0, NULL, 0, ResetVideoColor, 0);
++#endif
+ 
+ #ifdef USE_OPENGL
+ const char *pzTextureModeStrings[] = {
+@@ -595,6 +625,7 @@ CGameMenuItemZBool itemOptionsDisplayPolymost3DModels("3D MODELS:", 3, 66, 140,
+ CGameMenuItemZBool itemOptionsDisplayPolymostDeliriumBlur("DELIRIUM EFFECT BLUR:", 3, 66, 150, 180, 0, UpdateDeliriumBlur, NULL, NULL);
+ #endif
+ 
++#if !NO_SOUND
+ void UpdateSoundToggle(CGameMenuItemZBool *pItem);
+ void UpdateMusicToggle(CGameMenuItemZBool *pItem);
+ void Update3DToggle(CGameMenuItemZBool *pItem);
+@@ -652,6 +683,7 @@ CGameMenuItemZBool itemOptionsSoundCDToggle("REDBOOK AUDIO:", 3, 66, 130, 180, f
+ CGameMenuItemZCycle itemOptionsSoundMusicDevice("MIDI DRIVER:", 3, 66, 140, 180, 0, UpdateMusicDevice, pzMusicDeviceStrings, ARRAY_SIZE(pzMusicDeviceStrings), 0);
+ CGameMenuItemChain itemOptionsSoundSF2Bank("SF2 BANK", 3, 66, 150, 180, 0, &menuOptionsSoundSF2, 0, NULL, 0);
+ CGameMenuItemChain itemOptionsSoundApplyChanges("APPLY CHANGES", 3, 66, 160, 180, 0, NULL, 0, SetSound, 0);
++#endif
+ 
+ 
+ void UpdatePlayerName(CGameMenuItemZEdit *pItem, CGameMenuEvent *pEvent);
+@@ -663,11 +695,13 @@ CGameMenuItemZEdit itemOptionsPlayerName("PLAYER NAME:", 3, 66, 60, 180, szPlaye
+ #define MAXJOYSTICKBUTTONPAGES (max(1, (MAXJOYBUTTONSANDHATS*2 / JOYSTICKITEMSPERPAGE))) // we double all buttons/hats so each input can be bind for double tap
+ 
+ CGameMenu menuOptionsControlKeyboard;
++#if !NO_MOUSE
+ CGameMenu menuOptionsControlMouse;
+ CGameMenu menuOptionsControlMouseButtonAssignment;
+ CGameMenu menuOptionsControlJoystickButtonAssignment[MAXJOYSTICKBUTTONPAGES];
+ CGameMenu menuOptionsControlJoystickListAxes; // contains list of editable joystick axes
+ CGameMenu menuOptionsControlJoystickAxis[MAXJOYAXES]; // options menu for each joystick axis
++#endif
+ 
+ void SetupMouseMenu(CGameMenuItemChain *pItem);
+ void SetupJoystickButtonsMenu(CGameMenuItemChain *pItem);
+@@ -682,19 +716,27 @@ void SetJoystickSaturate(CGameMenuItemSlider* pItem);
+ 
+ CGameMenuItemTitle itemOptionsControlTitle("CONTROL SETUP", 1, 160, 20, 2038);
+ CGameMenuItemChain itemOptionsControlKeyboard("KEYBOARD SETUP", 1, 0, 60, 320, 1, &menuOptionsControlKeyboard, -1, NULL, 0);
++#if !NO_MOUSE
+ CGameMenuItemChain itemOptionsControlMouse("MOUSE SETUP", 1, 0, 80, 320, 1, &menuOptionsControlMouse, -1, SetupMouseMenu, 0);
+ CGameMenuItemChain itemOptionsControlJoystickButtons("JOYSTICK BUTTONS SETUP", 1, 0, 120, 320, 1, &menuOptionsControlJoystickButtonAssignment[0], -1, SetupJoystickButtonsMenu, 0);
+ CGameMenuItemChain itemOptionsControlJoystickAxes("JOYSTICK AXES SETUP", 1, 0, 140, 320, 1, &menuOptionsControlJoystickListAxes, -1, SetupJoystickAxesMenu, 0);
++#endif
+ 
+ CGameMenuItemTitle itemOptionsControlKeyboardTitle("KEYBOARD SETUP", 1, 160, 20, 2038);
+ CGameMenuItemChain itemOptionsControlKeyboardList("Configure Keys...", 1, 0, 60, 320, 1, &menuKeys, -1, NULL, 0);
+ CGameMenuItemChain itemOptionsControlKeyboardReset("Reset Keys (default)...", 1, 0, 80, 320, 1, &menuKeys, -1, ResetKeys, 0);
+ CGameMenuItemChain itemOptionsControlKeyboardResetClassic("Reset Keys (classic)...", 1, 0, 100, 320, 1, &menuKeys, -1, ResetKeysClassic, 0);
+ 
++#if !NO_MOUSE
+ void SetMouseAimMode(CGameMenuItemZBool *pItem);
+ void SetMouseVerticalAim(CGameMenuItemZBool *pItem);
++#ifndef EDUKE32
++void SetMouseXSensitivity(CGameMenuItemSlider *pItem);
++void SetMouseYSensitivity(CGameMenuItemSlider *pItem);
++#else
+ void SetMouseXSensitivity(CGameMenuItemSliderFloat *pItem);
+ void SetMouseYSensitivity(CGameMenuItemSliderFloat*pItem);
++#endif
+ 
+ void PreDrawControlMouse(CGameMenuItem *pItem);
+ void SetMouseButton(CGameMenuItemZCycle *pItem);
+@@ -704,13 +746,24 @@ void SetupMouseButtonMenu(CGameMenuItemChain *pItem);
+ 
+ CGameMenuItemTitle itemOptionsControlMouseTitle("MOUSE SETUP", 1, 160, 20, 2038);
+ CGameMenuItemChain itemOptionsControlMouseButton("BUTTON ASSIGNMENT", 3, 66, 60, 180, 0, &menuOptionsControlMouseButtonAssignment, 0, SetupMouseButtonMenu, 0);
++#ifndef EDUKE32
++CGameMenuItemSlider itemOptionsControlMouseSensitivity("SENSITIVITY:", 3, 66, 70, 180, &gMouseSensitivity, 0, 0x20000, 0x1000, SetMouseSensitivity, -1, -1, kMenuSliderQ16);
++#else
+ CGameMenuItemSliderFloat itemOptionsControlMouseSensitivity("SENSITIVITY:", 3, 66, 70, 180, &CONTROL_MouseSensitivity, 1.f, 100.f, 1.f, SetMouseSensitivity, -1, -1, kMenuSliderValue);
++#endif
+ CGameMenuItemZBool itemOptionsControlMouseAimFlipped("INVERT AIMING:", 3, 66, 80, 180, false, SetMouseAimFlipped, NULL, NULL);
+ CGameMenuItemZBool itemOptionsControlMouseAimMode("AIMING TYPE:", 3, 66, 90, 180, false, SetMouseAimMode, "HOLD", "TOGGLE");
+ CGameMenuItemZBool itemOptionsControlMouseVerticalAim("VERTICAL AIMING:", 3, 66, 100, 180, false, SetMouseVerticalAim, NULL, NULL);
++#ifndef EDUKE32
++CGameMenuItemSlider itemOptionsControlMouseXSensitivity("HORIZ SENS:", 3, 66, 110, 180, 0, 0, 65536, 1024, SetMouseXSensitivity, -1, -1, kMenuSliderQ16);
++CGameMenuItemSlider itemOptionsControlMouseYSensitivity("VERT SENS:", 3, 66, 120, 180, 0, 0, 65536, 1024, SetMouseYSensitivity, -1, -1, kMenuSliderQ16);
++#else
+ CGameMenuItemSliderFloat itemOptionsControlMouseXSensitivity("HORIZ SENS:", 3, 66, 110, 180, &CONTROL_MouseAxesSensitivity[0], 1.f, 100.f, 1.f, SetMouseXSensitivity, -1, -1, kMenuSliderValue);
+ CGameMenuItemSliderFloat itemOptionsControlMouseYSensitivity("VERT SENS:", 3, 66, 120, 180, &CONTROL_MouseAxesSensitivity[1], 1.f, 100.f, 1.f, SetMouseYSensitivity, -1, -1, kMenuSliderValue);
++#endif
++#endif // NO_MOUSE
+ 
++#if !NO_NET
+ void SetupNetworkMenu(void);
+ void SetupNetworkHostMenu(CGameMenuItemChain *pItem);
+ void SetupNetworkJoinMenu(CGameMenuItemChain *pItem);
+@@ -733,9 +786,11 @@ CGameMenuItemTitle itemNetworkJoinTitle("JOIN A GAME", 1, 160, 20, 2038);
+ CGameMenuItemZEdit itemNetworkJoinAddress("NETWORK ADDRESS:", 3, 66, 70, 180, zNetAddressBuffer, 16, 0, NULL, 0);
+ CGameMenuItemZEdit itemNetworkJoinPort("NETWORK PORT:", 3, 66, 80, 180, zNetPortBuffer, 6, 0, NULL, 0);
+ CGameMenuItemChain itemNetworkJoinJoin("JOIN A GAME", 3, 66, 100, 180, 1, NULL, -1, NetworkJoinGame, 0);
++#endif
+ 
+ // There is no better way to do this than manually.
+ 
++#if !NO_MOUSE
+ #define MENUMOUSEFUNCTIONS 12
+ 
+ static char const *MenuMouseNames[MENUMOUSEFUNCTIONS] = {
+@@ -803,6 +858,7 @@ CGameMenuItemZCycle *pItemOptionsControlJoystickAxisDigitalPos[MAXJOYAXES];
+ CGameMenuItemZCycle *pItemOptionsControlJoystickAxisDigitalNeg[MAXJOYAXES];
+ CGameMenuItemSlider *pItemOptionsControlJoystickAxisDeadzone[MAXJOYAXES];
+ CGameMenuItemSlider *pItemOptionsControlJoystickAxisSaturate[MAXJOYAXES];
++#endif
+ 
+ void SetupLoadingScreen(void)
+ {
+@@ -832,7 +888,11 @@ void SetupMessagesMenu(void)
+ 
+ void SetupControlsMenu(void)
+ {
++#ifndef EDUKE32
++    sliderMouseSpeed.nValue = ClipRange(gMouseSensitivity, sliderMouseSpeed.nRangeLow, sliderMouseSpeed.nRangeHigh);
++#else
+     sliderMouseSpeed.fValue = ClipRangeF(CONTROL_MouseSensitivity, sliderMouseSpeed.fRangeLow, sliderMouseSpeed.fRangeHigh);
++#endif
+     sliderTurnSpeed.nValue = ClipRange(gTurnSpeed, sliderTurnSpeed.nRangeLow, sliderTurnSpeed.nRangeHigh);
+     boolMouseFlipped.at20 = gMouseAimingFlipped;
+     menuControls.Add(&itemControlsTitle, false);
+@@ -988,6 +1048,7 @@ void SetupMainMenuWithSave(void)
+     menuMainWithSave.Add(&itemBloodQAV, false);
+ }
+ 
++#if !NO_NET
+ void SetupNetStartMenu(void)
+ {
+     bool oneEpisode = false;
+@@ -1019,6 +1080,7 @@ void SetupNetStartMenu(void)
+     itemNetStart7.SetTextIndex(1);
+     menuNetStart.Add(&itemBloodQAV, false);
+ }
++#endif
+ 
+ void SetupSaveGameMenu(void)
+ {
+@@ -1036,6 +1098,15 @@ void SetupSaveGameMenu(void)
+     menuSaveGame.Add(&itemSaveGamePic, false);
+     menuSaveGame.Add(&itemBloodQAV, false);
+ 
++#ifdef EMBEDDED
++#define X(i) \
++    itemSaveGame##i.at2c = &itemSaveGamePic; \
++    if (!strcmp(strRestoreGameStrings[i - 1], "<Empty>")) \
++        itemSaveGame##i.at37 = 100 + i;
++    X(1) X(2) X(3) X(4) X(5) X(6) X(7) X(8) X(9) X(10)
++#undef X
++    return;
++#endif
+     itemSaveGame1.at2c = &itemSaveGamePic;
+     if (!strcmp(strRestoreGameStrings[0], "<Empty>"))
+         itemSaveGame1.at37 = 1;
+@@ -1163,6 +1234,7 @@ void SetupCreditsMenu(void)
+     itemCreditsQAV.bNoDraw = 1;
+ }
+ 
++#ifndef EMBEDDED
+ void SetupParentalLockMenu(void)
+ {
+     itemParentalLockToggle.at20 = gbAdultContent;
+@@ -1201,9 +1273,11 @@ void SetupSorry2Menu(void)
+     menuSorry2.Add(&itemSorry2Text3, false);
+     menuSorry2.Add(&itemBloodQAV, false);
+ }
++#endif
+ 
+ void SetupOptionsMenu(void)
+ {
++#ifndef EMBEDDED
+     menuOptions.Add(&itemOptionsTitle, false);
+     menuOptions.Add(&itemOptionsChainGame, true);
+     menuOptions.Add(&itemOptionsChainDisplay, false);
+@@ -1264,6 +1338,7 @@ void SetupOptionsMenu(void)
+     itemOptionsDisplayBoolShowMapTitle.at20 = gShowMapTitle;
+     itemOptionsDisplayBoolMessages.at20 = gMessageState;
+     itemOptionsDisplayBoolWidescreen.at20 = r_usenewaspect;
++#endif
+ 
+     menuOptionsDisplayMode.Add(&itemOptionsDisplayModeTitle, false);
+     menuOptionsDisplayMode.Add(&itemOptionsDisplayModeResolution, true);
+@@ -1304,16 +1379,21 @@ void SetupOptionsMenu(void)
+ #ifdef USE_OPENGL
+     menuOptionsDisplayMode.Add(&itemOptionsDisplayModeVSync, false);
+ #endif
++#ifdef EDUKE32
+     menuOptionsDisplayMode.Add(&itemOptionsDisplayModeFrameLimit, false);
+     //menuOptionsDisplayMode.Add(&itemOptionsDisplayModeFPSOffset, false);
++#endif
+     menuOptionsDisplayMode.Add(&itemOptionsDisplayModeApply, false);
+     menuOptionsDisplayMode.Add(&itemBloodQAV, false);
+ 
++#ifndef EMBEDDED
+ #ifdef USE_OPENGL
+     itemOptionsDisplayModeRenderer.pPreDrawCallback = PreDrawVideoModeMenu;
+ #endif
+     itemOptionsDisplayModeFullscreen.pPreDrawCallback = PreDrawVideoModeMenu;
++#ifdef EDUKE32
+     //itemOptionsDisplayModeFPSOffset.pPreDrawCallback = PreDrawVideoModeMenu;
++#endif
+ 
+     menuOptionsDisplayColor.Add(&itemOptionsDisplayColorTitle, false);
+     menuOptionsDisplayColor.Add(&itemOptionsDisplayColorGamma, true);
+@@ -1533,6 +1613,7 @@ void SetupOptionsMenu(void)
+         menuOptionsControlJoystickAxis[nAxis].Add(pItemOptionsControlJoystickAxisSaturate[nAxis], false);
+         menuOptionsControlJoystickAxis[nAxis].Add(&itemBloodQAV, false);
+     }
++#endif
+ }
+ 
+ void SetupMenus(void)
+@@ -1573,15 +1654,21 @@ void SetupMenus(void)
+     SetupEpisodeMenu();
+     SetupMainMenu();
+     SetupMainMenuWithSave();
++#if !NO_NET
+     SetupNetStartMenu();
++#endif
+     SetupQuitMenu();
++#ifndef EMBEDDED
+     SetupParentalLockMenu();
+     SetupSorryMenu();
+     SetupSorry2Menu();
+     SetupSorry3Menu();
++#endif
+ 
+     SetupOptionsMenu();
++#if !NO_NET
+     SetupNetworkMenu();
++#endif
+ }
+ 
+ void UpdateNetworkMenus(void)
+@@ -1701,10 +1788,18 @@ void SetMessages(CGameMenuItemZBool *pItem)
+     gGameMessageMgr.SetState(gMessageState);
+ }
+ 
++#ifndef EDUKE32
++void SetMouseSensitivity(CGameMenuItemSlider *pItem)
++{
++    gMouseSensitivity = pItem->nValue;
++    CONTROL_SetMouseSensitivity(pItem->nValue);
++}
++#else
+ void SetMouseSensitivity(CGameMenuItemSliderFloat *pItem)
+ {
+ 	CONTROL_MouseSensitivity = pItem->fValue;
+ }
++#endif
+ 
+ void SetMouseAimFlipped(CGameMenuItemZBool *pItem)
+ {
+@@ -1804,6 +1899,9 @@ void SetVideoModeOld(CGameMenuItemChain *pItem)
+         gSetup.xdim = validmode[pItem->at30].xdim;
+         gSetup.ydim = validmode[pItem->at30].ydim;
+     }
++#ifndef EDUKE32
++    videoResetMode();
++#endif
+     scrSetGameMode(gSetup.fullscreen, gSetup.xdim, gSetup.ydim, gSetup.bpp);
+     scrSetDac();
+     viewResizeView(gViewSize);
+@@ -1814,14 +1912,18 @@ void SetVideoMode(CGameMenuItemChain *pItem)
+     UNREFERENCED_PARAMETER(pItem);
+     resolution_t p = { xres, yres, fullscreen, bpp, 0 };
+     int32_t prend = videoGetRenderMode();
++#ifdef EDUKE32
+     int32_t pvsync = vsync;
++#endif
+ 
+     int32_t nResolution = itemOptionsDisplayModeResolution.m_nFocus;
+     resolution_t n = { gResolution[nResolution].xdim, gResolution[nResolution].ydim,
+                        (gResolution[nResolution].flags & RES_FS) ? itemOptionsDisplayModeFullscreen.at20 : 0,
+                        (nRendererValues[itemOptionsDisplayModeRenderer.m_nFocus] == REND_CLASSIC) ? 8 : gResolution[nResolution].bppmax, 0 };
+     int32_t UNUSED(nrend) = nRendererValues[itemOptionsDisplayModeRenderer.m_nFocus];
++#ifdef EDUKE32
+     int32_t nvsync = nVSyncValues[itemOptionsDisplayModeVSync.m_nFocus];
++#endif
+ 
+     if (videoSetGameMode(n.flags, n.xdim, n.ydim, n.bppmax, upscalefactor) < 0)
+     {
+@@ -1833,13 +1935,17 @@ void SetVideoMode(CGameMenuItemChain *pItem)
+         else
+         {
+             onvideomodechange(p.bppmax > 8);
++#ifdef EDUKE32
+             vsync = videoSetVsync(pvsync);
++#endif
+         }
+     }
+     else onvideomodechange(n.bppmax > 8);
+ 
+     viewResizeView(gViewSize);
++#ifdef EDUKE32
+     vsync = videoSetVsync(nvsync);
++#endif
+     gSetup.fullscreen = fullscreen;
+     gSetup.xdim = xres;
+     gSetup.ydim = yres;
+@@ -1848,7 +1954,9 @@ void SetVideoMode(CGameMenuItemChain *pItem)
+ 
+ void SetWidescreen(CGameMenuItemZBool *pItem)
+ {
++#ifdef EDUKE32
+     r_usenewaspect = pItem->at20;
++#endif
+ }
+ 
+ void SetFOV(CGameMenuItemSlider *pItem)
+@@ -1878,6 +1986,7 @@ void SetupVideoModeMenu(CGameMenuItemChain *pItem)
+         }
+     }
+ #endif
++#ifdef EDUKE32
+     for (int i = 0; i < 3; i++)
+     {
+         if (vsync == nVSyncValues[i])
+@@ -1895,6 +2004,7 @@ void SetupVideoModeMenu(CGameMenuItemChain *pItem)
+         }
+     }
+     // itemOptionsDisplayModeFPSOffset.nValue = r_maxfpsoffset;
++#endif
+ }
+ 
+ void PreDrawVideoModeMenu(CGameMenuItem *pItem)
+@@ -1909,8 +2019,10 @@ void PreDrawVideoModeMenu(CGameMenuItem *pItem)
+ 
+ void UpdateVideoModeMenuFrameLimit(CGameMenuItemZCycle *pItem)
+ {
++#ifdef EDUKE32
+     r_maxfps = nFrameLimitValues[pItem->m_nFocus];
+     g_frameDelay = calcFrameDelay(r_maxfps);
++#endif
+ }
+ 
+ //void UpdateVideoModeMenuFPSOffset(CGameMenuItemSlider *pItem)
+@@ -1919,32 +2031,40 @@ void UpdateVideoModeMenuFrameLimit(CGameMenuItemZCycle *pItem)
+ //    g_frameDelay = calcFrameDelay(r_maxfps);
+ //}
+ 
++#ifndef EMBEDDED
+ void UpdateVideoColorMenu(CGameMenuItemSliderFloat *pItem)
+ {
+     UNREFERENCED_PARAMETER(pItem);
+     g_videoGamma = itemOptionsDisplayColorGamma.fValue;
++#ifdef EDUKE32
+     g_videoContrast = itemOptionsDisplayColorContrast.fValue;
+     g_videoBrightness = itemOptionsDisplayColorBrightness.fValue;
++#endif
+     r_ambientlight = itemOptionsDisplayColorVisibility.fValue;
+     r_ambientlightrecip = 1.f/r_ambientlight;
+     gBrightness = GAMMA_CALC<<2;
+     videoSetPalette(gBrightness>>2, gLastPal, 0);
+ }
++#endif
+ 
+ void PreDrawDisplayColor(CGameMenuItem *pItem)
+ {
++#ifdef EDUKE32
+     if (pItem == &itemOptionsDisplayColorContrast)
+         pItem->bEnable = gammabrightness;
+     else if (pItem == &itemOptionsDisplayColorBrightness)
+         pItem->bEnable = gammabrightness;
++#endif
+ }
+ 
+ void ResetVideoColor(CGameMenuItemChain *pItem)
+ {
+     UNREFERENCED_PARAMETER(pItem);
+     g_videoGamma = DEFAULT_GAMMA;
++#ifdef EDUKE32
+     g_videoContrast = DEFAULT_CONTRAST;
+     g_videoBrightness = DEFAULT_BRIGHTNESS;
++#endif
+     gBrightness = 0;
+     r_ambientlight = r_ambientlightrecip = 1.f;
+     videoSetPalette(gBrightness>>2, gLastPal, 0);
+@@ -2062,6 +2182,7 @@ void PreDrawDisplayPolymost(CGameMenuItem *pItem)
+ }
+ #endif
+ 
++#if !NO_SOUND
+ void UpdateSoundToggle(CGameMenuItemZBool *pItem)
+ {
+     SoundToggle = pItem->at20;
+@@ -2178,6 +2299,7 @@ void SetupOptionsSound(CGameMenuItemChain *pItem)
+ 
+     UpdateMusicDevice(NULL);
+ }
++#endif
+ 
+ void UpdatePlayerName(CGameMenuItemZEdit *pItem, CGameMenuEvent *pEvent)
+ {
+@@ -2186,6 +2308,9 @@ void UpdatePlayerName(CGameMenuItemZEdit *pItem, CGameMenuEvent *pEvent)
+         netBroadcastPlayerInfo(myconnectindex);
+ }
+ 
++#if NO_MOUSE
++void SetupMouseMenu(CGameMenuItemChain *pItem) {}
++#else
+ void SetMouseAimMode(CGameMenuItemZBool *pItem)
+ {
+     gMouseAiming = pItem->at20;
+@@ -2196,6 +2321,19 @@ void SetMouseVerticalAim(CGameMenuItemZBool *pItem)
+     gMouseAim = pItem->at20;
+ }
+ 
++#ifndef EDUKE32
++void SetMouseXSensitivity(CGameMenuItemSlider *pItem)
++{
++    MouseAnalogueScale[0] = pItem->nValue;
++    CONTROL_SetAnalogAxisScale(0, pItem->nValue, controldevice_mouse);
++}
++
++void SetMouseYSensitivity(CGameMenuItemSlider *pItem)
++{
++    MouseAnalogueScale[1] = pItem->nValue;
++    CONTROL_SetAnalogAxisScale(1, pItem->nValue, controldevice_mouse);
++}
++#else
+ void SetMouseXSensitivity(CGameMenuItemSliderFloat *pItem)
+ {
+     CONTROL_MouseAxesSensitivity[0] = pItem->fValue;
+@@ -2205,6 +2343,7 @@ void SetMouseYSensitivity(CGameMenuItemSliderFloat*pItem)
+ {
+     CONTROL_MouseAxesSensitivity[1] = pItem->fValue;
+ }
++#endif
+ 
+ void SetupMouseMenu(CGameMenuItemChain *pItem)
+ {
+@@ -2212,20 +2351,31 @@ void SetupMouseMenu(CGameMenuItemChain *pItem)
+     itemOptionsControlMouseAimFlipped.at20 = gMouseAimingFlipped;
+     itemOptionsControlMouseAimMode.at20 = gMouseAiming;
+     itemOptionsControlMouseVerticalAim.at20 = gMouseAim;
++#ifndef EDUKE32
++    itemOptionsControlMouseXSensitivity.nValue = MouseAnalogueScale[0];
++    itemOptionsControlMouseYSensitivity.nValue = MouseAnalogueScale[1];
++#else
+     // itemOptionsControlMouseXScale.nValue = CONTROL_MouseAxesScale[0];
+     // itemOptionsControlMouseYScale.nValue = CONTROL_MouseAxesScale[1];
++#endif
+ }
+ 
+ void SetupJoystickButtonsMenu(CGameMenuItemChain *pItem)
+ {
+     UNREFERENCED_PARAMETER(pItem);
++#ifndef EDUKE32
++    const int nMaxJoyButtons = joynumbuttons;
++#else
+     const int nMaxJoyButtons = (joystick.numButtons * 2) + ((joystick.numHats > 0) * 4);
++#endif
+     for (int nPage = 0; nPage < MAXJOYSTICKBUTTONPAGES; nPage++) // go through each axis and setup binds
+     {
+         for (int nButton = 0; nButton < JOYSTICKITEMSPERPAGE; nButton++)
+         {
++#ifdef EDUKE32
+             if (nButton >= nMaxJoyButtons) // reached end of button list
+                 return;
++#endif
+             const char bDoubleTap = nButton & 1;
+             const int nJoyButton = ((nPage * JOYSTICKITEMSPERPAGE)>>1) + (nButton>>1); // we halve the button index because button lists are listed in pairs of single tap/double tap inputs
+             auto pButton = pItemOptionsControlJoyButton[nPage][nButton];
+@@ -2473,7 +2623,9 @@ void SetupMouseButtonMenu(CGameMenuItemChain *pItem)
+         }
+     }
+ }
++#endif // NO_MOUSE
+ 
++#if !NO_NET
+ void SetupNetworkMenu(void)
+ {
+     if (strlen(gNetAddress) > 0)
+@@ -2482,6 +2634,7 @@ void SetupNetworkMenu(void)
+     menuNetwork.Add(&itemNetworkTitle, false);
+     menuNetwork.Add(&itemNetworkHost, true);
+     menuNetwork.Add(&itemNetworkJoin, false);
++    menuNetwork.Add(&itemNetworkPlayer, false);
+     menuNetwork.Add(&itemBloodQAV, false);
+ 
+     menuNetworkHost.Add(&itemNetworkHostTitle, false);
+@@ -2538,6 +2691,7 @@ void NetworkJoinGame(CGameMenuItemChain *pItem)
+     gGameMenuMgr.Deactivate();
+     gQuitGame = gRestartGame = true;
+ }
++#endif
+ 
+ void SaveGameProcess(CGameMenuItemChain *pItem)
+ {
+@@ -2688,9 +2842,12 @@ void ClearUserMapNameOnLevelChange(CGameMenuItemZCycle *pItem)
+ void SetupLevelMenuItem(int nEpisode)
+ {
+     dassert(nEpisode >= 0 && nEpisode < gEpisodeCount);
++#if !NO_NET
+     itemNetStart3.SetTextArray(zLevelNames[nEpisode], gEpisodeInfo[nEpisode].nLevels, 0);
++#endif
+ }
+ 
++#if !NO_NET
+ void SetupNetLevels(CGameMenuItemZCycle *pItem)
+ {
+     memset(zUserMapName, 0, sizeof(zUserMapName));
+@@ -2723,6 +2880,7 @@ void StartNetGame(CGameMenuItemChain *pItem)
+     gStartNewGame = 1;
+     gGameMenuMgr.Deactivate();
+ }
++#endif
+ 
+ void Restart(CGameMenuItemChain *pItem)
+ {
+@@ -2747,6 +2905,7 @@ void Quit(CGameMenuItemChain *pItem)
+     gGameMenuMgr.Deactivate();
+ }
+ 
++#ifndef EMBEDDED
+ void SetParentalLock(CGameMenuItemZBool *pItem)
+ {
+     if (!pItem->at20)
+@@ -2773,6 +2932,7 @@ void SetParentalLock(CGameMenuItemZBool *pItem)
+         gbAdultContent = true;
+     // NUKE-TODO: CONFIG_WriteAdultMode();
+ }
++#endif
+ 
+ void MenuSetupEpisodeInfo(void)
+ {
+diff --git a/source/blood/src/messages.cpp b/source/blood/src/messages.cpp
+index 8df8479..7619638 100644
+--- a/source/blood/src/messages.cpp
++++ b/source/blood/src/messages.cpp
+@@ -346,7 +346,9 @@ void CGameMessageMgr::Add(const char *pText, char a2, const int pal, const MESSA
+         pMessage->priority = priority;
+         pMessage->deleted = false;
+         nextMessagesIndex = (nextMessagesIndex+1)%kMessageLogSize;
++#ifndef EMBEDDED
+         if (VanillaMode())
++#endif
+         {
+             numberOfDisplayedMessages++;
+             if (numberOfDisplayedMessages > maxNumberOfMessagesToDisplay)
+@@ -362,7 +364,9 @@ void CGameMessageMgr::Add(const char *pText, char a2, const int pal, const MESSA
+ 
+ void CGameMessageMgr::Display(void)
+ {
++#ifndef EMBEDDED
+     if (VanillaMode())
++#endif
+     {
+         if (numberOfDisplayedMessages && this->state && gInputMode != INPUT_MODE_2)
+         {
+@@ -393,6 +397,7 @@ void CGameMessageMgr::Display(void)
+             }
+         }
+     }
++#ifndef EMBEDDED
+     else
+     {
+         if (this->state && gInputMode != INPUT_MODE_2)
+@@ -438,6 +443,7 @@ void CGameMessageMgr::Display(void)
+             }
+         }
+     }
++#endif
+     if (at9 != 0)
+     {
+         at9 = fontHeight*atd/kTicRate;
+@@ -447,10 +453,13 @@ void CGameMessageMgr::Display(void)
+ 
+ void CGameMessageMgr::Clear(void)
+ {
++#ifndef EMBEDDED
+     if (VanillaMode())
++#endif
+     {
+         messagesIndex = nextMessagesIndex = numberOfDisplayedMessages = 0;
+     }
++#ifndef EMBEDDED
+     else
+     {
+         for (int i = 0; i < kMessageLogSize; i++)
+@@ -459,6 +468,7 @@ void CGameMessageMgr::Clear(void)
+             pMessage->deleted = true;
+         }
+     }
++#endif
+ }
+ 
+ void CGameMessageMgr::SetMaxMessages(int nMessages)
+@@ -727,9 +737,18 @@ int parseArgs(char *pzArgs, int *nArg1, int *nArg2)
+     int nLength = strlen(pzArgs);
+     for (int i = 0; i < nLength; i++)
+         pzArgs[i]--;
++#ifdef EMBEDDED
++		char *cur, *next;
++		*nArg1 = strtol(cur = pzArgs, &next, 0);
++		if (cur == next || *nArg1 <= 0) return -1;
++		*nArg2 = strtol(cur = next, &next, 0);
++		if (cur == next || *nArg2 <= 0) return -1;
++    int stat = 2;
++#else
+     int stat = sscanf(pzArgs, " %d %d", nArg1, nArg2);
+     if (stat == 2 && (*nArg1 == 0 || *nArg2 == 0))
+         return -1;
++#endif
+     *nArg1 = ClipRange(*nArg1-1, 0, gEpisodeCount-1);
+     *nArg2 = ClipRange(*nArg2-1, 0, gEpisodeInfo[*nArg1].nLevels-1);
+     return stat;
+diff --git a/source/blood/src/mirrors.cpp b/source/blood/src/mirrors.cpp
+index b65e014..c12c9ab 100644
+--- a/source/blood/src/mirrors.cpp
++++ b/source/blood/src/mirrors.cpp
+@@ -194,7 +194,11 @@ void TranslateMirrorColors(int nShade, int nPalette)
+         return;
+     videoBeginDrawing();
+     nShade = ClipRange(nShade, 0, 63);
++#ifndef EDUKE32
++    char *pMap = (char *)palookup[nPalette] + (nShade<<8);
++#else
+     char *pMap = palookup[nPalette] + (nShade<<8);
++#endif
+     extern intptr_t frameplace;
+     char *pFrame = (char*)frameplace;
+     unsigned int nPixels = xdim*ydim;
+diff --git a/source/blood/src/misc.cpp b/source/blood/src/misc.cpp
+index 1363135..53ad42a 100644
+--- a/source/blood/src/misc.cpp
++++ b/source/blood/src/misc.cpp
+@@ -22,6 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ //-------------------------------------------------------------------------
+ #include <stdio.h>
+ #include <string.h>
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "common_game.h"
+ 
+ #include "misc.h"
+diff --git a/source/blood/src/network.cpp b/source/blood/src/network.cpp
+index c6fc070..c7f598d 100644
+--- a/source/blood/src/network.cpp
++++ b/source/blood/src/network.cpp
+@@ -20,6 +20,9 @@ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "build.h"
+ #include "mmulti.h"
+ #include "pragmas.h"
+@@ -45,13 +48,15 @@ int gNetFifoTail = 0;
+ int gNetFifoHead[8];
+ int gPredictTail = 0;
+ int gNetFifoMasterTail = 0;
+-GINPUT gFifoInput[256][8];
++GINPUT gFifoInput[256][kMaxPlayers];
++#if !NO_NET
+ int myMinLag[8];
+ int otherMinLag = 0;
+ int myMaxLag = 0;
+ unsigned int gChecksum[4];
+ unsigned int gCheckFifo[256][8][4];
+ int gCheckHead[8];
++#endif
+ int gSendCheckTail = 0;
+ int gCheckTail = 0;
+ int gInitialNetPlayers = 0;
+@@ -226,11 +231,13 @@ void netResetState(void)
+     gPredictTail = 0;
+     gNetFifoTail = 0;
+     memset(gNetFifoHead, 0, sizeof(gNetFifoHead));
++#if !NO_NET
+     memset(gCheckFifo, 0, sizeof(gCheckFifo));
+     memset(myMinLag, 0, sizeof(myMinLag));
+     otherMinLag = 0;
+     myMaxLag = 0;
+     memset(gCheckHead, 0, sizeof(gCheckHead));
++#endif
+     gSendCheckTail = 0;
+     gCheckTail = 0;
+     bOutOfSync = 0;
+@@ -728,6 +735,9 @@ void netGetInput(void)
+     GINPUT &input = gFifoInput[gNetFifoHead[myconnectindex]&255][myconnectindex];
+     input = gNetInput;
+     gNetFifoHead[myconnectindex]++;
++#if NO_NET
++    return;
++#endif
+     if (gGameOptions.nGameType == kGameTypeSinglePlayer || numplayers == 1)
+     {
+         for (int p = connecthead; p >= 0; p = connectpoint2[p])
+diff --git a/source/blood/src/network.h b/source/blood/src/network.h
+index 9be8a67..4bf2e1c 100644
+--- a/source/blood/src/network.h
++++ b/source/blood/src/network.h
+@@ -54,7 +54,11 @@ extern int gNetFifoTail;
+ extern int gNetFifoHead[8];
+ extern int gPredictTail;
+ extern int gNetFifoMasterTail;
++#if NO_NET
++extern GINPUT gFifoInput[256][1];
++#else
+ extern GINPUT gFifoInput[256][8];
++#endif
+ extern int myMinLag[8];
+ extern int otherMinLag;
+ extern int myMaxLag;
+diff --git a/source/blood/src/osdcmd.cpp b/source/blood/src/osdcmd.cpp
+index efc6d35..10e608c 100644
+--- a/source/blood/src/osdcmd.cpp
++++ b/source/blood/src/osdcmd.cpp
+@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
+ 
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "build.h"
+ #include "baselayer.h"
+ #include "keyboard.h"
+@@ -235,6 +238,9 @@ int osdcmd_restartvid(osdcmdptr_t UNUSED(parm))
+ 
+ static int osdcmd_music(osdcmdptr_t parm)
+ {
++#if NO_SOUND
++    return OSDCMD_OK;
++#else
+     char buffer[128];
+     if (parm->numparms == 1)
+     {
+@@ -269,6 +275,7 @@ static int osdcmd_music(osdcmdptr_t parm)
+     }
+ 
+     return OSDCMD_SHOWHELP;
++#endif
+ }
+ 
+ static int osdcmd_vidmode(osdcmdptr_t parm)
+@@ -319,6 +326,7 @@ static int osdcmd_vidmode(osdcmdptr_t parm)
+     return OSDCMD_OK;
+ }
+ 
++#ifdef EDUKE32
+ static int osdcmd_crosshaircolor(osdcmdptr_t parm)
+ {
+     if (parm->numparms != 3)
+@@ -348,6 +356,7 @@ static int osdcmd_resetcrosshair(osdcmdptr_t UNUSED(parm))
+ 
+     return OSDCMD_OK;
+ }
++#endif
+ 
+ static int osdcmd_give(osdcmdptr_t parm)
+ {
+@@ -506,9 +515,13 @@ void onvideomodechange(int32_t newmode)
+ #endif
+     if (newmode)
+         scrResetPalette();
++#ifndef EDUKE32
++    gSetDacRange(0, 256, baseDAC);
++#endif
+     UpdateDacs(gLastPal, false);
+ }
+ 
++#ifdef EDUKE32
+ static int osdcmd_button(osdcmdptr_t parm)
+ {
+     static char const s_gamefunc_[] = "gamefunc_";
+@@ -522,6 +535,7 @@ static int osdcmd_button(osdcmdptr_t parm)
+ 
+     return OSDCMD_OK;
+ }
++#endif
+ 
+ const char *const ConsoleButtons[] =
+ {
+@@ -529,6 +543,7 @@ const char *const ConsoleButtons[] =
+     "mwheeldn", "mouse5", "mouse6", "mouse7", "mouse8"
+ };
+ 
++#ifdef EDUKE32
+ static int osdcmd_bind(osdcmdptr_t parm)
+ {
+     char buffer[256];
+@@ -736,6 +751,7 @@ static int osdcmd_unbound(osdcmdptr_t parm)
+ 
+     return OSDCMD_OK;
+ }
++#endif
+ 
+ static int osdcmd_quicksave(osdcmdptr_t UNUSED(parm))
+ {
+@@ -800,6 +816,7 @@ static int osdcmd_inittimer(osdcmdptr_t parm)
+ #endif
+ #endif
+ 
++#ifdef EDUKE32
+ static int osdcmd_cvar_set_game(osdcmdptr_t parm)
+ {
+     int const r = osdcmd_cvar_set(parm);
+@@ -936,9 +953,11 @@ static int osdcmd_cvar_set_multi(osdcmdptr_t parm)
+ 
+     return r;
+ }
++#endif
+ 
+ int32_t registerosdcommands(void)
+ {
++#ifdef EDUKE32
+     FX_InitCvars();
+ 
+     char buffer[256];
+@@ -1110,6 +1129,7 @@ int32_t registerosdcommands(void)
+                 OSD_RegisterCvar(&cv, osdcmd_cvar_set); break;
+         }
+     }
++#endif
+ //
+ //    if (VOLUMEONE)
+ //        OSD_RegisterFunction("changelevel","changelevel <level>: warps to the given level", osdcmd_changelevel);
+@@ -1121,16 +1141,19 @@ int32_t registerosdcommands(void)
+ //    }
+ //
+ //    OSD_RegisterFunction("addpath","addpath <path>: adds path to game filesystem", osdcmd_addpath);
++#ifdef EDUKE32
+     OSD_RegisterFunction("bind",R"(bind <key> <string>: associates a keypress with a string of console input. Type "bind showkeys" for a list of keys and "listsymbols" for a list of valid console commands.)", osdcmd_bind);
+ //    OSD_RegisterFunction("cmenu","cmenu <#>: jumps to menu", osdcmd_cmenu);
+     OSD_RegisterFunction("crosshaircolor","crosshaircolor: changes the crosshair color", osdcmd_crosshaircolor);
+     OSD_RegisterFunction("crosshairreset", "crosshairreset: restores the original crosshair", osdcmd_resetcrosshair);
++#endif
+ //
+ //#if !defined NETCODE_DISABLE
+ //    OSD_RegisterFunction("connect","connect: connects to a multiplayer game", osdcmd_connect);
+ //    OSD_RegisterFunction("disconnect","disconnect: disconnects from the local multiplayer game", osdcmd_disconnect);
+ //#endif
+ 
++#ifdef EDUKE32
+     for (auto & func : gamefunctions)
+     {
+         if (func[0] == '\0')
+@@ -1146,6 +1169,7 @@ int32_t registerosdcommands(void)
+ 
+         OSD_RegisterFunction(t, Xstrdup(buffer), osdcmd_button);
+     }
++#endif
+ 
+     OSD_RegisterFunction("give","give <all|health|weapons|ammo|armor|keys|inventory>: gives requested item", osdcmd_give);
+     OSD_RegisterFunction("god","god: toggles god mode", osdcmd_god);
+@@ -1197,9 +1221,11 @@ int32_t registerosdcommands(void)
+ //
+ //    OSD_RegisterFunction("spawn","spawn <picnum> [palnum] [cstat] [ang] [x y z]: spawns a sprite with the given properties",osdcmd_spawn);
+ 
++#ifdef EDUKE32
+     OSD_RegisterFunction("unbind","unbind <key>: unbinds a key", osdcmd_unbind);
+     OSD_RegisterFunction("unbindall","unbindall: unbinds all keys", osdcmd_unbindall);
+     OSD_RegisterFunction("unbound", NULL, osdcmd_unbound);
++#endif
+ 
+     OSD_RegisterFunction("vidmode","vidmode <xdim> <ydim> <bpp> <fullscreen>: change the video mode",osdcmd_vidmode);
+ #ifdef USE_OPENGL
+@@ -1225,10 +1251,32 @@ void GAME_onshowosd(int shown)
+     // XXX: it's weird to fake a keypress like this.
+ //    if (numplayers == 1 && ((shown && !ud.pause_on) || (!shown && ud.pause_on)))
+ //        KB_KeyDown[sc_Pause] = 1;
++#ifndef EDUKE32
++    viewUpdatePages();
++#endif
+ }
+ 
+ void GAME_clearbackground(int numcols, int numrows)
+ {
++#ifndef EDUKE32
++	int nHeight = min(ydim, numrows*14+8);
++	/*
++	videoSetViewableArea(0, 0, xdim - 1, ydim - 1);
++	for (int i = 0; i < nHeight; i++) {
++		renderDrawLine(0, i << 12, xdim << 12, i << 12, blackcol);
++	}
++	videoSetViewableArea(gViewX0, gViewY0, gViewX1, gViewY1);
++	*/
++	int xsiz = tilesizx[2490];
++	int ysiz = tilesizy[2490];
++	int tx2 = xdim / xsiz;
++	int ty2 = nHeight / ysiz;
++
++	for (int x = 0; x <= tx2; x++)
++		for (int y = 0; y <= ty2; y++)
++			rotatesprite(x*xsiz<<16, y*ysiz<<16, 65536L, 0, 2490, 48, 0, 8+16+64, 0, 0, xdim, nHeight);
++#else
+     COMMON_clearbackground(numcols, numrows);
++#endif
+ }
+ 
+diff --git a/source/blood/src/player.cpp b/source/blood/src/player.cpp
+index 4dca8b0..7297e4b 100644
+--- a/source/blood/src/player.cpp
++++ b/source/blood/src/player.cpp
+@@ -1370,12 +1370,14 @@ void ProcessInput(PLAYER *pPlayer)
+     POSTURE *pPosture = &pPlayer->pPosture[pPlayer->lifeMode][pPlayer->posture];
+     GINPUT *pInput = &pPlayer->input;
+ 
++#ifdef EDUKE32
+     if (pPlayer == gMe && numplayers == 1)
+     {
+         gViewAngleAdjust = 0.f;
+         gViewLookRecenter = false;
+         gViewLookAdjust = 0.f;
+     }
++#endif
+ 
+     pPlayer->isRunning = pInput->syncFlags.run;
+     if (pInput->buttonFlags.byte || pInput->forward || pInput->strafe || pInput->q16turn)
+@@ -1492,9 +1494,12 @@ void ProcessInput(PLAYER *pPlayer)
+         const int speed = (pPlayer->posture == kPostureSwim) ? 64 : 128;
+         pPlayer->spin = min(pPlayer->spin+speed, 0);
+         pPlayer->q16ang += fix16_from_int(speed);
++#ifdef EDUKE32
+         if (pPlayer == gMe && numplayers == 1)
+             gViewAngleAdjust += float(ClipHigh(-pPlayer->spin, speed)); // don't overturn when nearing end of spin
++#endif
+     }
++#ifdef EDUKE32
+     if (pPlayer == gMe && numplayers == 1)
+     {
+         int nDeltaAngle = pSprite->ang - pPlayer->angold;
+@@ -1504,6 +1509,7 @@ void ProcessInput(PLAYER *pPlayer)
+             nDeltaAngle += kAng360;
+         gViewAngleAdjust += float(nDeltaAngle);
+     }
++#endif
+     pPlayer->q16ang = (pPlayer->q16ang+fix16_from_int(pSprite->ang-pPlayer->angold))&0x7ffffff;
+     pPlayer->angold = pSprite->ang = fix16_to_int(pPlayer->q16ang);
+     if (!pInput->buttonFlags.jump)
+@@ -1613,7 +1619,9 @@ void ProcessInput(PLAYER *pPlayer)
+         }
+         pInput->keyFlags.action = 0;
+     }
++#ifdef EDUKE32
+     if (bVanilla)
++#endif
+     {
+         if (pInput->keyFlags.lookCenter && !pInput->buttonFlags.lookUp && !pInput->buttonFlags.lookDown)
+         {
+@@ -1639,6 +1647,7 @@ void ProcessInput(PLAYER *pPlayer)
+         else
+             pPlayer->q16horiz = 0;
+     }
++#ifdef EDUKE32
+     else
+     {
+         CONSTEXPR int upAngle = 289;
+@@ -1676,6 +1685,7 @@ void ProcessInput(PLAYER *pPlayer)
+         pPlayer->q16look = fix16_clamp(pPlayer->q16look+(pInput->q16mlook<<3), F16(downAngle), F16(upAngle));
+         pPlayer->q16horiz = fix16_from_float(100.f*tanf(fix16_to_float(pPlayer->q16look)*fPI/1024.f));
+     }
++#endif
+     int nSector = pSprite->sectnum;
+     int florhit = gSpriteHit[pSprite->extra].florhit & 0xc000;
+     char va;
+diff --git a/source/blood/src/pqueue.h b/source/blood/src/pqueue.h
+index 01fb9df..c21f44d 100644
+--- a/source/blood/src/pqueue.h
++++ b/source/blood/src/pqueue.h
+@@ -21,8 +21,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
+ #pragma once
++#ifdef EDUKE32
+ #include <set>
+ #include <functional>
++#endif
+ #include "common_game.h"
+ #define kPQueueSize 1024
+ 
+@@ -57,6 +59,10 @@ template <typename T> struct queueItem
+ };
+ 
+ template<typename T> class PriorityQueue
++#ifdef EMBEDDED
++#define VanillaPriorityQueue PriorityQueue
++#define StdPriorityQueue PriorityQueue
++#else
+ {
+ public:
+     virtual ~PriorityQueue() {}
+@@ -69,6 +75,7 @@ public:
+ };
+ 
+ template<typename T> class VanillaPriorityQueue : public PriorityQueue<T>
++#endif
+ {
+ public:
+     queueItem<T> queueItems[kPQueueSize + 1];
+@@ -133,6 +140,7 @@ public:
+         dassert(fNodeCount > 0);
+         return queueItems[1].at0;
+     }
++#ifndef EMBEDDED
+     void Kill(std::function<bool(T)> pMatch)
+     {
+         for (unsigned int i = 1; i <= fNodeCount;)
+@@ -183,4 +191,5 @@ public:
+                 i++;
+         }
+     }
++#endif
+ };
+diff --git a/source/blood/src/qheap.cpp b/source/blood/src/qheap.cpp
+index 138a899..968af7b 100644
+--- a/source/blood/src/qheap.cpp
++++ b/source/blood/src/qheap.cpp
+@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include <ctype.h>
+ #include <stdlib.h>
+ #include <string.h>
++#ifndef EDUKE32
++#include "compat.h"
++#endif
+ #include "common_game.h"
+ 
+ #include "qheap.h"
+diff --git a/source/blood/src/replace.cpp b/source/blood/src/replace.cpp
+index d758d24..97ba2e0 100644
+--- a/source/blood/src/replace.cpp
++++ b/source/blood/src/replace.cpp
+@@ -41,7 +41,11 @@ int qanimateoffs(int a1, int a2)
+             int const frameClock = (int)(editstatus ? totalclocklock : gFrameClock);
+             int vd;
+             if ((a2&0xc000) == 0x8000)
++#ifdef __AMIGA__
++                vd = ((a2&0xFFFF)+frameClock)>>(picanm[a1].speed);
++#else
+                 vd = (Bcrc32(&a2, 2, 0)+frameClock)>>(picanm[a1].sf&PICANM_ANIMSPEED_MASK);
++#endif
+             else
+                 vd = frameClock>>(picanm[a1].sf&PICANM_ANIMSPEED_MASK);
+             switch (picanm[a1].sf&PICANM_ANIMTYPE_MASK)
+@@ -78,6 +82,7 @@ int32_t qgetpalookup(int32_t a1, int32_t a2)
+ 
+ void HookReplaceFunctions(void)
+ {
++#ifndef EMBEDDED
+     void qinitspritelists();
+     int32_t qinsertsprite(int16_t nSector, int16_t nStat);
+     int32_t qdeletesprite(int16_t nSprite);
+@@ -97,4 +102,5 @@ void HookReplaceFunctions(void)
+     loadboard_replace = qloadboard;
+     saveboard_replace = qsaveboard;
+     bloodhack = true;
++#endif
+ }
+diff --git a/source/blood/src/resource.cpp b/source/blood/src/resource.cpp
+index f277baa..3bff524 100644
+--- a/source/blood/src/resource.cpp
++++ b/source/blood/src/resource.cpp
+@@ -42,7 +42,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "sound.h"
+ #endif
+ 
++#if !OLDCACHE
+ CACHENODE Resource::purgeHead = { NULL, &purgeHead, &purgeHead, 0 };
++#endif
+ 
+ #ifdef USE_QHEAP
+ QHeap *Resource::heap;
+@@ -62,6 +64,7 @@ Resource::~Resource(void)
+ {
+     if (dict)
+     {
++#ifndef EMBEDDED
+         for (unsigned int i = 0; i < count; i++)
+         {
+             if (dict[i].type)
+@@ -71,6 +74,7 @@ Resource::~Resource(void)
+             if (dict[i].path)
+                 Free(dict[i].path);
+         }
++#endif
+         Free(dict);
+         dict = NULL;
+         buffSize = 0;
+@@ -92,6 +96,7 @@ void Resource::Init(const char *filename)
+     if (filename)
+     {
+         handle = kopen4loadfrommod(filename, 0);
++        if (handle == -1) ThrowError("File not found %s", filename);
+         if (handle != -1)
+         {
+             int nFileLength = kfilelength(handle);
+@@ -121,6 +126,36 @@ void Resource::Init(const char *filename)
+             count = header.filenum;
+             if (count)
+             {
++#ifdef EMBEDDED2
++#define NTEMP 16
++                buffSize = ((count + 50) * 3) >> 1;
++                dict = (DICTNODE*)Alloc(count * sizeof(DICTNODE));
++                memset(dict, 0, count * sizeof(DICTNODE));
++                DICTNODE_FILE tdict[NTEMP];
++                unsigned offset = header.offset;
++                int r = klseek(handle, offset, SEEK_SET);
++                dassert(r != -1);
++                offset += (header.version & 0xff) * offset;
++                for (unsigned i = 0; i < count; i++) {
++                    unsigned j = i & (NTEMP - 1);
++                    if (!j) {
++                        unsigned n = count - i;
++                        if (n > NTEMP) n = NTEMP;
++                        n *= sizeof(*tdict);
++                        if ((uint32_t)kread(handle, tdict, n) != n)
++                            ThrowError("RFF dictionary corrupted");
++                        if (crypt) Crypt(tdict, n, offset);
++                        offset += n;
++                    }
++                    dict[i].offset = B_LITTLE32(tdict[j].offset);
++                    dict[i].size = B_LITTLE32(tdict[j].size);
++                    dict[i].flags = tdict[j].flags;
++                    strncpy(dict[i].type, tdict[j].type, 3);
++                    strncpy(dict[i].name, tdict[j].name, 8);
++                    dict[i].id = B_LITTLE32(tdict[j].id);
++                }
++#undef NTEMP
++#else
+                 buffSize = 1;
+                 while (count * 2 >= buffSize)
+                 {
+@@ -158,6 +193,7 @@ void Resource::Init(const char *filename)
+                     dict[i].buffer = NULL;
+                 }
+                 Free(tdict);
++#endif
+             }
+         }
+     }
+@@ -214,6 +250,9 @@ void Resource::Init(const char *filename)
+         _dos_findclose(&info);
+ #endif
+     }
++#endif
++#ifdef EMBEDDED
++    return;
+ #endif
+     for (unsigned int i = 0; i < count; i++)
+     {
+@@ -235,6 +274,11 @@ void Resource::Flush(CACHENODE *h)
+ {
+     if (h->ptr)
+     {
++#if OLDCACHE
++//printf("suckcache h=%p ptr=%p\n", h, h->ptr); fflush(stdout);
++        h->oldLock = 1;
++        //suckcache(&h->ptr);
++#else
+ #ifdef USE_QHEAP
+         heap->Free(h->ptr);
+ #else
+@@ -247,6 +291,7 @@ void Resource::Flush(CACHENODE *h)
+             RemoveMRU(h);
+             return;
+         }
++#endif
+         h->lockCount = 0;
+     }
+ }
+@@ -264,6 +309,15 @@ void Resource::Purge(void)
+ 
+ DICTNODE **Resource::Probe(const char *fname, const char *type)
+ {
++#ifdef EMBEDDED
++    uint32_t i, hash = Bcrc32(type, strlen(type), 0);
++    hash = Bcrc32(fname, strlen(fname), hash);
++    i = hash = ((uint64_t)hash * buffSize) >> 32;
++    do {
++        if (!indexName[i]) return &indexName[i];
++        if (!strncmp(indexName[i]->type, type, 3)
++            && !strncmp(indexName[i]->name, fname, 8))
++#else
+     char name[BMAX_PATH];
+     dassert(indexName != NULL);
+     memset(name, 0, sizeof(name));
+@@ -280,6 +334,7 @@ DICTNODE **Resource::Probe(const char *fname, const char *type)
+         }
+         if (!strcmp((*indexName[i]).type, type)
+             && !strcmp((*indexName[i]).name, fname))
++#endif
+         {
+             return &indexName[i];
+         }
+@@ -294,6 +349,15 @@ DICTNODE **Resource::Probe(const char *fname, const char *type)
+ 
+ DICTNODE **Resource::Probe(unsigned int id, const char *type)
+ {
++#ifdef EMBEDDED
++    uint32_t i, hash = Bcrc32(&id, sizeof(id), 0);
++    hash = Bcrc32(type, strlen(type), hash);
++    i = hash = ((uint64_t)hash * buffSize) >> 32;
++    do {
++        if (!indexId[i]) return &indexId[i];
++        if (!strncmp(indexId[i]->type, type, 3)
++            && indexId[i]->id == id)
++#else
+     struct {
+         int id;
+         char type[BMAX_PATH];
+@@ -313,6 +377,7 @@ DICTNODE **Resource::Probe(unsigned int id, const char *type)
+         }
+         if (!strcmp((*indexId[i]).type, type)
+             && (*indexId[i]).id == id)
++#endif
+         {
+             return &indexId[i];
+         }
+@@ -355,6 +420,7 @@ void Resource::Reindex(void)
+     }
+ }
+ 
++#ifndef EMBEDDED2
+ void Resource::Grow(void)
+ {
+     buffSize *= 2;
+@@ -365,9 +431,49 @@ void Resource::Grow(void)
+     dict = (DICTNODE*)p;
+     Reindex();
+ }
++#endif
+ 
+ void Resource::AddExternalResource(const char *name, const char *type, int id, int flags, const char *pzDirectory)
+ {
++#ifdef EMBEDDED2
++    char name2[9], type2[4], filename[13];
++    if (strlen(name) > 8 || strlen(type) != 3) return;
++    int i;
++    for (i = 0; name[i]; i++) filename[i] = name[i];
++    if (*type) filename[i++] = '.';
++    strcpy(filename + i, type);
++    Bstrupr(filename);
++    int fhandle = kopen4loadfrommod(filename, 0);
++    if (fhandle == -1) return;
++    int size = kfilelength(fhandle);
++    kclose(fhandle);
++    strcpy(name2, name);
++    strcpy(type2, type);
++    Bstrupr(name2);
++    Bstrupr(type2);
++    DICTNODE **index = Probe(name2, type2);
++    DICTNODE *node = *index;
++    if (node && (node->flags & DICT_EXTERNAL)) return;
++    if (!node) {
++        DICTNEXT *next = (DICTNEXT*)Alloc(sizeof(*next));
++        next->next = extra; extra = next;
++        node = &next->node;
++        memset(node, 0, sizeof(*node));
++        strncpy(node->type, type2, 3);
++        strncpy(node->name, name2, 8);
++        node->id = -1;
++        *index = node;
++    }
++    node->size = size;
++    node->flags = flags | DICT_EXTERNAL;
++    Flush(node);
++    if (node->id != (unsigned)id && id >= 0) {
++        index = Probe(id, type2);
++        if (*index) Flush(*index);
++        node->id = id;
++        *index = node;
++     }
++#else
+     char name2[BMAX_PATH], type2[BMAX_PATH], filename[BMAX_PATH], path[BMAX_PATH];
+ 
+     if (Bstrlen(type) > 0)
+@@ -479,8 +585,10 @@ void Resource::AddExternalResource(const char *name, const char *type, int id, i
+         node->buffer = NULL;
+         Flush(node);
+     }
++#endif
+ }
+ 
++#ifndef EMBEDDED
+ void Resource::AddFromBuffer(const char* name, const char* type, char* data, int size, int id, int flags)
+ {
+     char name2[BMAX_PATH], type2[BMAX_PATH];
+@@ -576,6 +684,7 @@ void Resource::AddFromBuffer(const char* name, const char* type, char* data, int
+         Flush(node);
+     }
+ }
++#endif
+ 
+ void *Resource::Alloc(int nSize)
+ {
+@@ -603,6 +712,9 @@ void *Resource::Alloc(int nSize)
+     }
+     ThrowError("Out of memory!");
+     return NULL;
++#elif OLDCACHE
++    dassert(nSize != 0);
++    return new char[nSize];
+ #else
+     dassert(nSize != 0);
+     void* p = new char[nSize];
+@@ -655,6 +767,9 @@ DICTNODE *Resource::Lookup(const char *name, const char *type)
+ 
+ DICTNODE *Resource::Lookup(unsigned int id, const char *type)
+ {
++#ifdef EMBEDDED
++    return *Probe(id, type);
++#endif
+     char type2[BMAX_PATH];
+     dassert(type != NULL);
+     //if (strlen(type) > 3) return NULL;
+@@ -675,9 +790,11 @@ void Resource::Read(DICTNODE *n, void *p)
+     dassert(n != NULL);
+     if (n->flags & DICT_EXTERNAL)
+     {
++#ifndef EMBEDDED2
+         if (n->path)
+             Bstrncpy(filename, n->path, BMAX_PATH-1);
+         else
++#endif
+             Bsnprintf(filename, BMAX_PATH-1, "%s.%s", n->name, n->type);
+         int fhandle = kopen4loadfrommod(filename, 0);
+         if (fhandle == -1 || (uint32_t)kread(fhandle, p, n->size) != n->size)
+@@ -686,10 +803,12 @@ void Resource::Read(DICTNODE *n, void *p)
+         }
+         kclose(fhandle);
+     }
++#ifndef EMBEDDED2
+     else if (n->flags & DICT_BUFFER)
+     {
+         Bmemcpy(p, n->buffer, n->size);
+     }
++#endif
+     else
+     {
+         int r = klseek(handle, n->offset, SEEK_SET);
+@@ -795,6 +914,17 @@ void Resource::Read(DICTNODE *n, void *p)
+ void *Resource::Load(DICTNODE *h)
+ {
+     dassert(h != NULL);
++#if OLDCACHE
++    if (h->ptr) {
++        if (!h->lockCount) h->oldLock = 190;
++    } else {
++        h->oldLock = 190;
++//if (h->size > 4000) printf("Load(%p, %s.%s, %d)\n", &h->ptr, h->name, h->type, h->size);
++        allocache(&h->ptr, h->size, &h->oldLock);
++//printf("allocache h=%p ptr=%p\n", h, h->ptr);
++        Read(h);
++    }
++#else
+     if (h->ptr)
+     {
+         if (!h->lockCount)
+@@ -817,6 +947,7 @@ void *Resource::Load(DICTNODE *h)
+         h->next = &purgeHead;
+         purgeHead.prev = h;
+     }
++#endif
+     return h->ptr;
+ }
+ 
+@@ -833,6 +964,15 @@ void *Resource::Load(DICTNODE *h, void *p)
+ void *Resource::Lock(DICTNODE *h)
+ {
+     dassert(h != NULL);
++#if OLDCACHE
++    h->oldLock = 210;
++    if (!h->ptr) {
++//if (h->size > 4000) printf("Lock(%p, %s.%s, %d)\n", &h->ptr, h->name, h->type, h->size);
++        allocache(&h->ptr, h->size, &h->oldLock);
++//printf("allocache h=%p ptr=%p\n", h, h->ptr);
++        Read(h);
++    }
++#else
+     if (h->ptr)
+     {
+         if (h->lockCount == 0)
+@@ -845,6 +985,7 @@ void *Resource::Lock(DICTNODE *h)
+         h->ptr = Alloc(h->size);
+         Read(h);
+     }
++#endif
+ 
+     h->lockCount++;
+     return h->ptr;
+@@ -859,10 +1000,14 @@ void Resource::Unlock(DICTNODE *h)
+         h->lockCount--;
+         if (h->lockCount == 0)
+         {
++#if OLDCACHE
++            h->oldLock = 180;
++#else
+             h->prev = purgeHead.prev;
+             purgeHead.prev->next = h;
+             h->next = &purgeHead;
+             purgeHead.prev = h;
++#endif
+         }
+     }
+ }
+@@ -878,8 +1023,10 @@ void Resource::Crypt(void *p, int length, unsigned short key)
+ 
+ void Resource::RemoveMRU(CACHENODE *h)
+ {
++#if !OLDCACHE
+     h->prev->next = h->next;
+     h->next->prev = h->prev;
++#endif
+ }
+ 
+ void Resource::FNAddFiles(fnlist_t * fnlist, const char *pattern)
+@@ -907,6 +1054,13 @@ void Resource::FNAddFiles(fnlist_t * fnlist, const char *pattern)
+ void Resource::PurgeCache(void)
+ {
+ #ifndef USE_QHEAP
++#if OLDCACHE
++    for (unsigned int i = 0; i < count; i++) {
++        if (!dict[i].lockCount && !(dict[i].flags & DICT_LOAD)) {
++            Flush(dict + i);
++        }
++    }
++#else
+     for (CACHENODE *node = purgeHead.next; node != &purgeHead; node = node->next)
+     {
+         DICTNODE *pDict = (DICTNODE*)node;
+@@ -920,6 +1074,7 @@ void Resource::PurgeCache(void)
+         }
+     }
+ #endif
++#endif
+ }
+ 
+ void Resource::PrecacheSounds(void)
+@@ -935,6 +1090,7 @@ void Resource::PrecacheSounds(void)
+     }
+ }
+ 
++#ifndef EMBEDDED2
+ void Resource::RemoveNode(DICTNODE* pNode)
+ {
+     Flush(pNode);
+@@ -957,8 +1113,11 @@ void Resource::RemoveNode(DICTNODE* pNode)
+     Bmemset(&dict[count], 0, sizeof(DICTNODE));
+     if (pNode->ptr && !pNode->lockCount)
+     {
++#if !OLDCACHE
+         pNode->prev->next = pNode;
+         pNode->next->prev = pNode;
++#endif
+     }
+     Reindex();
+ }
++#endif
+diff --git a/source/blood/src/resource.h b/source/blood/src/resource.h
+index 98969fe..c541cc6 100644
+--- a/source/blood/src/resource.h
++++ b/source/blood/src/resource.h
+@@ -60,14 +60,30 @@ struct DICTNODE_FILE
+ 
+ #pragma pack(pop)
+ 
++#ifdef EMBEDDED
++#define OLDCACHE 1
++#define EMBEDDED2
++#endif
+ struct CACHENODE
+ {
+     void *ptr;
++#if OLDCACHE
++    unsigned offset, size;
++    char name[9];
++    unsigned char oldLock;
++    signed char lockCount;
++    char flags, type[4];
++    unsigned id;
++#else
+     CACHENODE *prev;
+     CACHENODE *next;
+     int lockCount;
++#endif
+ };
+ 
++#ifdef EMBEDDED2
++struct DICTNODE : CACHENODE {};
++#else
+ struct DICTNODE : CACHENODE
+ {
+     unsigned int offset;
+@@ -81,6 +97,7 @@ struct DICTNODE : CACHENODE
+     char *buffer;
+     unsigned int id;
+ };
++#endif
+ 
+ class Resource
+ {
+@@ -122,6 +139,11 @@ public:
+     unsigned int count;
+     int handle;
+     bool crypt;
++#ifdef EMBEDDED
++    struct DICTNEXT {
++        DICTNODE node; DICTNEXT *next;
++    } *extra;
++#endif
+ 
+ #if USE_QHEAP
+     static QHeap *heap;
+diff --git a/source/blood/src/screen.cpp b/source/blood/src/screen.cpp
+index 666c748..16af603 100644
+--- a/source/blood/src/screen.cpp
++++ b/source/blood/src/screen.cpp
+@@ -21,9 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
+ #include <string.h>
++#ifdef EMBEDDED
++#include "compat.h"
++#else
+ #include "a.h"
+ #include "build.h"
+ #include "colmatch.h"
++#endif
+ #include "common_game.h"
+ 
+ #include "globals.h"
+@@ -148,11 +152,20 @@ void gSetDacRange(int start, int end, RGB *pPal)
+     UNREFERENCED_PARAMETER(end);
+     if (videoGetRenderMode() == REND_CLASSIC)
+     {
++#ifdef EMBEDDED
++        paletteSetColorTable(0, (const uint8_t *)pPal);
++#else
+         memcpy(palette, pPal, sizeof(palette));
++#endif
+         videoSetPalette(gBrightness>>2, 0, 0);
+     }
+ }
+ 
++#ifdef EMBEDDED
++static char **palookup_fix = (char**)palookup;
++#define palookup palookup_fix
++static char **blendtable = (char**)&transluc;
++#endif
+ void scrLoadPLUs(void)
+ {
+     if (gFogMode)
+@@ -216,7 +229,12 @@ void scrLoadPalette(void)
+         palTable[PAL[i].id] = (RGB*)gSysRes.Lock(pPal);
+         paletteSetColorTable(PAL[i].id, (uint8_t*)palTable[PAL[i].id]);
+     }
++#ifdef EMBEDDED
++#undef palookup
++    memcpy(palette, basepaltable[PAL[0].id], sizeof(palette));
++#else
+     memcpy(palette, palTable[0], sizeof(palette));
++#endif
+     numshades = 64;
+     paletteloaded |= PALETTE_MAIN;
+     scrLoadPLUs();
+@@ -250,7 +268,11 @@ void scrLoadPalette(void)
+ void scrSetPalette(int palId)
+ {
+     curPalette = palId;
++#ifdef EMBEDDED
++    scrSetGamma(curGamma);
++#else
+     scrSetGamma(0/*curGamma*/);
++#endif
+ }
+ 
+ void scrSetGamma(int nGamma)
+@@ -317,7 +339,11 @@ void scrInit(void)
+ void scrUnInit(void)
+ {
+     memset(palookup, 0, sizeof(palookup));
++#ifdef EMBEDDED
++    blendtable[0] = NULL;
++#else
+     memset(blendtable, 0, sizeof(blendtable));
++#endif
+     engineUnInit();
+ }
+ 
+@@ -331,6 +357,10 @@ void scrSetGameMode(int vidMode, int XRes, int YRes, int nBits)
+         initprintf("Failure setting video mode %dx%dx%d %s! Trying next mode...\n", XRes, YRes,
+                     nBits, vidMode ? "fullscreen" : "windowed");
+ 
++#ifdef EMBEDDED
++        ThrowError("Fatal error: unable to set any video mode!");
++        return;
++#endif
+         int resIdx = 0;
+ 
+         for (int i=0; i < validmodecnt; i++)
+diff --git a/source/blood/src/seq.cpp b/source/blood/src/seq.cpp
+index 5061d29..9113c2a 100644
+--- a/source/blood/src/seq.cpp
++++ b/source/blood/src/seq.cpp
+@@ -374,6 +374,9 @@ void seqSpawn(int nSeq, int nType, int nXIndex, int nCallbackID)
+     SEQINST *pInst = GetInstance(nType, nXIndex);
+     if (!pInst) return;
+     
++#ifdef __AMIGA__
++    if (pInst->isPlaying && pInst->nSeq == nSeq) return;
++#endif
+     DICTNODE *hSeq = gSysRes.Lookup(nSeq, "SEQ");
+     if (!hSeq)
+         ThrowError("Missing sequence #%d", nSeq);
+diff --git a/source/blood/src/sound.cpp b/source/blood/src/sound.cpp
+index dbadd22..f458ea5 100644
+--- a/source/blood/src/sound.cpp
++++ b/source/blood/src/sound.cpp
+@@ -23,6 +23,49 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "build.h"
+ #include "compat.h"
+ #include "music.h"
++#if NO_SOUND
++#include "resource.h"
++#include "common_game.h"
++#include "sfx.h"
++
++void ambProcess(void) {}
++void ambKillAll(void) {}
++void ambInit(void) {}
++
++int32_t SoundToggle, MusicToggle, CDAudioToggle;
++int32_t FXVolume, MusicVolume, CDVolume;
++int32_t NumVoices, NumChannels, NumBits;
++int32_t MixRate, ReverseStereo, MusicDevice;
++Resource gSoundRes;
++
++void sndInit(void) {}
++void sndTerm(void) {}
++DICTNODE *sndLookupRawCached(int soundId, const char *rawName) { return NULL; }
++void sndStartSample(const char *pzSound, int nVolume, int nChannel) {}
++void sndStartSample(unsigned int nSound, int nVolume, int nChannel, bool bLoop) {}
++void sndFadeSong(int nTime) {}
++int sndPlaySong(const char *songName, bool bLoop) { return 1; }
++void sndKillAllSounds(void) {}
++void sndStopSong(void) {}
++void sndProcess(void) {}
++int sndGetRate(int format) { return 11025; }
++void sndSetMusicVolume(int nVolume) {}
++void sndSetFXVolume(int nVolume) {}
++void sndStartWavID(unsigned int nSound, int nVolume, int nChannel) {}
++void sndStartWavDisk(const char *pzFile, int nVolume, int nChannel) {}
++
++void sfxInit(void) {}
++void sfxTerm() {}
++void sfxPlay3DSound(int x, int y, int z, int soundId, int nSector) {}
++void sfxPlay3DSound(spritetype *pSprite, int soundId, int chanId, int nFlags) {}
++void sfxPlay3DSoundCP(spritetype* pSprite, int soundId, int chanId, int nFlags, int pitch, int volume) {}
++void sfxKill3DSound(spritetype *pSprite, int chanId, int soundId) {}
++void sfxKillAllSounds(void) {}
++void sfxKillSpriteSounds(spritetype *pSprite) {}
++void sfxUpdate3DSounds(void) {}
++void sfxSetReverb(bool toggle) {}
++void sfxSetReverb2(bool toggle) {}
++#else
+ #include "fx_man.h"
+ #include "al_midi.h"
+ #include "common_game.h"
+@@ -543,3 +586,4 @@ void sndInit(void)
+     sndActive = true;
+     sndLoadGMTimbre();
+ }
++#endif
+diff --git a/source/blood/src/tile.cpp b/source/blood/src/tile.cpp
+index 82efb3a..94b90d9 100644
+--- a/source/blood/src/tile.cpp
++++ b/source/blood/src/tile.cpp
+@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include "build.h"
+ #include "common.h"
+ #include "common_game.h"
++#ifdef EDUKE32
+ #include "mdsprite.h"
++#endif
+ 
+ #include "blood.h"
+ #include "config.h"
+@@ -45,15 +47,27 @@ void qloadvoxel(int32_t nVoxel)
+         return;
+     }
+ 
++#ifdef EMBEDDED
++    if (voxoff[nVoxel][0]) return;
++    voxlock[nVoxel][0] = 199;
++    allocache((void**)&voxoff[nVoxel][0], hVox->size, &voxlock[nVoxel][0]);
++    char *pVox = (char*)voxoff[nVoxel][0];
++    gSysRes.Read(hVox, pVox);
++#else
+     if (!hVox->lockCount)
+         voxoff[nLastVoxel][0] = 0;
+     nLastVoxel = nVoxel;
+     char *pVox = (char*)gSysRes.Lock(hVox);
++#endif
+     for (int i = 0; i < MAXVOXMIPS; i++)
+     {
++#ifdef EMBEDDED
++        int nSize = read32_le(pVox);
++#else
+         int nSize = *((int*)pVox);
+ #if B_BIG_ENDIAN == 1
+         nSize = B_LITTLE32(nSize);
++#endif
+ #endif
+         pVox += 4;
+         voxoff[nVoxel][i] = (intptr_t)pVox;
+@@ -71,7 +85,9 @@ void CalcPicsiz(int a1, int a2, int a3)
+     picsiz[a1] = nP;
+ }
+ 
++#ifdef EDUKE32
+ CACHENODE tileNode[kMaxTiles];
++#endif
+ 
+ bool artLoaded = false;
+ int nTileFiles = 0;
+@@ -84,7 +100,11 @@ char surfType[kMaxTiles];
+ signed char tileShade[kMaxTiles];
+ short voxelIndex[kMaxTiles];
+ 
++#ifdef EMBEDDED
++const char *pzBaseFileName = "tiles000.art";
++#else
+ const char *pzBaseFileName = "TILES%03i.ART"; //"TILES%03i.ART";
++#endif
+ 
+ int32_t MAXCACHE1DSIZE = (96*1024*1024);
+ 
+@@ -95,7 +115,11 @@ int tileInit(char a1, const char *a2)
+         return 1;
+     artLoadFiles(a2 ? a2 : pzBaseFileName, MAXCACHE1DSIZE);
+     for (int i = 0; i < kMaxTiles; i++)
++#ifdef EMBEDDED
++        voxelIndex[i] = -1;
++#else
+         voxelIndex[i] = 0;
++#endif
+ 
+     int hFile = kopen4loadfrommod("SURFACE.DAT", 0);
+     if (hFile != -1)
+@@ -122,7 +146,12 @@ int tileInit(char a1, const char *a2)
+     for (int i = 0; i < kMaxTiles; i++)
+     {
+         if (voxelIndex[i] >= 0 && voxelIndex[i] < kMaxVoxels)
++#ifndef EDUKE32
++            if (voxelIndex[i] >= nextvoxid)
++                nextvoxid = voxelIndex[i] + 1;
++#else
+             SetBitString((char*)voxreserve, voxelIndex[i]);
++#endif
+     }
+ 
+     artLoaded = 1;
+@@ -216,7 +245,9 @@ void tilePreloadTile(int nTile)
+ }
+ 
+ int nPrecacheCount;
++#ifdef USE_OPENGL
+ char precachehightile[2][(MAXTILES+7)>>3];
++#endif
+ 
+ void tilePrecacheTile(int nTile, int nType)
+ {
+@@ -252,7 +283,9 @@ void tilePrecacheTile(int nTile, int nType)
+                     nPrecacheCount++;
+                     SetBitString(gotpic, tile);
+                 }
++#ifdef USE_OPENGL
+                 SetBitString(precachehightile[nType], tile);
++#endif
+             }
+         }
+         else
+@@ -262,7 +295,9 @@ void tilePrecacheTile(int nTile, int nType)
+                 nPrecacheCount++;
+                 SetBitString(gotpic, nTile);
+             }
++#ifdef USE_OPENGL
+             SetBitString(precachehightile[nType], nTile);
++#endif
+         }
+         nTile += 1+picanm[nTile].num;
+     }
+diff --git a/source/blood/src/triggers.cpp b/source/blood/src/triggers.cpp
+index 89f76a1..ce28b9d 100644
+--- a/source/blood/src/triggers.cpp
++++ b/source/blood/src/triggers.cpp
+@@ -20,8 +20,12 @@ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+ //-------------------------------------------------------------------------
++#ifndef EMBEDDED
+ #include <random>
++#endif
++#ifdef EDUKE32
+ #include <iostream>
++#endif
+ 
+ #include "build.h"
+ #include "compat.h"
+@@ -2057,9 +2061,17 @@ void AlignSlopes(void)
+     int nSector;
+     for (pSector = sector, nSector = 0; nSector < numsectors; nSector++, pSector++)
+     {
++#ifndef EDUKE32
++        if (pSector->filler)
++#else
+         if (qsector_filler[nSector])
++#endif
+         {
++#ifndef EDUKE32
++            walltype *pWall = &wall[pSector->wallptr+pSector->filler];
++#else
+             walltype *pWall = &wall[pSector->wallptr+qsector_filler[nSector]];
++#endif
+             walltype *pWall2 = &wall[pWall->point2];
+             int nNextSector = pWall->nextsector;
+             if (nNextSector >= 0)
+diff --git a/source/blood/src/triggers.h b/source/blood/src/triggers.h
+index eaab25f..8b94f79 100644
+--- a/source/blood/src/triggers.h
++++ b/source/blood/src/triggers.h
+@@ -43,7 +43,11 @@ enum BUSYID {
+ };
+ 
+ #define kMaxBusyCountVanilla 128
++#ifdef __AMIGA__
++#define kMaxBusyCount kMaxBusyCountVanilla
++#else
+ #define kMaxBusyCount kMaxXSectors >> 2
++#endif
+ 
+ struct BUSY {
+     int at0;
+diff --git a/source/blood/src/view.cpp b/source/blood/src/view.cpp
+index 84547e4..717d8af 100644
+--- a/source/blood/src/view.cpp
++++ b/source/blood/src/view.cpp
+@@ -24,9 +24,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ #include <string.h>
+ 
+ #include "compat.h"
++#ifdef EDUKE32
+ #include "a.h"
++#endif
+ #include "build.h"
++#ifdef EDUKE32
+ #include "colmatch.h"
++#endif
+ #include "pragmas.h"
+ #include "mmulti.h"
+ #include "osd.h"
+@@ -127,7 +131,11 @@ char gInterpolateSprite[(kMaxSprites+7)>>3];
+ char gInterpolateWall[(kMaxWalls+7)>>3];
+ char gInterpolateSector[(kMaxSectors+7)>>3];
+ 
++#ifndef EDUKE32
++#define kMaxInterpolations 1024 // TODO is this enough? 
++#else
+ #define kMaxInterpolations 16384
++#endif
+ 
+ INTERPOLATE gInterpolation[kMaxInterpolations];
+ 
+@@ -361,12 +369,14 @@ void fakeProcessInput(PLAYER *pPlayer, GINPUT *pInput)
+ {
+     POSTURE *pPosture = &pPlayer->pPosture[pPlayer->lifeMode][predict.at48];
+ 
++#ifdef EDUKE32
+     if (numplayers > 1 && gPrediction)
+     {
+         gViewAngleAdjust = 0.f;
+         gViewLookRecenter = false;
+         gViewLookAdjust = 0.f;
+     }
++#endif
+ 
+     predict.at70 = pInput->syncFlags.run;
+     predict.at70 = 0;
+@@ -432,8 +442,10 @@ void fakeProcessInput(PLAYER *pPlayer, GINPUT *pInput)
+         const int speed = (predict.at48 == 1) ? 64 : 128;
+         predict.at4c = min(predict.at4c+speed, 0);
+         predict.at30 += fix16_from_int(speed);
++#ifdef EDUKE32
+         if (numplayers > 1 && gPrediction)
+             gViewAngleAdjust += float(ClipHigh(-predict.at4c, speed)); // don't overturn when nearing end of spin
++#endif
+     }
+ 
+     if (!predict.at71)
+@@ -461,7 +473,7 @@ void fakeProcessInput(PLAYER *pPlayer, GINPUT *pInput)
+             predict.at48 = 2;
+         break;
+     }
+-#if 0
++#ifndef EDUKE32
+     if (predict.at6e && !pInput->buttonFlags.lookUp && !pInput->buttonFlags.lookDown)
+     {
+         if (predict.at20 < 0)
+@@ -486,7 +498,7 @@ void fakeProcessInput(PLAYER *pPlayer, GINPUT *pInput)
+         predict.at24 = mulscale30(F16(180), Sin(fix16_to_int(predict.at20<<3)));
+     else
+         predict.at24 = 0;
+-#endif
++#else
+     CONSTEXPR int upAngle = 289;
+     CONSTEXPR int downAngle = -347;
+     CONSTEXPR double lookStepUp = 4.0*upAngle/60.0;
+@@ -521,6 +533,7 @@ void fakeProcessInput(PLAYER *pPlayer, GINPUT *pInput)
+     }
+     predict.at20 = fix16_clamp(predict.at20+(pInput->q16mlook<<3), F16(downAngle), F16(upAngle));
+     predict.at24 = fix16_from_float(100.f*tanf(fix16_to_float(predict.at20)*fPI/1024.f));
++#endif
+ 
+     int nSector = predict.at68;
+     int florhit = predict.at75.florhit & 0xc000;
+@@ -994,7 +1007,14 @@ void viewClearInterpolations(void)
+ void viewAddInterpolation(void *data, INTERPOLATE_TYPE type)
+ {
+     if (nInterpolations == kMaxInterpolations)
++#ifndef EDUKE32
++    {
++        consoleSysMsg("Too many interpolations");
++        return;
++    }
++#else
+         ThrowError("Too many interpolations");
++#endif
+     INTERPOLATE *pInterpolate = &gInterpolation[nInterpolations++];
+     pInterpolate->pointer = data;
+     pInterpolate->type = type;
+@@ -1138,6 +1158,7 @@ void DrawStatNumber(const char *pFormat, int nNumber, int nTile, int x, int y, i
+         int numTile, numScale, numY;
+         if (tempbuf[i] == ' ')
+             continue;
++#ifdef EDUKE32
+         if (tempbuf[i] == '-')
+         {
+             switch (nTile)
+@@ -1169,6 +1190,7 @@ void DrawStatNumber(const char *pFormat, int nNumber, int nTile, int x, int y, i
+             numY = (y<<16) + (1<<15); // offset to center of number row
+         }
+         else // regular number
++#endif
+         {
+             numTile = nTile+tempbuf[i]-'0';
+             numScale = nScale;
+@@ -1291,7 +1313,7 @@ void viewDrawStats(PLAYER *pPlayer, int x, int y)
+ struct POWERUPDISPLAY
+ {
+     int nTile;
+-    float nScaleRatio;
++    int nScaleRatio;
+     int yOffset;
+     int remainingDuration;
+ };
+@@ -1319,6 +1341,22 @@ void viewDrawPowerUps(PLAYER* pPlayer)
+         return;
+ 
+     POWERUPDISPLAY powerups[nPowerUps];
++#if 1
++#define X(i, name, scale, yoff) \
++  powerups[i] = { gPowerUpInfo[name].picnum, 65536 * scale, yoff, pPlayer->pwUpTime[name] };
++    X(0, kPwUpShadowCloak, 0.4f, 0)
++    X(1, kPwUpReflectShots, 0.4f, 5)
++    X(2, kPwUpDeathMask, 0.3f, 9)
++    X(3, kPwUpTwoGuns, 0.3f, 5)
++    X(4, kPwUpShadowCloakUseless, 0.4f, 9)
++    X(5, kPwUpFeatherFall, 0.3f, 7)
++    X(6, kPwUpGasMask, 0.4f, 4)
++    X(7, kPwUpDoppleganger, 0.5f, 5)
++    X(8, kPwUpAsbestArmor, 0.3f, 9)
++    X(9, kPwUpGrowShroom, 0.4f, 4)
++    X(10, kPwUpShrinkShroom, 0.4f, 4)
++#undef X
++#else
+     powerups[0] = { gPowerUpInfo[kPwUpShadowCloak].picnum,  0.4f, 0, pPlayer->pwUpTime[kPwUpShadowCloak] }; // Invisibility
+     powerups[1] = { gPowerUpInfo[kPwUpReflectShots].picnum, 0.4f, 5, pPlayer->pwUpTime[kPwUpReflectShots] }; // Reflects enemy shots
+     powerups[2] = { gPowerUpInfo[kPwUpDeathMask].picnum, 0.3f, 9, pPlayer->pwUpTime[kPwUpDeathMask] }; // Invulnerability
+@@ -1332,6 +1370,7 @@ void viewDrawPowerUps(PLAYER* pPlayer)
+     powerups[8] = { gPowerUpInfo[kPwUpAsbestArmor].picnum, 0.3f, 9, pPlayer->pwUpTime[kPwUpAsbestArmor] }; // Makes player immune to fire damage and draws HUD
+     powerups[9] = { gPowerUpInfo[kPwUpGrowShroom].picnum, 0.4f, 4, pPlayer->pwUpTime[kPwUpGrowShroom] }; // Grows player size, works only if gModernMap == true
+     powerups[10] = { gPowerUpInfo[kPwUpShrinkShroom].picnum, 0.4f, 4, pPlayer->pwUpTime[kPwUpShrinkShroom] }; // Shrinks player size, works only if gModernMap == true
++#endif
+ 
+     sortPowerUps(powerups);
+ 
+@@ -1345,7 +1384,7 @@ void viewDrawPowerUps(PLAYER* pPlayer)
+             int remainingSeconds = powerups[i].remainingDuration / 100;
+             if (remainingSeconds > warningTime || ((int)totalclock & 32))
+             {
+-                DrawStatMaskedSprite(powerups[i].nTile, x, y + powerups[i].yOffset, 0, 0, 256, (int)(65536 * powerups[i].nScaleRatio));
++                DrawStatMaskedSprite(powerups[i].nTile, x, y + powerups[i].yOffset, 0, 0, 256, powerups[i].nScaleRatio);
+             }
+ 
+             DrawStatNumber("%d", remainingSeconds, kSBarNumberInv, x + 15, y, 0, remainingSeconds > warningTime ? 0 : 2, 256, 65536 * 0.5);
+@@ -1359,7 +1398,7 @@ void viewDrawMapTitle(void)
+     if (!gShowMapTitle || gGameMenuMgr.m_bActive)
+         return;
+ 
+-    int const fadeStartTic = int((videoGetRenderMode() == REND_CLASSIC ? 1.25f : 1.f)*kTicsPerSec);
++    int const fadeStartTic = videoGetRenderMode() == REND_CLASSIC ? kTicsPerSec * 5 / 4 : kTicsPerSec;
+     int const fadeEndTic = int(1.5f*kTicsPerSec);
+     if (gLevelTime > fadeEndTic)
+         return;
+@@ -1511,6 +1550,7 @@ void viewDrawPlayerFlags(void)
+ 
+ void viewDrawCtfHudVanilla(ClockTicks arg)
+ {
++#if !NO_NET
+     int x = 1, y = 1;
+     if (gPlayerScoreTicks[0] == 0 || ((int)totalclock & 8))
+     {
+@@ -1531,6 +1571,7 @@ void viewDrawCtfHudVanilla(ClockTicks arg)
+         sprintf(gTempStr, "%3d", gPlayerScores[1]);
+         viewDrawText(0, gTempStr, x, y + 10, -128, 7, 2, 0, 512);
+     }
++#endif
+ }
+ 
+ void flashTeamScore(ClockTicks arg, int team, bool show)
+@@ -1814,6 +1855,7 @@ void UpdateStatusBar(ClockTicks arg)
+         viewDrawPowerUps(pPlayer);
+     }
+ 
++#if !NO_NET
+     if (gGameOptions.nGameType == kGameTypeSinglePlayer) return;
+ 
+     if (gGameOptions.nGameType == kGameTypeTeams)
+@@ -1832,6 +1874,7 @@ void UpdateStatusBar(ClockTicks arg)
+     {
+         viewDrawPlayerFrags();
+     }
++#endif
+ }
+ 
+ void viewPrecacheTiles(void)
+@@ -1863,10 +1906,12 @@ void viewPrecacheTiles(void)
+         tilePrecacheTile(kSBarNumberArmor2 + i, 0);
+         tilePrecacheTile(kSBarNumberArmor3 + i, 0);
+     }
++#ifdef EDUKE32
+     for (int i = 0; i < 6; i++)
+     {
+         tilePrecacheTile(kSBarNegative + i, 0);
+     }
++#endif
+     for (int i = 0; i < kPackMax; i++)
+     {
+         tilePrecacheTile(gPackIcons[i], 0);
+@@ -1928,14 +1973,20 @@ void viewInit(void)
+     }
+     gViewMap.sub_25C38(0, 0, gZoom, 0, gFollowMap);
+ 
++#ifdef EDUKE32
+     g_frameDelay = calcFrameDelay(r_maxfps);
++#endif
+ 
+     bLoadScreenCrcMatch = tileGetCRC32(kLoadScreen) == kLoadScreenCRC;
+ }
+ 
+ void viewResizeView(int size)
+ {
++#ifndef EDUKE32
++    int xdimcorrect = pixelaspect == 65536 ? xdim : ClipHigh(scale(ydim, 4, 3), xdim);
++#else
+     int xdimcorrect = ClipHigh(scale(ydim, 4, 3), xdim);
++#endif
+     gViewXCenter = xdim-xdim/2;
+     gViewYCenter = ydim-ydim/2;
+     xscale = divscale16(xdim, 320);
+@@ -2494,7 +2545,11 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+         //int nXSprite = pTSprite->extra;
+         int nXSprite = sprite[pTSprite->owner].extra;
+         XSPRITE *pTXSprite = NULL;
++#ifndef EDUKE32
++        if (sprite[pTSprite->owner].filler > gDetail)
++#else
+         if (qsprite_filler[pTSprite->owner] > gDetail)
++#endif
+         {
+             pTSprite->xrepeat = 0;
+             continue;
+@@ -2541,11 +2596,17 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+                 break;
+             case 1:
+             {
++#ifndef __AMIGA__
++#ifdef __AMIGA__
++                if (usevoxels /*&& gDetail >= 4*/ && tiletovox[pTSprite->picnum] != -1)
++#else
+                 if (tilehasmodelorvoxel(pTSprite->picnum, pTSprite->pal) && !(spriteext[nSprite].flags&SPREXT_NOTMD))
++#endif
+                 {
+                     pTSprite->cstat &= ~4;
+                     break;
+                 }
++#endif
+                 int dX = cX - pTSprite->x;
+                 int dY = cY - pTSprite->y;
+                 RotateVector(&dX, &dY, 128-pTSprite->ang);
+@@ -2563,11 +2624,17 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+             }
+             case 2:
+             {
++#ifndef __AMIGA__
++#ifdef __AMIGA__
++                if (usevoxels /*&& gDetail >= 4*/ && tiletovox[pTSprite->picnum] != -1)
++#else
+                 if (tilehasmodelorvoxel(pTSprite->picnum, pTSprite->pal) && !(spriteext[nSprite].flags&SPREXT_NOTMD))
++#endif
+                 {
+                     pTSprite->cstat &= ~4;
+                     break;
+                 }
++#endif
+                 int dX = cX - pTSprite->x;
+                 int dY = cY - pTSprite->y;
+                 RotateVector(&dX, &dY, 128-pTSprite->ang);
+@@ -2598,13 +2665,22 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+                     break;
+ #endif
+                 // Can be overridden by def script
++#ifdef __AMIGA__
++                if (usevoxels && gDetail >= 4 && voxelIndex[pTSprite->picnum] != -1)
++#else
+                 if (usevoxels && gDetail >= 4 && videoGetRenderMode() != REND_POLYMER && tiletovox[pTSprite->picnum] == -1 && voxelIndex[pTSprite->picnum] != -1 && !(spriteext[nSprite].flags&SPREXT_NOTMD))
++#endif
+                 {
+                     if ((pTSprite->flags&kHitagRespawn) == 0)
+                     {
+                         pTSprite->cstat |= 48;
+                         pTSprite->cstat &= ~(4|8);
++#ifndef EDUKE32
++                        // TODO fixme
++                        //pTSprite->yoffset += (signed char)((picanm[pTSprite->picnum]>>16)&255);
++#else
+                         pTSprite->yoffset += picanm[pTSprite->picnum].yofs;
++#endif
+                         pTSprite->picnum = voxelIndex[pTSprite->picnum];
+                         if (!voxoff[pTSprite->picnum][0])
+                             qloadvoxel(pTSprite->picnum);
+@@ -2623,7 +2699,12 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+             nAnim--;
+         }
+ 
++#ifndef __AMIGA__
++#ifdef __AMIGA__
++        if ((pTSprite->cstat&48) != 48 && usevoxels /*&& gDetail >= 4*/)
++#else
+         if ((pTSprite->cstat&48) != 48 && usevoxels && videoGetRenderMode() != REND_POLYMER && !(spriteext[nSprite].flags&SPREXT_NOTMD))
++#endif
+         {
+             int const nRootTile = pTSprite->picnum;
+ #if 0
+@@ -2637,9 +2718,12 @@ void viewProcessSprites(int32_t cX, int32_t cY, int32_t cZ, int32_t cA, int32_t
+ 
+             int const nVoxel = tiletovox[pTSprite->picnum];
+ 
++#ifdef EDUKE32
+             if (nVoxel != -1 && ((voxrotate[nVoxel>>3]&pow2char[nVoxel&7]) != 0 || (picanm[nRootTile].extra&7) == 7))
+                 pTSprite->ang = (pTSprite->ang+((int)totalclock<<3))&2047;
++#endif
+         }
++#endif
+ 
+ #ifdef USE_OPENGL
+         if ((pTSprite->cstat&48) != 48 && usemodels && !(spriteext[nSprite].flags&SPREXT_NOTMD))
+@@ -3093,6 +3177,7 @@ void viewBurnTime(int gScale)
+             nScale = scale(nScale, gScale, 600);
+         }
+         int xoffset = burnTable[i].nX;
++#ifdef EDUKE32
+         if (r_usenewaspect)
+         {
+             xoffset = scale(xoffset-(320>>1), 320>>1, 266>>1); // scale flame position
+@@ -3100,6 +3185,7 @@ void viewBurnTime(int gScale)
+             xoffset += (320>>1)<<16; // offset to center
+         }
+         else
++#endif
+             xoffset <<= 16;
+         rotatesprite(xoffset, burnTable[i].nY<<16, nScale, 0, nTile,
+             0, burnTable[i].nPal, burnTable[i].nStat, windowxy1.x, windowxy1.y, windowxy2.x, windowxy2.y);
+@@ -3377,7 +3463,11 @@ void viewDrawScreen(void)
+     lastUpdate = totalclock;
+     if (!gPaused && (!CGameMenuMgr::m_bActive || gGameOptions.nGameType != kGameTypeSinglePlayer))
+     {
++#ifndef EDUKE32
++        gInterpolate = (((totalclock-gNetFifoClock)+4) << 16)/4;
++#else
+         gInterpolate = ((totalclock-gNetFifoClock)+4).toScale16()/4;
++#endif
+     }
+     if (gInterpolate < 0 || gInterpolate > 65536)
+     {
+@@ -3388,10 +3478,12 @@ void viewDrawScreen(void)
+         CalcInterpolations();
+     }
+ 
++#ifdef EDUKE32
+     if (!gPaused && (!CGameMenuMgr::m_bActive || gGameOptions.nGameType != kGameTypeSinglePlayer))
+         rotatespritesmoothratio = gInterpolate;
+     else
+         rotatespritesmoothratio = 65536;
++#endif
+ 
+     if (gViewMode == 3 || gViewMode == 4 || gOverlayMap)
+     {
+@@ -3401,6 +3493,10 @@ void viewDrawScreen(void)
+     {
+         int yxAspect = yxaspect;
+         int viewingRange = viewingrange;
++#ifndef EDUKE32
++        //renderSetAspect(viewingrange, yxaspect);
++        //renderSetAspect(65536, yxaspect); // TODO hack
++#else
+         if (r_usenewaspect)
+         {
+             newaspect_enable = 1;
+@@ -3408,6 +3504,7 @@ void viewDrawScreen(void)
+         }
+         const int viewingRange_fov = Blrintf(float(viewingrange) * tanf(gFov * (PI/360.f)));
+         renderSetAspect(viewingRange_fov, yxaspect);
++#endif
+         int cX = gView->pSprite->x;
+         int cY = gView->pSprite->y;
+         int cZ = gView->zView;
+@@ -3453,6 +3550,7 @@ void viewDrawScreen(void)
+                 v48 = interpolate(pView->at18, v48, gInterpolate);
+             }
+         }
++#ifdef EDUKE32
+         if (gView == gMe && (numplayers <= 1 || gPrediction) && gView->pXSprite->health != 0 && !VanillaMode())
+         {
+             fix16_t q16look;
+@@ -3460,6 +3558,7 @@ void viewDrawScreen(void)
+             q16look = gViewLook;
+             q16horiz = fix16_from_float(100.f * tanf(fix16_to_float(q16look) * fPI / 1024.f));
+         }
++#endif
+         viewUpdateShake();
+         q16horiz += fix16_from_int(shakeHoriz);
+         cA += fix16_from_int(shakeAngle);
+@@ -3581,7 +3680,11 @@ void viewDrawScreen(void)
+                 nPalCrystalBall = 10;
+             memcpy(bakMirrorGotpic, gotpic+510, 2);
+             memcpy(gotpic+510, otherMirrorGotpic, 2);
++#if NO_FLOAT
++            g_visibility = (int32_t)ClipLow(gVisibility-32*pOther->visibility, 0);
++#else
+             g_visibility = (int32_t)(ClipLow(gVisibility-32*pOther->visibility, 0) * (numplayers > 1 ? 1.f : r_ambientlightrecip));
++#endif
+             int vc4, vc8;
+             getzsofslope(vcc, vd8, vd4, &vc8, &vc4);
+             if ((vd0 > vc4-(1<<7)) && (gUpperLink[vcc] == -1)) // clamp to floor
+@@ -3616,7 +3719,9 @@ RORHACKOTHER:
+             viewProcessSprites(vd8, vd4, vd0, v50, gInterpolate);
+             renderDrawMasks();
+             renderRestoreTarget();
++#ifdef EDUKE32
+             renderSetAspect(viewingRange_fov, yxaspect);
++#endif
+         }
+         else
+         {
+@@ -3656,7 +3761,11 @@ RORHACKOTHER:
+             }
+             nSprite = nextspritestat[nSprite];
+         }
++#if NO_FLOAT
++        g_visibility = (int32_t)ClipLow(gVisibility - 32 * gView->visibility - unk, 0);
++#else
+         g_visibility = (int32_t)(ClipLow(gVisibility - 32 * gView->visibility - unk, 0) * (numplayers > 1 ? 1.f : r_ambientlightrecip));
++#endif
+         if (!gViewInterpolate) 
+         {
+             cA += fix16_from_int(deliriumTurn);
+@@ -3726,10 +3835,14 @@ RORHACK:
+                 dassert(waloff[ TILTBUFFER ] != 0);
+                 renderRestoreTarget();
+                 int vrc = 64+4+2+1024;
++#ifdef __AMIGA__
++                // TODO trasnsparency is not working with rotation!
++#else
+                 if (bDelirium)
+                 {
+                     vrc = 64+32+4+2+1+1024;
+                 }
++#endif
+                 int nAng = v78 & (kAng90-1);
+                 if (nAng > kAng45)
+                 {
+@@ -3761,9 +3874,11 @@ RORHACK:
+ 
+         bDeliriumOld = bDelirium && gDeliriumBlur;
+ 
++#ifdef EDUKE32
+         if (r_usenewaspect)
+             newaspect_enable = 0;
+         renderSetAspect(viewingRange, yxAspect);
++#endif
+ #if 0
+         int nClipDist = gView->pSprite->clipdist<<2;
+         int ve8, vec, vf0, vf4;
+@@ -3876,6 +3991,9 @@ RORHACK:
+         //    gChoke.swayV(pPSprite);
+         //}
+         //lastClock = gGameClock;
++#ifdef __AMIGA__
++        //viewUpdatePages();
++#endif
+     }
+     if (byte_1A76C6)
+     {
+@@ -4022,6 +4140,9 @@ void viewLoadingScreen(int nTile, const char *pText, const char *pText2, const c
+     else
+         pzLoadingScreenText3[0] = 0;
+     viewLoadingScreenUpdate(NULL, -1);
++#ifndef EDUKE32
++    viewUpdatePages();
++#endif
+ }
+ 
+ palette_t CrosshairColors = { 255, 255, 255, 0 };
+@@ -4029,6 +4150,7 @@ bool g_isAlterDefaultCrosshair = false;
+ 
+ void viewSetCrosshairColor(int32_t r, int32_t g, int32_t b)
+ {
++#ifdef EDUKE32
+     if (!g_isAlterDefaultCrosshair)
+         return;
+ 
+@@ -4069,6 +4191,7 @@ void viewSetCrosshairColor(int32_t r, int32_t g, int32_t b)
+     crosshairtint.f = HICTINT_USEONART | HICTINT_GRAYSCALE;
+ #endif
+     tileInvalidate(kCrosshairTile, -1, -1);
++#endif
+ }
+ 
+ void viewResetCrosshairToDefault(void)
+@@ -4095,6 +4218,7 @@ int32_t gShowFps, gFramePeriod;
+ 
+ void viewPrintFPS(void)
+ {
++#ifndef EMBEDDED
+     char tempbuf[128];
+     static int32_t frameCount;
+     static double cumulativeFrameDelay;
+@@ -4208,6 +4332,7 @@ void viewPrintFPS(void)
+         frameCount++;
+     }
+     lastFrameTime = frameTime;
++#endif
+ }
+ 
+ #undef FPS_COLOR
+diff --git a/source/blood/src/view.h b/source/blood/src/view.h
+index ac2ea06..4a02a1b 100644
+--- a/source/blood/src/view.h
++++ b/source/blood/src/view.h
+@@ -75,6 +75,14 @@ enum INTERPOLATE_TYPE {
+ #define kLoadScreenWideRight 9218
+ #define kLoadScreenWideMiddle 9219
+ 
++#ifndef EDUKE32
++#define kSBarNumberHealth 2190
++#define kSBarNumberAmmo 2240
++#define kSBarNumberInv 4208 // yellow
++#define kSBarNumberArmor1 4208 // blue
++#define kSBarNumberArmor2 4208 // red
++#define kSBarNumberArmor3 4208 // green
++#else
+ #define kSBarNumberHealth 9220
+ #define kSBarNumberAmmo 9230
+ #define kSBarNumberInv 9240
+@@ -82,6 +90,7 @@ enum INTERPOLATE_TYPE {
+ #define kSBarNumberArmor2 9260
+ #define kSBarNumberArmor3 9270
+ #define kSBarNegative 9280
++#endif
+ 
+ #define kFontNum 5
+ 
+diff --git a/source/blood/src/weapon.cpp b/source/blood/src/weapon.cpp
+index dda8796..824e566 100644
+--- a/source/blood/src/weapon.cpp
++++ b/source/blood/src/weapon.cpp
+@@ -366,6 +366,10 @@ void UpdateAimVector(PLAYER * pPlayer)
+             int angle = getangle(x2-x,y2-y);
+             if (klabs(((angle-pPSprite->ang+1024)&2047)-1024) > pWeaponTrack->at8)
+                 continue;
++#ifdef __AMIGA__
++            // aim targets are only used by the Voodoo doll's alt fire
++            if (pPlayer->input.buttonFlags.shoot2 && pPlayer->curWeapon == kWeaponVoodoo)
++#endif
+             if (pPlayer->aimTargetsCount < 16 && cansee(x,y,z,pPSprite->sectnum,x2,y2,z2,pSprite->sectnum))
+                 pPlayer->aimTargets[pPlayer->aimTargetsCount++] = nSprite;
+             // Inlined?
+@@ -416,6 +420,10 @@ void UpdateAimVector(PLAYER * pPlayer)
+                 int angle = getangle(dx,dy);
+                 if (klabs(((angle-pPSprite->ang+1024)&2047)-1024) > pWeaponTrack->atc)
+                     continue;
++#ifdef __AMIGA__
++                // aim targets are only used by the Voodoo doll's alt fire
++                if (pPlayer->input.buttonFlags.shoot2 && pPlayer->curWeapon == kWeaponVoodoo)
++#endif
+                 if (pPlayer->aimTargetsCount < 16 && cansee(x,y,z,pPSprite->sectnum,pSprite->x,pSprite->y,pSprite->z,pSprite->sectnum))
+                     pPlayer->aimTargets[pPlayer->aimTargetsCount++] = nSprite;
+                 // Inlined?
