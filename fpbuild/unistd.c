@@ -84,7 +84,7 @@ off_t lseek(int fd, off_t off, int origin) {
 // extra
 
 int sys_errno = 0;
-volatile int *__errno(void) { return &sys_errno; }
+int *__errno(void) { return &sys_errno; }
 
 char *strerror(int errnum) { return "<unknown>"; }
 

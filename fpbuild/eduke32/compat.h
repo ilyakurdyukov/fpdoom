@@ -36,9 +36,13 @@
 
 #ifdef __GNUC__
 #define UNUSED(x) UNUSED_##x __attribute__((unused))
-#define fallthrough__ __attribute__((fallthrough))
 #else
 #define UNUSED(x) x
+#endif
+
+#if __GNUC__ >= 7
+#define fallthrough__ __attribute__((fallthrough))
+#else
 #define fallthrough__
 #endif
 

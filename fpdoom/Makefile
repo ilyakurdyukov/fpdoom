@@ -59,6 +59,9 @@ LFLAGS += -Wl,--defsym,IMAGE_START=0x34000000
 else
 LFLAGS += -Wl,--defsym,IMAGE_START=0x14000000
 endif
+# -Wl,--no-dynamic-linker
+LFLAGS += $(LD_EXTRA)
+CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 CFLAGS += -isystem include
 ifneq ($(CHIP), 0)
 CFLAGS += -DCHIP=$(CHIP)
