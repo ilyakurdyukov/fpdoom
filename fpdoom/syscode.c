@@ -357,7 +357,7 @@ static uint16_t lcm_recv(unsigned idx) {
 static inline void lcm_send_cmd(unsigned val) { lcm_send(0, val); }
 static inline void lcm_send_data(unsigned val) { lcm_send(1, val); }
 
-static void lcm_wait(uint32_t delay, uint32_t method) {
+static void lcm_reset(unsigned delay, unsigned method) {
 	uint32_t addr = 0x8b000224, t;
 	int i;
 	method &= 1;
@@ -540,7 +540,7 @@ static int is_whtled_on(void) {
 #if CHIP == 1
 	return (adi_read(ANA_WHTLED_CTRL) & 1) == 0;
 #elif CHIP == 2 || CHIP == 3
-	return (adi_read(ANA_LED_CTRL) & 4) == 0;
+	return IS_SC6530 ? 0 : (adi_read(ANA_LED_CTRL) & 4) == 0;
 #endif
 }
 
@@ -554,7 +554,7 @@ static void lcm_init(void) {
 	LCM_CR(0x10) = 1;
 	LCM_CR(0x14) = 0xa50100;
 
-	if (!is_whtled_on()) lcm_wait(32, 0);
+	if (!is_whtled_on()) lcm_reset(32, 0);
 
 	clk_rate = get_ahb_freq();
 	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
@@ -566,7 +566,8 @@ static void lcm_init(void) {
 
 	lcm_set_safe_freq(cs);
 	lcm_config_addr(cs);
-	id = lcd_getid();
+	id = sys_data.lcd_id;
+	if (!id) id = lcd_getid();
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
