@@ -81,7 +81,7 @@ static void adi_write(uint32_t addr, uint32_t val) {
 	t0 = t1 = sys_timer_ms();
 	while (MEM4(REG_ADI_FIFO_STS) & BIT_FIFO_FULL) {
 		t1 = sys_timer_ms();
-		if (t1 - t0 > 60)	FATAL();
+		if (t1 - t0 > 60) FATAL();
 	}
 	MEM4(addr) = val;
 	t0 = t1;
@@ -221,10 +221,14 @@ static void pin_init(void) {
 	// ANA_LDO_SF_REG0
 	uint32_t ldo_sf0 = adi_read(0x8200148c);
 #endif
+	int sc6530_fix = IS_SC6530 && !sys_data.spi;
 
 	for (;;) {
 		uint32_t addr = pinmap[0], val = pinmap[1];
 		pinmap += 2;
+		// workaround for Samsung GT-E1272
+		// hangs shortly after this pin is enabled
+		if (sc6530_fix && addr == 0x8c000290) continue;
 		if (addr - 0x82001000 < 0x1000) {
 			adi_write(addr, val & 0xffff);
 		} else if (addr >> 12 == 0x8c000) {

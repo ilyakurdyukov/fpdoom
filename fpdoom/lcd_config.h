@@ -906,7 +906,7 @@ static const lcd_config_t lcd_config[] = {
 
 /* Samsung GT-E1272 (SC6530) */
 
-	// Sitronix ST7735 BYD (untested)
+	// Sitronix ST7735 BYD
 	{ 0x5cb1f0, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 10, 30, 60 }, { 0 }, 0xc8, cmd5CB1F0_init },
 #endif
 };

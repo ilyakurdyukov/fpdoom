@@ -67,6 +67,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 21 | Nomi i184              | SC6531DA | GC9102  128x160 | *          |
 | 22 | Sigma IO67             | SC6531DA | GC9305  240x320 | dial       |
 | 23 | Samsung GT-E1272       | SC6531E  | ST???   128x160 | 2          |
+| 24 | Samsung GT-E1272       | SC6530   | ST7735  128x160 | center     |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12, Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67: need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
