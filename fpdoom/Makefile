@@ -70,6 +70,7 @@ CFLAGS += -DTWO_STAGE=$(TWO_STAGE)
 
 DOOM_CFLAGS = -DEMBEDDED -DNORMALUNIX -DLINUX -DUSEASM
 DOOM_CFLAGS += -Wno-unused-parameter -Wno-unused -Wno-missing-field-initializers
+DOOM_CFLAGS += -Wno-strict-prototypes
 
 # Clang's LTO doesn't work with the GCC toolchain
 ifeq ($(findstring -gcc-toolchain,$(notdir $(CC))),)
