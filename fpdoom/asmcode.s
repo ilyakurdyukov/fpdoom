@@ -33,9 +33,20 @@ CODE32_FN enable_mmu
 
 CODE32_FN clean_dcache
 	// clean entire dcache using test and clean
-	// apsr_nzcv == r15
+	// apsr_nzcv == r15 (Clang doesn't understand r15)
 1:	mrc	p15, #0, apsr_nzcv, c7, c10, #3
 	bne	1b
+	mov	r0, #0
+	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
+	bx	lr
+
+CODE32_FN clean_invalidate_dcache_range
+	bic	r0, #0x1f
+	// clean and invalidate dcache entry (MVA)
+1:	mcr	p15, #0, r0, c7, c14, #1
+	add	r0, #0x20
+	cmp	r0, r1
+	blo	1b
 	mov	r0, #0
 	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
 	bx	lr
