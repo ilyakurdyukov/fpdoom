@@ -521,6 +521,7 @@ int main(int argc, char **argv) {
 	io->verbose = verbose;
 
 	// init
+resetio:
 	memset(open_files, 0, sizeof(open_files));
 	open_files[0].file = stdin;
 	open_files[1].file = stdout;
@@ -736,6 +737,28 @@ int main(int argc, char **argv) {
 				send_args(io, NULL, flags, argc, argv, skip + 1);
 			}
 			break;
+
+		case CMD_RESETIO:
+			if (usb_recv(io, 3) != 3)
+				ERR_EXIT("response timeout\n");
+			{
+				int ret = EOF;
+				int chk = CHECKSUM_INIT;
+				chk += cmd + (io->buf[0] << 8);
+				chk = (chk + (chk >> 16)) & 0xffff;
+				if (chk != READ16_LE(io->buf + 1))
+					ERR_EXIT("bad checksum\n");
+			}
+			if (io->buf[0] == 1) {
+				static const uint8_t fdl_ack[8] = {
+					0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
+				if (usb_recv(io, 8) != 8)
+					ERR_EXIT("response timeout\n");
+				if (memcmp(io->buf, fdl_ack, sizeof(fdl_ack)))
+					ERR_EXIT("fdl ack expected\n");
+			} else if (io->buf[0] > 1)
+				ERR_EXIT("unknown resetio option\n");
+			goto resetio;
 
 		default:
 			ERR_EXIT("unknown command\n");

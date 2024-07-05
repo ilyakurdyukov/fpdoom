@@ -9,6 +9,7 @@ enum {
 	CMD_FSEEK = 0x85,
 	CMD_FTELL = 0x86,
 	CMD_GETARGS = 0x87,
+	CMD_RESETIO = 0x88,
 };
 
 #define CHECKSUM_INIT 0x5a5a

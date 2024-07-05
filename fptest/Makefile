@@ -82,6 +82,7 @@ endif
 
 CFLAGS += -std=c99 -pedantic
 CFLAGS += -Wno-unused -Wno-unused-parameter
+CFLAGS += -Wno-strict-prototypes
 
 .PHONY: all clean
 
