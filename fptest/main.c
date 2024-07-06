@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "syscode.h"
+#include "cmd_def.h"
+#include "usbio.h"
 
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
@@ -58,6 +60,36 @@ static void test_refresh() {
 	printf("%d.%03d frames per second\n", t2, t3);
 }
 
+static void usbbench(int arg, unsigned len, unsigned n) {
+	void *mem = malloc(len + 32);
+	uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
+	uint32_t t0, t1; unsigned i;
+
+	{
+		union { uint16_t u16[5]; uint32_t u32[2]; } buf;
+		unsigned tmp = CMD_USBBENCH | arg << 8;
+		buf.u16[0] = tmp; tmp += CHECKSUM_INIT;
+		buf.u16[1] = len; tmp += len;
+		buf.u32[1] = n; tmp += (uint16_t)n + (n >> 16);
+		buf.u16[4] = tmp + (tmp >> 16);
+		usb_write(&buf, 10); // sizeof(buf) == 12
+	}
+
+	memset(buf, 0, len);
+	t0 = sys_timer_ms();
+	if (arg == 0)
+	for (i = 0; i < n; i += len)
+		usb_read(buf, len, USB_WAIT);
+	else
+	for (i = 0; i < n; i += len)
+		usb_write(buf, len);
+	t1 = sys_timer_ms();
+	free(mem);
+	t1 -= t0;
+	printf("usbio raw %s: %u bytes in %u ms\n",
+			arg ? "write" : "read", i, t1);
+}
+
 static void test_keypad() {
 	int type, key, ret = 0;
 
@@ -101,6 +133,11 @@ int main(int argc, char **argv) {
 		gen_image(framebuf, w, h, w);
 		test_refresh();
 		free(framebuf_mem);
+	}
+
+	if (1) {
+		usbbench(0, 1024, 1 << 20);
+		usbbench(1, 1024, 1 << 20);
 	}
 
 	if (1) {

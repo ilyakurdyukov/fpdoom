@@ -360,6 +360,12 @@ static int get_free_handle(void) {
 	return -1;
 }
 
+static int close_file_handle(FILE *f) {
+	if (!f || f == stdin || f == stdout || f == stderr)
+		return 0;
+	return fclose(f);
+}
+
 static unsigned fastchk16(unsigned crc, const void *src, int len) {
 	uint8_t *s = (uint8_t*)src;
 
@@ -671,7 +677,7 @@ resetio:
 
 				if (f) {
 					open_files[handle].file = NULL;
-					ret = fclose(f);
+					ret = close_file_handle(f);
 				}
 				io->buf[0] = ret ? EOF : 0;
 				usb_send(io, NULL, 1);
@@ -742,12 +748,13 @@ resetio:
 			if (usb_recv(io, 3) != 3)
 				ERR_EXIT("response timeout\n");
 			{
-				int ret = EOF;
-				int chk = CHECKSUM_INIT;
+				int i, chk = CHECKSUM_INIT;
 				chk += cmd + (io->buf[0] << 8);
 				chk = (chk + (chk >> 16)) & 0xffff;
 				if (chk != READ16_LE(io->buf + 1))
 					ERR_EXIT("bad checksum\n");
+				for (i = 0; i < MAX_FILES; i++)
+					close_file_handle(open_files[i].file);
 			}
 			if (io->buf[0] == 1) {
 				static const uint8_t fdl_ack[8] = {
@@ -757,8 +764,39 @@ resetio:
 				if (memcmp(io->buf, fdl_ack, sizeof(fdl_ack)))
 					ERR_EXIT("fdl ack expected\n");
 			} else if (io->buf[0] > 1)
-				ERR_EXIT("unknown resetio option\n");
+				ERR_EXIT("unknown cmd argument\n");
 			goto resetio;
+
+		case CMD_USBBENCH:
+			if (usb_recv(io, 9) != 9)
+				ERR_EXIT("response timeout\n");
+			{
+				uint16_t len = READ16_LE(io->buf + 1);
+				uint32_t i, n = READ32_LE(io->buf + 3);
+
+				int chk = CHECKSUM_INIT;
+				chk += cmd + (io->buf[0] << 8);
+				chk = fastchk16(chk, io->buf + 1, 6);
+				if (chk != READ16_LE(io->buf + 7))
+					ERR_EXIT("bad checksum\n");
+
+				if (len > TEMP_BUF_LEN)
+					ERR_EXIT("requested length too big\n");
+
+				if (io->buf[0] > 1)
+					ERR_EXIT("unknown cmd argument\n");
+
+				if (io->buf[0] == 0) {
+					memset(io->buf, 0, len);
+					for (i = 0; i < n; i += len)
+						usb_send(io, NULL, len);
+				} else {
+					for (i = 0; i < n; i += len)
+						if (usb_recv(io, len) != len)
+							ERR_EXIT("response timeout\n");
+				}
+			}
+			break;
 
 		default:
 			ERR_EXIT("unknown command\n");
