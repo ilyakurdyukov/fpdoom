@@ -4,6 +4,7 @@
 #include "syscode.h"
 #include "cmd_def.h"
 #include "usbio.h"
+#include "sdio.h"
 
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
@@ -60,7 +61,7 @@ static void test_refresh() {
 	printf("%d.%03d frames per second\n", t2, t3);
 }
 
-static void usbbench(int arg, unsigned len, unsigned n) {
+static void usbio_bench(int arg, unsigned len, unsigned n) {
 	void *mem = malloc(len + 32);
 	uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
 	uint32_t t0, t1; unsigned i;
@@ -88,6 +89,21 @@ static void usbbench(int arg, unsigned len, unsigned n) {
 	t1 -= t0;
 	printf("usbio raw %s: %u bytes in %u ms\n",
 			arg ? "write" : "read", i, t1);
+}
+
+static void sdio_bench(uint32_t size) {
+	void *mem = malloc(512 + 32);
+	uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
+	unsigned i, n = size >> 9;
+	uint32_t t0, t1;
+
+	t0 = sys_timer_ms();
+	for (i = 0; i < n; i++)
+		if (sdio_read_block(i, buf)) break;
+	t1 = sys_timer_ms();
+	free(mem);
+	t1 -= t0;
+	printf("sdio raw read: %u bytes in %u ms\n", i << 9, t1);
 }
 
 static void test_keypad() {
@@ -136,8 +152,16 @@ int main(int argc, char **argv) {
 	}
 
 	if (1) {
-		usbbench(0, 1024, 1 << 20);
-		usbbench(1, 1024, 1 << 20);
+		usbio_bench(0, 1024, 1 << 20);
+		usbio_bench(1, 1024, 1 << 20);
+	}
+
+	if (1) {
+		sdio_init();
+		if (!sdcard_init()) {
+			SDIO_VERBOSITY(0);
+			sdio_bench(1 << 20);
+		}
 	}
 
 	if (1) {

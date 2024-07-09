@@ -14,7 +14,7 @@ NAME = fptest
 FPDOOM = ../fpdoom
 OBJDIR = obj$(CHIP)
 
-SRCS += main
+SRCS += main sdio
 
 ifeq ($(TWO_STAGE), 0)
 SRCS := start entry $(SRCS)
@@ -110,10 +110,10 @@ $(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 $(OBJDIR)/sys/chip2_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
-$(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
+$(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@
 
-$(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
+$(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
 	$(CC) $< -c -o $@
 
 %.rel: %.elf
