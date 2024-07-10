@@ -106,6 +106,26 @@ static void sdio_bench(uint32_t size) {
 	printf("sdio raw read: %u bytes in %u ms\n", i << 9, t1);
 }
 
+static void sdio_write_test(unsigned i) {
+	void *mem = malloc(512 + 32);
+	uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
+	int ret = 0;
+	do {
+		uint32_t val;
+		if (sdio_read_block(i, buf)) break;
+		val = *(uint32_t*)buf;
+		*(uint32_t*)buf = ~val;
+		if (sdio_write_block(i, buf)) break;
+		*(uint32_t*)buf = val ^ 0x55555555;
+		if (sdio_read_block(i, buf)) break;
+		if (*(uint32_t*)buf != ~val) break;
+		ret = 1;
+	} while (0);
+	printf("sdio write %s\n", ret ? "ok" : "failed");
+	// check: dd if=/dev/sdx bs=512 skip=1 count=1 | hd
+	free(mem);
+}
+
 static void test_keypad() {
 	int type, key, ret = 0;
 
@@ -161,6 +181,7 @@ int main(int argc, char **argv) {
 		if (!sdcard_init()) {
 			SDIO_VERBOSITY(0);
 			sdio_bench(1 << 20);
+			if (0) sdio_write_test(1);
 		}
 	}
 

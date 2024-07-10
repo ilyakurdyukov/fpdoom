@@ -284,12 +284,15 @@ void sdio_init(void) {
 	SDIO_CMD_DMA | SDIO_CMD_DATA_READ | SDIO_CMD_DATA
 #define SDIO_CMD17_TR SDIO_MAKE_CMD(17, 48) | SDIO_CMD_IND_CHK | SDIO_CMD_CRC_CHK | \
 	SDIO_CMD_DMA | SDIO_CMD_DATA_READ | SDIO_CMD_DATA
+#define SDIO_CMD24_TR SDIO_MAKE_CMD(24, 48) | SDIO_CMD_IND_CHK | SDIO_CMD_CRC_CHK | \
+	SDIO_CMD_DMA | SDIO_CMD_DATA
 
 #define SDIO_CMD6_INT SDIO_INT_CMD_COMPLETE | SDIO_INT_TARGET_RESP | \
 	SDIO_INT_CMD_END | SDIO_INT_CMD_CRC | SDIO_INT_CMD_TIMEOUT | \
 	SDIO_INT_DATA_END | SDIO_INT_DATA_CRC | SDIO_INT_DATA_TIMEOUT | \
 	SDIO_INT_TR_COMPLETE | SDIO_INT_DMA
 #define SDIO_CMD17_INT SDIO_CMD6_INT
+#define SDIO_CMD24_INT (SDIO_CMD6_INT) & ~SDIO_INT_DATA_END
 
 #define SDIO_ACMD6_TR SDIO_MAKE_CMD(6, 48) | SDIO_CMD_IND_CHK | SDIO_CMD_CRC_CHK
 #define SDIO_ACMD41_TR SDIO_MAKE_CMD(41, 48)
@@ -329,28 +332,35 @@ static uint32_t sdio_cmd(uint32_t cmd_tr, uint32_t arg,
 	sdio->arg = arg;
 	sdio->tr_mode = (sdio->tr_mode & 0xc004ff80) | cmd_tr;
 
-#if SDIO_USE_DMA
+#if !SDIO_USE_DMA
+	if (data) {
+		int i; uint32_t *p = data;
+		if (cmd_tr & SDIO_CMD_DATA_READ)
+		for (i = 0; i < size; i += 4) {
+			do {
+				cmd_int = sdio->int_st;
+				if (cmd_int & SDIO_INT_ERR) goto copy_err;
+				tmp = sdio->state;
+			} while (!(tmp & 1 << 11)); // BUF_READ_EN
+			*p++ = sdio->buf_port;
+		}
+		else
+		for (i = 0; i < size; i += 4) {
+			do {
+				cmd_int = sdio->int_st;
+				if (cmd_int & SDIO_INT_ERR) goto copy_err;
+				tmp = sdio->state;
+			} while (!(tmp & 1 << 10)); // BUF_WR_EN
+			sdio->buf_port = *p++;
+		}
+copy_err:
+	}
+#endif
 	tmp = data ? SDIO_INT_TR_COMPLETE | SDIO_INT_ERR :
 			SDIO_INT_CMD_COMPLETE | SDIO_INT_ERR;
 	// IRQ: MEM4(0x80001004) & 1 << 8
 	do cmd_int = sdio->int_st;
 	while (!(cmd_int & tmp));
-#else
-	if (data) {
-		int i; uint32_t *p = data;
-		for (i = 0; i < size; i += 4) {
-			cmd_int = sdio->int_st;
-			if (cmd_int & SDIO_INT_ERR) break;
-			do tmp = sdio->state;
-			while (!(tmp & 1 << 11));
-			*p++ = sdio->buf_port;
-		}
-	} else {
-		tmp = SDIO_INT_CMD_COMPLETE | SDIO_INT_ERR;
-		do cmd_int = sdio->int_st;
-		while (!(cmd_int & tmp));
-	}
-#endif
 	SDIO_LOG("sdio INT: 0x%08x\n", cmd_int);
 
 #if 0 // unnecessary
@@ -515,3 +525,13 @@ int sdio_read_block(uint32_t idx, uint8_t *buf) {
 	return 0;
 }
 
+int sdio_write_block(uint32_t idx, uint8_t *buf) {
+	uint32_t sd_int;
+	idx <<= sdio_shl;
+	sd_int = sdio_cmd(SDIO_CMD24_TR, idx, SDIO_CMD24_INT, buf, 512, NULL);
+	if (!(sd_int & SDIO_INT_CMD_COMPLETE)) {
+		DBG_LOG("sdio: CMD%u failed\n", 24);
+		return -1;
+	}
+	return 0;
+}
