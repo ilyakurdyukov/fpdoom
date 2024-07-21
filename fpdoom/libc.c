@@ -46,11 +46,40 @@ FILE *_stdin = NULL;
 FILE *_stdout = NULL;
 FILE *_stderr = NULL;
 
+#if LIBC_SDIO < 2
 struct _IO_FILE {
-	uint16_t handle, flags, pos, len;
+	uint16_t flags, handle, pos, len;
 	char *buf;
 };
+#endif
 
+#if LIBC_SDIO
+#include "sdio.h"
+#ifndef FAT_DEBUG
+#define FAT_DEBUG 0
+#endif
+#define FAT_READ_SYS \
+	if (sdio_read_block(sector, buf)) break;
+#define FAT_WRITE_SYS \
+	if (FAT_DEBUG) printf("fat: write 0x%x%03x\n", sector >> 3, (sector & 7) << 9); \
+	if (sdio_write_block(sector, buf)) break;
+#include "microfat.h"
+#define LIBC_FAT_ALIAS 0
+#if LIBC_SDIO >= 2 && !LIBC_FAT_ALIAS
+#define fatfile _IO_FILE
+#define fat_fflush fflush
+#define fat_fgetc fgetc
+#define fat_fputc fputc
+#define fat_fread fread
+#define fat_fwrite fwrite
+#define fat_fseek fseek
+#define fat_ftell ftell
+#define fat_fopen fopen
+#define fat_fclose fclose
+#endif
+#include "fatfile.c"
+#define _IO_SDIO 0x80
+#endif
 #include "cmd_def.h"
 #include "usbio.h"
 
@@ -79,6 +108,11 @@ void _sig_intovf(void) {
 }
 
 static FILE* _file_alloc(int handle, int flags) {
+#if LIBC_SDIO >= 2
+	static const uint8_t file_flags = 0;
+	(void)handle; (void)flags;
+	return (FILE*)&file_flags;
+#else
 	// int len = (flags ^ _IO_PIPE) & (_IO_WRITE | _IO_PIPE) ? BUFSIZ;
 	int len = BUFSIZ;
 	FILE *f = malloc(sizeof(FILE) + len);
@@ -90,6 +124,7 @@ static FILE* _file_alloc(int handle, int flags) {
 		f->buf = len ? (char*)(f + 1) : NULL;
 	}
 	return f;
+#endif
 }
 
 void _stdio_init(void) {
@@ -163,6 +198,21 @@ int _argv_init(char ***argvp, int skip) {
 	return argc;
 }
 
+#if LIBC_SDIO >= 2
+#if LIBC_FAT_ALIAS
+#define X(name) __attribute__((alias(#name)));
+int fflush(FILE *f) X(fat_fflush)
+int fgetc(FILE *f) X(fat_fgetc)
+int fputc(int ch, FILE *f) X(fat_fputc)
+size_t fread(void *dst, size_t size, size_t count, FILE *f) X(fat_fread)
+size_t fwrite(const void *src, size_t size, size_t count, FILE *f) X(fat_fwrite)
+int fseek(FILE *f, long offset, int origin) X(fat_fseek)
+long ftell(FILE *f) X(fat_ftell)
+FILE *fopen(const char *name, const char *mode) X(fat_fopen)
+int fclose(FILE *f) X(fat_fclose)
+#undef X
+#endif
+#else
 static size_t _read_raw(int handle, size_t size, void *dst) {
 	union { uint8_t u8[6]; uint16_t u16[3]; } buf;
 	unsigned tmp; int ret;
@@ -222,9 +272,23 @@ static int _close_raw(int handle) {
 	return (char)buf.u8[0];
 }
 
+#if 1
+#define CHECK_FILE(name, ret)
+#else
+#define CHECK_FILE(name, ret) if (!f) { \
+	printf(stderr, "!!! %s: null file\n", #name); \
+	exit(1); /* return ret; */ \
+}
+#endif
+
 int fflush(FILE *f) {
 	unsigned pos;
-	if (!f || !(f->flags & _IO_WRITE)) return EOF;
+	CHECK_FILE(fflush, EOF)
+#if LIBC_SDIO
+	if (f->flags & _IO_SDIO)
+		return fat_fflush((fatfile_t*)f);
+#endif
+	if (!(f->flags & _IO_WRITE)) return EOF;
 	pos = f->pos;
 	f->pos = 0;
 	if (pos) _write_raw(f->handle, pos, f->buf);
@@ -232,9 +296,15 @@ int fflush(FILE *f) {
 }
 
 int fgetc(FILE *f) {
+#if LIBC_SDIO
+	if (f && (f->flags & _IO_SDIO))
+		return fat_fgetc((fatfile_t*)f);
+	return EOF;
+#else
 	unsigned pos, len;
 
-	if (!f || (f->flags & _IO_WRITE)) return EOF;
+	CHECK_FILE(fgetc, EOF)
+	if (f->flags & _IO_WRITE) return EOF;
 
 	pos = f->pos;
 	len = f->len;
@@ -253,12 +323,18 @@ int fgetc(FILE *f) {
 		len = _read_raw(f->handle, 1, buf);
 		return len ? buf[0] : EOF;
 	}
+#endif
 }
 
 int fputc(int ch, FILE *f) {
 	int pos;
 
-	if (!f || !(f->flags & _IO_WRITE)) return EOF;
+	CHECK_FILE(fputc, EOF)
+#if LIBC_SDIO
+	if (f->flags & _IO_SDIO)
+		return fat_fputc(ch, (fatfile_t*)f);
+#endif
+	if (!(f->flags & _IO_WRITE)) return EOF;
 	pos = f->pos;
 	f->buf[pos++] = ch;
 	f->pos = pos;
@@ -273,14 +349,20 @@ int fputc(int ch, FILE *f) {
 }
 
 size_t fread(void *dst, size_t size, size_t count, FILE *f) {
+#if LIBC_SDIO
+	if (f && (f->flags & _IO_SDIO))
+		return fat_fread(dst, size, count, (fatfile_t*)f);
+	return 0;
+#else
 	uint8_t *d = (uint8_t*)dst;
 	size_t ret = 0;
-	uint64_t size2;
-	size2 = (uint64_t)size * count;
-	if (size2 >> 32) return EOF;
-	count = size2;
-
-	if (!f || (f->flags & _IO_WRITE)) return EOF;
+	CHECK_FILE(fread, 0)
+	if (f->flags & _IO_WRITE) return 0;
+	if (size != 1) {
+		uint64_t size2 = (uint64_t)size * count;
+		count = size2;
+		if (size2 >> 32) count = ~0;
+	}
 	if (f->buf)
 	while (count) {
 		unsigned n, pos = f->pos, len = f->len;
@@ -319,17 +401,23 @@ size_t fread(void *dst, size_t size, size_t count, FILE *f) {
 	}
 	if (size > 1) ret /= size;
 	return ret;
+#endif
 }
 
 size_t fwrite(const void *src, size_t size, size_t count, FILE *f) {
 	const uint8_t *s = (const uint8_t*)src;
 	size_t ret = 0;
-	uint64_t size2;
-	size2 = (uint64_t)size * count;
-	if (size2 >> 32) return EOF;
-	count = size2;
-
-	if (!f || !(f->flags & _IO_WRITE)) return EOF;
+	CHECK_FILE(fwrite, 0)
+#if LIBC_SDIO
+	if (f->flags & _IO_SDIO)
+		return fat_fwrite(src, size, count, (fatfile_t*)f);
+#endif
+	if (!(f->flags & _IO_WRITE)) return 0;
+	if (size != 1) {
+		uint64_t size2 = (uint64_t)size * count;
+		count = size2;
+		if (size2 >> 32) count = ~0;
+	}
 	while (count) {
 		unsigned pos = f->pos, len = f->len;
 		unsigned n = len - pos;
@@ -358,10 +446,16 @@ size_t fwrite(const void *src, size_t size, size_t count, FILE *f) {
 }
 
 int fseek(FILE *f, long offset, int origin) {
+#if LIBC_SDIO
+	if (f && (f->flags & _IO_SDIO))
+		return fat_fseek((fatfile_t*)f, offset, origin);
+	return EOF;
+#else
 	union { uint8_t u8[10]; uint16_t u16[5]; uint32_t u32[2]; } buf;
 	unsigned tmp;
 
-	if (!f || (unsigned)origin > 2) return EOF;
+	CHECK_FILE(fseek, EOF)
+	if ((unsigned)origin > 2) return EOF;
 	if (f->flags & _IO_WRITE) fflush(f);
 	else {
 		if (origin == SEEK_CUR)
@@ -377,13 +471,19 @@ int fseek(FILE *f, long offset, int origin) {
 	usb_write(buf.u16, 10);
 	usb_read(buf.u8, 1, USB_WAIT);
 	return (char)buf.u8[0];
+#endif
 }
 
 long ftell(FILE *f) {
+#if LIBC_SDIO
+	if (f && (f->flags & _IO_SDIO))
+		return fat_ftell((fatfile_t*)f);
+	return -1;
+#else
 	union { uint8_t u8[4]; uint16_t u16[2]; uint32_t u32[1]; } buf;
 	unsigned tmp; long ret;
 
-	if (!f) return -1;
+	CHECK_FILE(ftell, -1)
 	if (f->flags & _IO_WRITE) fflush(f);
 
 	tmp = CMD_FTELL | f->handle << 8;
@@ -399,9 +499,15 @@ long ftell(FILE *f) {
 		ret -= f->len - f->pos;
 */
 	return ret;
+#endif
 }
 
 FILE *fopen(const char *name, const char *mode) {
+#if LIBC_SDIO
+	fatfile_t *f = fat_fopen(name, mode);
+	if (f) f->flags |= _IO_SDIO;
+	return (FILE*)f;
+#else
 	union { uint8_t u8[6]; uint16_t u16[3]; } buf;
 	int flags = 0; size_t len;
 	unsigned tmp; FILE *f;
@@ -430,16 +536,22 @@ FILE *fopen(const char *name, const char *mode) {
 	f = _file_alloc(tmp, flags);
 	if (!f) _close_raw(tmp);
 	return f;
+#endif
 }
 
 int fclose(FILE *f) {
 	int handle;
-	if (!f) return EOF;
+	CHECK_FILE(fclose, EOF)
+#if LIBC_SDIO
+	if (f->flags & _IO_SDIO)
+		return fat_fclose((fatfile_t*)f);
+#endif
 	if (f->flags & _IO_WRITE) fflush(f);
 	handle = f->handle;
 	free(f);
 	return _close_raw(handle);
 }
+#endif // LIBC_SDIO < 2
 
 void setbuf(FILE *f, char *buf) {
 	(void)f; (void)buf;

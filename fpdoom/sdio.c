@@ -386,7 +386,7 @@ copy_err:
 	return cmd_int;
 }
 
-static unsigned sdio_shl;
+unsigned sdio_shl;
 
 int sdcard_init(void) {
 	uint32_t resp[4], sd_int;

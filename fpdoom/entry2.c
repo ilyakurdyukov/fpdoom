@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#if LIBC_SDIO
+#include "sdio.h"
+#include "microfat.h"
+#include "fatfile.h"
+#endif
 
 void _debug_msg(const char *msg);
 void _malloc_init(void *addr, size_t size);
@@ -40,11 +45,23 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 	{
 		char *addr = image_addr + image_size + bss_size;
 		size_t size = ram_addr + ram_size - (uint32_t)addr;
+		char *p;
 #if INIT_MMU
 		size -= 0x4000; // MMU table
 #endif
+#if LIBC_SDIO
+		size -= 1024;
+#endif
+		p = addr + size;
+#if LIBC_SDIO
+		p -= sizeof(fatdata_t);
+		memcpy(&fatdata_glob, p, sizeof(fatdata_t));
+		p -= sizeof(unsigned);
+		sdio_shl = *(unsigned*)p;
+#endif
 		// load sys_data
-		sys_data = *(struct sys_data*)(addr + size - sizeof(sys_data));
+		p -= sizeof(sys_data);
+		memcpy(&sys_data, p, sizeof(sys_data));
 		_malloc_init(addr, size);
 	}
 	_stdio_init();

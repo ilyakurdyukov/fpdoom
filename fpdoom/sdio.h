@@ -3,6 +3,8 @@
 #define SDIO_VERBOSE 1
 #endif
 
+extern unsigned sdio_shl;
+
 void sdio_init(void);
 int sdcard_init(void);
 int sdio_read_block(uint32_t idx, uint8_t *buf);

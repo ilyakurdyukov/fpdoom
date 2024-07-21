@@ -14,6 +14,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#if LIBC_SDIO
+#include "sdio.h"
+#include "microfat.h"
+#include "fatfile.h"
+#endif
 
 void apply_reloc(uint32_t *image, const uint8_t *rel, uint32_t diff);
 
@@ -58,7 +63,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	uint32_t ram_addr = fw_addr + 0x04000000, ram_size;
 #if TWO_STAGE
 	int argc1;
-	struct sys_data *sys_data_copy;
+	char *data_copy;
 #endif
 #if !CHIP
 	uint32_t chip = 1;
@@ -130,10 +135,17 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	{
 		char *addr = image_addr + image_size + bss_size;
 		size_t size = ram_addr + ram_size - (uint32_t)addr;
+#if LIBC_SDIO
+		size -= 1024;
+		fatdata_glob.buf = (uint8_t*)addr + size;
+#endif
 #if TWO_STAGE
 		// reserve space to save sys_data
 		size -= sizeof(sys_data);
-		sys_data_copy = (struct sys_data*)(addr + size);
+#if LIBC_SDIO
+		size -= sizeof(unsigned) + sizeof(fatdata_t);
+#endif
+		data_copy = addr + size;
 #endif
 		_malloc_init(addr, size);
 		_stdio_init();
@@ -146,6 +158,23 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		printf("malloc heap: %u bytes\n", size);
 	}
 
+#if LIBC_SDIO
+	sdio_init();
+	if (sdcard_init()) {
+		printf("!!! sdcard_init failed\n");
+		exit(1);
+	}
+	{
+		void *mem = malloc(1024 + 32);
+		uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
+		fatdata_t *fatdata = &fatdata_glob;
+		fatdata->buf = buf;
+		if (fat_init(fatdata, 0)) {
+			printf("!!! fat_init failed\n");
+			exit(1);
+		}
+	}
+#endif
 	sys_data.brightness = 50;
 	// sys_data.scaler = 0;
 	// sys_data.rotate = 0x00;
@@ -217,6 +246,20 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 				sys_data.keycols = 8;
 			}
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--dir")) {
+#if LIBC_SDIO
+			fatdata_t *fatdata = &fatdata_glob;
+			const char *name = argv[1];
+			unsigned clust = fat_dir_clust(fatdata, name);
+			if (!clust) {
+				printf("%s dir not found\n", name);
+				exit(1);
+			}
+			fatdata->curdir = clust;
+#else
+			printf("dir option ignored\n");
+#endif
+			argc -= 2; argv += 2;
 		} else if (!strcmp(argv[0], "--")) {
 			argc -= 1; argv += 1;
 			break;
@@ -229,7 +272,14 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	scan_firmware(fw_addr);
 	CHIP_FN(sys_init)();
 #if TWO_STAGE
-	*sys_data_copy = sys_data;
+	memcpy(data_copy, &sys_data, sizeof(sys_data));
+	data_copy += sizeof(sys_data);
+#if LIBC_SDIO
+	*(unsigned*)data_copy = sdio_shl;
+	data_copy += sizeof(unsigned);
+	memcpy(data_copy, &fatdata_glob, sizeof(fatdata_t));
+	data_copy += sizeof(fatdata_t);
+#endif
 	return argc1 - argc;
 #else
 #ifdef CXX_SUPPORT

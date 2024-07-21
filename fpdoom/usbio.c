@@ -101,7 +101,7 @@ enum {
 	(USB_CR(o) = (USB_CR(o) & ~0x1ffff) | (n))
 
 #if INIT_USB
-void usb_init_endp0() {
+static void usb_init_endp0(void) {
 	USB_BASE_INIT
 	USB_MAXPSIZE(ENDP0_CTRL, 8);
 	USB_CR(INT_CLR_ENDP0) |= 1 << 8;
@@ -109,7 +109,7 @@ void usb_init_endp0() {
 	USB_CR(ENDP0_CTRL) |= 1 << 28; // buffer ready
 }
 
-void usb_init_endp2() {
+static void usb_init_endp2(void) {
 	USB_BASE_INIT
 	USB_MAXPSIZE(ENDP2_CTRL, 0x40);
 	USB_TRSIZE(RCV_DATA_ENDP2, 0x2000);
@@ -121,7 +121,7 @@ void usb_init_endp2() {
 	USB_CR(ENDP2_CTRL) |= 1 << 28; // buffer ready
 }
 
-void usb_init_endp3() {
+static void usb_init_endp3(void) {
 	USB_BASE_INIT
 	USB_MAXPSIZE(ENDP3_CTRL, 0x40);
 	USB_TRSIZE(TRANS_SIZE_ENDP3, 0x40);
@@ -231,7 +231,7 @@ static void usb_send_desc(int type, int len) {
 	usb_send(0, p, len);
 }
 
-static void usb_int_endp0() {
+static void usb_int_endp0(void) {
 	uint32_t a, b, len, req;
 	USB_BASE_INIT
 	if (USB_CR(INT_STS_ENDP0) & 1 << 8) { // SETUP_TRANS_END
@@ -248,7 +248,7 @@ static void usb_int_endp0() {
 	USB_CR(INT_CLR_ENDP0) = 0x3fff;
 }
 
-static void usb_int_endp2() {
+static void usb_int_endp2(void) {
 	usb_buf_t *p; int i, len, wpos;
 	USB_BASE_INIT
 	if (USB_CR(INT_STS_ENDP2) & 1) { // TRANSACTION_END
@@ -279,12 +279,12 @@ static void usb_int_endp2() {
 	USB_CR(INT_CLR_ENDP2) = 0x3fff;
 }
 
-static void usb_int_endp3() {
+static void usb_int_endp3(void) {
 	USB_BASE_INIT
 	USB_CR(INT_CLR_ENDP3) = 0x3fff;
 }
 
-static void usb_check_int() {
+static void usb_check_int(void) {
 	USB_BASE_INIT
 	if (_chip != 3 ?
 			MEM4(0x80001004) & 1 << 5 /* SC6531(DA/E) */ :

@@ -42,7 +42,7 @@ static void gen_image(uint16_t *p, unsigned w, unsigned h, unsigned st) {
 	p[0] = -1; p[w - 1] = -1;
 }
 
-static void test_refresh() {
+static void test_refresh(void) {
 	uint32_t t0 = sys_timer_ms(), t1, n = 0, t2, t3;
 	do {
 		CHIP_FN2(sys_start_refresh)();
@@ -126,7 +126,7 @@ static void sdio_write_test(unsigned i) {
 	free(mem);
 }
 
-static void test_keypad() {
+static void test_keypad(void) {
 	int type, key, ret = 0;
 
 	for (;;) {
