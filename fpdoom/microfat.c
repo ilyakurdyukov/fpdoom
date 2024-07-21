@@ -139,7 +139,7 @@ uint8_t* fat_read_chain(fatdata_t *fatdata, unsigned clust) {
 
 unsigned fat_alloc_clust(fatdata_t *fatdata, unsigned clust, uint32_t *start) {
 	uint8_t *buf;
-	unsigned next = clust, pos;
+	unsigned next = clust;
 	if (clust) {
 		buf = fat_read_chain(fatdata, clust);
 		if (!buf) return FAT_CLUST_ERR;
@@ -421,7 +421,6 @@ fat_entry_t* fat_find_name(fatdata_t *fatdata, unsigned clust,
 
 fat_entry_t* fat_find_path(fatdata_t *fatdata, const char *name) {
 	unsigned clust;
-	fat_find_name_t cbdata;
 	fat_entry_t *p = NULL;
 #if FAT_WRITE
 	fatdata->lastname = NULL;
@@ -576,7 +575,7 @@ found:
 
 unsigned fat_make_dir(fatdata_t *fatdata, unsigned prev, const char *name) {
 	fat_entry_t *p; uint32_t start;
-	unsigned clust, i;
+	unsigned clust;
 	p = fat_create_name(fatdata, prev, name);
 	if (!p) return FAT_CLUST_ERR;
 	p->entry.attr = FAT_ATTR_DIR;
@@ -663,6 +662,7 @@ end:
 
 static int fat_rmdir_check_cb(void *cbdata, fat_entry_t *p) {
 	unsigned i;
+	(void)cbdata;
 	if (p->entry.attr == FAT_ATTR_LFN && !p->entry.attr2)
 		return 0;
 	if (p->raw[0] == '.') {

@@ -327,7 +327,7 @@ void _ZdlPv(void *p) { free(p); }
 /* operator delete[](void*) */
 void _ZdaPv(void *p) { free(p); }
 /* operator delete(void*, unsigned int) */
-void _ZdlPvj(void *p, unsigned size) { free(p); }
+void _ZdlPvj(void *p, unsigned size) { (void)size; free(p); }
 
 int __cxa_atexit(void (*func)(void*), void *arg, void *dso) {
 	(void)func; (void)arg; (void)dso;

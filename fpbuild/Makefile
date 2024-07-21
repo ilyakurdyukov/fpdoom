@@ -1,6 +1,7 @@
 # 0 - detect, 1 - SC6531E, 2 - SC6531DA, 3 - SC6530
 CHIP = 0
 TWO_STAGE = 1
+LIBC_SDIO = 0
 USE_ASM = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 SRCS = asmcode usbio common libc syscomm
@@ -8,6 +9,9 @@ ifeq ($(CHIP), 0)
 SRCS += chip1_syscode chip2_syscode
 else
 SRCS += syscode
+endif
+ifneq ($(LIBC_SDIO), 0)
+SRCS += sdio microfat
 endif
 
 GAME = duke3d
@@ -128,6 +132,10 @@ ifneq ($(CHIP), 0)
 CFLAGS += -DCHIP=$(CHIP)
 endif
 CFLAGS += -DTWO_STAGE=$(TWO_STAGE)
+ifneq ($(LIBC_SDIO), 0)
+CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
+#CFLAGS += -DFAT_DEBUG=1
+endif
 
 ifeq ($(COMPILER), clang)
 # Clang's bug workaround
@@ -188,6 +196,7 @@ CXXFLAGS += -Wno-char-subscripts -Wno-missing-braces
 endif
 GAME_CFLAGS += -I$(GAMESRC) -I$(ENGINEROOT)/include -I$(MACTROOT) -I$(AUDIOLIBROOT)/include
 GAME_CFLAGS += -Wno-unused -Wno-unused-parameter
+GAME_CFLAGS += -Wno-strict-prototypes
 
 .PHONY: all clean map
 

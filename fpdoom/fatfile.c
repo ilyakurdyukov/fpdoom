@@ -261,6 +261,8 @@ int fat_fclose(fatfile_t *f) {
 		}
 	}
 #endif
+	if ((int32_t)f->chain_last >= 0 && f->chain)
+		free(f->chain);
 	free(f);
 	return 0;
 }
@@ -287,6 +289,7 @@ long fat_ftell(fatfile_t *f) {
 }
 
 int fat_fflush(fatfile_t *f) {
+	(void)f;
 #if FAT_WRITE
 	fatdata_t *fatdata = &fatdata_glob;
 	fat_flush_buf1(fatdata);
