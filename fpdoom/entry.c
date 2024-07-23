@@ -3,7 +3,7 @@
 #include "usbio.h"
 #include "syscode.h"
 
-#define SMC_INIT_BUF 0x40007000
+#define SMC_INIT_BUF (CHIPRAM_ADDR + 0xa000 - 1024)
 #if !CHIP || CHIP == 2
 #include "init_sc6531da.h"
 #endif
@@ -26,18 +26,20 @@ void _debug_msg(const char *msg);
 void _malloc_init(void *addr, size_t size);
 void _stdio_init(void);
 int _argv_init(char ***argvp, int skip);
+int _argv_copy(char ***argvp, int argc, char *src);
 
 int main(int argc, char **argv);
 
+/* dcache must be disabled for this function */
 static uint32_t get_ram_size(uint32_t addr) {
-	/* simple check for 4/8 MB */
-	uint32_t size = RAM_SIZE;
-	uint32_t v0 = 0, v1 = 0x12345678;
-	MEM4(addr) = v0;
-	MEM4(addr + size) = v1;
-	if (MEM4(addr) == v0 && MEM4(addr + size) == v1)
+	uint32_t size = 1 << 20; /* start from 2MB */
+	uint32_t v1 = 0x12345678;
+	do {
+		if (size >> 27) break;
 		size <<= 1;
-	MEM4(addr) = size;
+		MEM4(addr + size) = v1;
+		MEM4(addr) = size;
+	} while (MEM4(addr + size) == v1);
 	return size;
 }
 
@@ -58,11 +60,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 	static const uint8_t fdl_ack[8] = {
 		0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
-	int argc; char **argv = NULL;
+	int argc1, argc; char **argv = NULL;
 	uint32_t fw_addr = (uint32_t)image_addr & 0xf0000000;
 	uint32_t ram_addr = fw_addr + 0x04000000, ram_size;
 #if TWO_STAGE
-	int argc1;
 	char *data_copy;
 #endif
 #if !CHIP
@@ -98,8 +99,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	_chip = chip;
 #endif
 
-	ram_size = get_ram_size(ram_addr);
-
+#if LIBC_SDIO < 3
 	usb_init();
 	usb_write(fdl_ack, sizeof(fdl_ack));
 
@@ -108,11 +108,14 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		usb_read(buf, 1, USB_WAIT);
 		if (buf[0] == HOST_CONNECT) break;
 	}
+#endif
 #if TWO_STAGE
 	_debug_msg("entry1");
 #else
 	_debug_msg("entry");
 #endif
+
+	ram_size = get_ram_size(ram_addr);
 #if INIT_MMU
 	{
 		volatile uint32_t *tab = (volatile uint32_t*)(ram_addr + ram_size - 0x4000);
@@ -128,8 +131,6 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			tab[fw_addr >> 20 | i] |= 3 << 2;
 		enable_mmu((uint32_t*)tab, -1);
 	}
-#endif
-#if INIT_MMU
 	ram_size -= 0x4000; // MMU table
 #endif
 	{
@@ -149,32 +150,45 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 		_malloc_init(addr, size);
 		_stdio_init();
-		argc = _argv_init(&argv, 0);
 #if TWO_STAGE
-		argc1 = argc;
 		addr = (char*)entry2 + entry2->image_size + entry2->bss_size;
 		size = ram_addr + ram_size - (uint32_t)addr;
 #endif
 		printf("malloc heap: %u bytes\n", size);
 	}
-
 #if LIBC_SDIO
 	sdio_init();
 	if (sdcard_init()) {
 		printf("!!! sdcard_init failed\n");
 		exit(1);
 	}
-	{
-		void *mem = malloc(1024 + 32);
-		uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
-		fatdata_t *fatdata = &fatdata_glob;
-		fatdata->buf = buf;
-		if (fat_init(fatdata, 0)) {
-			printf("!!! fat_init failed\n");
-			exit(1);
-		}
+	if (fat_init(&fatdata_glob, 0)) {
+		printf("!!! fat_init failed\n");
+		exit(1);
 	}
 #endif
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+	{
+		char *p = (char*)CHIPRAM_ADDR;
+		argc1 = *(short*)p;
+		if (argc1) {
+			argc1 = _argv_copy(&argv, argc1, p + sizeof(short));
+			p += sizeof(short);
+		} else {
+			// TODO: read and parse args file
+			argv = NULL;
+		}
+	}
+#if LIBC_SDIO == 1 // debug
+#define PRINT_ARGS(argc) { int j; printf("argc = %u\n", argc); \
+	for (j = 0; j < argc; j++) printf("%u: \"%s\"\n", j, argv[j]); }
+	PRINT_ARGS(argc1)
+#endif
+#else
+	argc1 = _argv_init(&argv, 0);
+#endif
+	argc = argc1;
+
 	sys_data.brightness = 50;
 	// sys_data.scaler = 0;
 	// sys_data.rotate = 0x00;
@@ -252,7 +266,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			const char *name = argv[1];
 			unsigned clust = fat_dir_clust(fatdata, name);
 			if (!clust) {
-				printf("%s dir not found\n", name);
+				printf("dir \"%s\" not found\n", name);
 				exit(1);
 			}
 			fatdata->curdir = clust;
@@ -280,7 +294,23 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	memcpy(data_copy, &fatdata_glob, sizeof(fatdata_t));
 	data_copy += sizeof(fatdata_t);
 #endif
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+	{
+		char *p = (char*)CHIPRAM_ADDR;
+		*(short*)p = argc;
+		if (argc) {
+			size_t size = argv[argc - 1] - argv[0];
+			size += strlen(argv[argc - 1]) + 1;
+			memcpy(p + sizeof(short), argv[0], size);
+		}
+	}
+#if LIBC_SDIO == 1
+	PRINT_ARGS(argc)
+#endif
+	return 0;
+#else
 	return argc1 - argc;
+#endif
 #else
 #ifdef CXX_SUPPORT
 	cxx_init(argc, argv);

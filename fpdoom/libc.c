@@ -84,6 +84,9 @@ struct _IO_FILE {
 #include "usbio.h"
 
 void _debug_msg(const char *msg) {
+#if LIBC_SDIO >= 3
+	(void)msg;
+#else
 	union { uint8_t u8[4]; uint16_t u16[2]; } buf;
 	int len = strlen(msg);
 	unsigned tmp;
@@ -95,6 +98,7 @@ void _debug_msg(const char *msg) {
 	buf.u16[1] = tmp;
 	usb_write(buf.u16, 4);
 	usb_write(msg, len);
+#endif
 }
 
 void _sig_intdiv(void) {
@@ -133,6 +137,21 @@ void _stdio_init(void) {
 	stderr = _file_alloc(2, _IO_LINEBUF | _IO_WRITE | _IO_PIPE);
 }
 
+int _argv_copy(char ***argvp, int argc, char *src) {
+	char *p = src, **argv; int i, size;
+	for (i = 0; i < argc; i++) p += strlen(p) + 1;
+	size = p - src;
+	argv = (char**)malloc((argc + 1) * sizeof(char*) + size);
+	*argvp = argv;
+	p = (char*)(argv + argc + 1);
+	memcpy(p, src, size);
+	for (i = 0; i < argc; i++) {
+		argv[i] = p; p += strlen(p) + 1;
+	}
+	argv[i] = NULL;
+	return argc;
+}
+
 int _argv_init(char ***argvp, int skip) {
 	union { uint8_t u8[6]; uint16_t u16[3]; } buf;
 	char *mem = NULL; char **argv;
@@ -152,17 +171,13 @@ int _argv_init(char ***argvp, int skip) {
 
 	argc = buf.u16[0];
 	size = buf.u16[1];
-	if (!argc) {
-		*argvp = NULL;
-		return 0;
-	}
-	argv = (char**)malloc(argc * sizeof(char*) + size);
+	argv = (char**)malloc((argc + 1) * sizeof(char*) + size);
 	if (!argv) {
 		_debug_msg("argv: malloc failed");
 		exit(252);
 	}
 	*argvp = argv;
-	mem = (char*)(argv + argc);
+	mem = (char*)(argv + argc + 1);
 	
 	buf.u16[0] = CMD_GETARGS | _ARGV_GET_ARGV << 8;
 	buf.u16[1] = skip;
@@ -195,6 +210,7 @@ int _argv_init(char ***argvp, int skip) {
 		_debug_msg("argv: recieved wrong data");
 		exit(252);
 	}
+	argv[i] = NULL;
 	return argc;
 }
 
