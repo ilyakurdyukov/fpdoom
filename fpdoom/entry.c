@@ -18,6 +18,45 @@
 #include "sdio.h"
 #include "microfat.h"
 #include "fatfile.h"
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+static int read_args(FILE *fi, char *d) {
+	int argc = 0, j = 1, q = 0;
+	char *e = d + 0x1000 - 3;
+
+	for (;;) {
+		int a = fgetc(fi);
+		if (a == '#') {
+			if (argc) break;
+			do {
+				a = fgetc(fi);
+				if (a == EOF) goto end;
+			} while (a != '\n');
+			continue;
+		}
+		if (!a || a == EOF) break;
+		if (a == '"' || a == '\'') {
+			if (!q) {	q = a; argc += j; j = 0; continue; }
+			if (q == a) { q = 0; continue; }
+		} else if (a == '\\' && q != '\'') {
+			do a = fgetc(fi); while (a == '\r');
+			if (a == EOF) break;
+			if (a == '\n') continue;
+			goto next;
+		} else if (!q && (a == ' ' || a == '\t' || a == '\n' || a == '\r')) {
+			if (j) continue;
+			a = q = 0; j = 1;
+		} else {
+next:
+			argc += j; j = 0;
+		}
+		if (d == e) return -1;
+		*d++ = a;
+	}
+end:
+	/* if (!j) */ *d = 0;
+	return argc;
+}
+#endif
 #endif
 
 void apply_reloc(uint32_t *image, const uint8_t *rel, uint32_t diff);
@@ -171,13 +210,16 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	{
 		char *p = (char*)CHIPRAM_ADDR;
 		argc1 = *(short*)p;
-		if (argc1) {
-			argc1 = _argv_copy(&argv, argc1, p + sizeof(short));
-			p += sizeof(short);
-		} else {
-			// TODO: read and parse args file
-			argv = NULL;
+#if LIBC_SDIO
+		if (!argc1) {
+			FILE *fi = fopen("fpbin/config.txt", "rb");
+			if (!fi) exit(1);
+			argc1 = read_args(fi, p + sizeof(short));
+			if (argc1 < 0) exit(1);
+			fclose(fi);
 		}
+#endif
+		argc1 = _argv_copy(&argv, argc1, p + sizeof(short));
 	}
 #if LIBC_SDIO == 1 // debug
 #define PRINT_ARGS(argc) { int j; printf("argc = %u\n", argc); \
