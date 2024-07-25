@@ -6,7 +6,6 @@
 #include <stdlib.h>
 
 /* from assembly code */
-void clean_dcache(void);
 uint32_t get_cpsr(void);
 void set_cpsr_c(uint32_t a);
 

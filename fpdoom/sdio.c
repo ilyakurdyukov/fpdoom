@@ -31,8 +31,6 @@ int sdio_verbose = 1;
 
 #define IS_SC6530 (_chip == 3)
 
-void clean_invalidate_dcache_range(void *start, void *end);
-
 static uint32_t adi_read(uint32_t addr) {
 	uint32_t a, rd_cmd = 0x82000008; // REG_ADI_RD_CMD
 	if (_chip != 1) rd_cmd += 0x10;

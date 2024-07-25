@@ -113,10 +113,17 @@ uint32_t sys_timer_ms(void) {
 	return a;
 }
 
-uint32_t sys_wait_ms(uint32_t delay) {
+void sys_wait_ms(uint32_t delay) {
 	uint32_t start = sys_timer_ms();
 	while (sys_timer_ms() - start < delay);
-	return delay;
+}
+
+void sys_wait_us(uint32_t delay) {
+	// delay *= 208;
+	delay = (delay + delay * 4 + delay * 8) << 4;
+	// SC6531: 312MHz
+	if (_chip == 2) delay += delay >> 1;
+	sys_wait_clk(delay);
 }
 
 #define X(num, name) KEYPAD_##name = num,

@@ -32,8 +32,13 @@ void enable_mmu(uint32_t *table, uint32_t domain);
 
 void scan_firmware(intptr_t fw_addr);
 unsigned sys_timer_ms(void);
-unsigned sys_wait_ms(unsigned delay);
+void sys_wait_ms(uint32_t delay);
+void sys_wait_us(uint32_t delay);
+void sys_wait_clk(uint32_t delay);
 int sys_getkeymap(uint8_t *dest);
+
+void clean_dcache(void);
+void clean_invalidate_dcache_range(void *start, void *end);
 
 enum {
 	EVENT_KEYDOWN, EVENT_KEYUP, EVENT_END, EVENT_QUIT

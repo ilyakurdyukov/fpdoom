@@ -21,6 +21,11 @@
 \name:
 .endm
 
+CODE32_FN sys_wait_clk
+1:	subs	r0, #4	// 1
+	bhi	1b	// 3
+	bx	lr
+
 CODE32_FN enable_mmu
 	mcr	p15, #0, r0, c2, c0, #0
 	mcr	p15, #0, r1, c3, c0, #0 // Domain Access Control Register

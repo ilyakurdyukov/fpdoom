@@ -5,6 +5,7 @@
 #include "cmd_def.h"
 #include "usbio.h"
 #include "sdio.h"
+#include "sfc.h"
 
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
@@ -127,7 +128,7 @@ static void sdio_write_test(unsigned i) {
 }
 
 static void test_keypad(void) {
-	int type, key, ret = 0;
+	int type, key;
 
 	for (;;) {
 		type = CHIP_FN2(sys_event)(&key);
@@ -151,8 +152,52 @@ static void test_keypad(void) {
 end:;
 }
 
+static int boot_cable_check(void) {
+	return !(MEM4(0x205000e0) & 2);
+}
+
+static void test_sfc(void) {
+	unsigned cs = SFC_BASE->cs & 1;
+	uint32_t id; const char *name;
+	printf("sfc: cs = %u\n", cs);
+	sfc_init();
+	id = sfc_readid(cs);
+	printf("sfc: id = 0x%06x\n", id);
+	name = sfc_getvendor(id);
+	if (name) printf("flash vendor: %s\n", name);
+	name = sfc_getname(id);
+	if (name) printf("flash name: %s\n", name);
+	sfc_spiread(cs);
+#if 0 // test write
+	{
+		uint32_t addr = 0x390004; uint8_t *p;
+		uint8_t buf[] = { 0xef,0xff,0xff,0x7f, 0xff,0xff,0xfe };
+		sfc_write(cs, addr, buf, sizeof(buf));
+		sfc_spiread(cs);
+		p = (uint8_t*)(_chip == 1 ? 0x10000000 : 0x30000000);
+		p += (addr & ~0xff);
+		clean_invalidate_dcache_range(p, p + 256);
+		print_mem(stdout, p, 256);
+	}
+#endif
+#if 0 // test erase
+	{
+		uint32_t addr = 0x390000; uint8_t *p;
+		sfc_erase(cs, addr, 0x20, 3); // Sector Erase (4KB)
+		sfc_spiread(cs);
+		p = (uint8_t*)(_chip == 1 ? 0x10000000 : 0x30000000);
+		p += (addr & ~0xff);
+		clean_invalidate_dcache_range(p, p + 256);
+		print_mem(stdout, p, 256);
+	}
+#endif
+}
+
 int main(int argc, char **argv) {
 	int i;
+
+	if (boot_cable_check())
+		printf("boot cable detected\n");
 
 	if (1) {
 		printf("argc = %i\n", argc);
@@ -170,6 +215,16 @@ int main(int argc, char **argv) {
 		test_refresh();
 		free(framebuf_mem);
 	}
+
+	if (1) { // check sys_wait_us()
+		unsigned t0, t1, delay = 100000;
+		t0 = sys_timer_ms();
+		sys_wait_us(delay);
+		t1 = sys_timer_ms();
+		printf("sys_wait_us(%u): %ums\n", delay, t1 - t0);
+	}
+
+	if (1) test_sfc();
 
 	if (1) {
 		usbio_bench(0, 1024, 1 << 20);
@@ -195,6 +250,7 @@ int main(int argc, char **argv) {
 void keytrn_init(void) {
 	uint8_t keymap[64];
 	int i, flags = sys_getkeymap(keymap);
+	(void)flags;
 
 #define FILL_KEYTRN(j) \
 	for (i = 0; i < 64; i++) { \

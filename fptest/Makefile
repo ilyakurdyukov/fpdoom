@@ -1,20 +1,23 @@
 # 0 - detect, 1 - SC6531E, 2 - SC6531DA, 3 - SC6530
 CHIP = 0
-TWO_STAGE = 1
-USE_ASM = 1
+TWO_STAGE = 0
+LIBC_SDIO = 0
 PACK_RELOC = ../pack_reloc/pack_reloc
+OBJDIR = obj$(CHIP)
 SRCS = asmcode usbio common libc syscomm
 ifeq ($(CHIP), 0)
 SRCS += chip1_syscode chip2_syscode
 else
 SRCS += syscode
 endif
+ifneq ($(LIBC_SDIO), 0)
+SRCS += microfat
+endif
 
 NAME = fptest
 FPDOOM = ../fpdoom
-OBJDIR = obj$(CHIP)
 
-SRCS += main sdio
+SRCS += main sdio sfc
 
 ifeq ($(TWO_STAGE), 0)
 SRCS := start entry $(SRCS)
@@ -62,6 +65,11 @@ ifneq ($(CHIP), 0)
 CFLAGS += -DCHIP=$(CHIP)
 endif
 CFLAGS += -DTWO_STAGE=$(TWO_STAGE)
+ifneq ($(LIBC_SDIO), 0)
+CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
+#CFLAGS += -DFAT_DEBUG=1
+#CFLAGS += -DCHIPRAM_ARGS=1
+endif
 
 ifeq ($(COMPILER), clang)
 # Clang's bug workaround
@@ -81,7 +89,7 @@ CFLAGS += --sysroot="$(SYSROOT)"
 endif
 
 CFLAGS += -std=c99 -pedantic
-CFLAGS += -Wno-unused -Wno-unused-parameter
+#CFLAGS += -Wno-unused -Wno-unused-parameter
 
 .PHONY: all clean
 

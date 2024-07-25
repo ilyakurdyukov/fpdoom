@@ -1,3 +1,5 @@
+#ifndef SDIO_H
+#define SDIO_H
 
 #ifndef SDIO_VERBOSE
 #define SDIO_VERBOSE 1
@@ -15,4 +17,6 @@ extern int sdio_verbose;
 #define SDIO_VERBOSITY(level) (sdio_verbose = (level))
 #else
 #define SDIO_VERBOSITY(level) (void)0
+#endif
+
 #endif
