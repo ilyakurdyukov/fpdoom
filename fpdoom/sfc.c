@@ -65,6 +65,7 @@ void sfc_write_enable(int cs) {
 }
 
 void sfc_erase(int cs, int addr, int cmd, int addr_len) {
+	uint32_t tmp;
 	sfc_base_t *sfc0 = SFC_BASE, *sfc;
 	sfc = sfc0 + cs;
 	sfc_write_enable(cs);
@@ -74,9 +75,10 @@ void sfc_erase(int cs, int addr, int cmd, int addr_len) {
 	SFC_CMDSET(sfc, 1, 7);
 	sfc->cmd[0] = cmd;
 	sfc->cmd[1] = addr;
-	sfc->type_info[0] =
-			SFC_TYPEINFO(1, 1, WRITE, 0) |
-			SFC_TYPEINFO(1, addr_len, WRITE, 1) << 8;
+	tmp = SFC_TYPEINFO(1, 1, WRITE, 0);
+	if (addr_len)
+		tmp |= SFC_TYPEINFO(1, addr_len, WRITE, 1) << 8;
+	sfc->type_info[0] = tmp;
 	sfc0->int_clr = 1 << cs;
 	sfc0->soft_req |= 1;
 	while (!(sfc->status & 1));
@@ -134,6 +136,88 @@ void sfc_write(int cs, int addr, const void *buf, unsigned size) {
 		// wait for completion
 		while (sfc_read_status(cs) & 1);
 	}
+}
+
+static void sfc_read_req(int cs, int addr, unsigned n) {
+	uint32_t tmp, k;
+	sfc_base_t *sfc0 = SFC_BASE, *sfc;
+	sfc = sfc0 + cs;
+
+	while (sfc_read_status(cs) & 1);
+
+	sfc->tbuf_clr = 1;
+	sfc0->cmd_set &= 1; // write
+	SFC_CMDSET(sfc, 1, 7);
+	sfc->cmd[0] = addr >> 24 ? 0x13 : 0x03; // Read Array
+	sfc->cmd[1] = addr;
+	tmp = SFC_TYPEINFO(1, 1, WRITE, 0) |
+			SFC_TYPEINFO(1, 3, WRITE, 1) << 8;
+	if (addr >> 24) tmp += 1 << (3 + 8);
+	sfc->type_info[0] = tmp;
+	k = 7; do {
+		tmp = 4;
+		if (n < 4) tmp = n;
+		n -= tmp;
+		tmp = SFC_TYPEINFO(1, tmp, READ, 0);
+		sfc->type_info[k >> 2] |= tmp << (k & 3) * 8;
+		k++;
+	} while (n);
+	sfc0->int_clr = 1 << cs;
+	sfc0->soft_req |= 1;
+	while (!(sfc->status & 1));
+}
+
+void sfc_read(int cs, int addr, void *buf, unsigned size) {
+	uint8_t *dst = (uint8_t*)buf, *end = dst + size;
+	sfc_base_t *sfc0 = SFC_BASE, *sfc;
+	sfc = sfc0 + cs;
+
+	while (dst < end) {
+		uint32_t tmp, k, n = end - dst;
+		if (n > 20) n = 20;
+		sfc_read_req(cs, addr, n);
+		addr += n;
+		for (k = 7; n >= 4; k++, n -= 4, dst += 4) {
+			tmp = sfc->cmd[k];
+			dst[0] = tmp >> 24;
+			dst[1] = tmp >> 16;
+			dst[2] = tmp >> 8;
+			dst[3] = tmp;
+		}
+		if (n) {
+			tmp = sfc->cmd[k];
+			dst[0] = tmp >> 24;
+			if (n >= 2) dst[1] = tmp >> 16;
+			if (n > 2) dst[2] = tmp >> 8;
+			dst += n;
+		}
+	}
+}
+
+unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size) {
+	const uint8_t *src = (const uint8_t*)buf, *end = src + size;
+	sfc_base_t *sfc = SFC_BASE + cs;
+
+	while (src < end) {
+		uint32_t tmp, k, n = end - src;
+		if (n > 20) n = 20;
+		sfc_read_req(cs, addr, n);
+		addr += n;
+		for (k = 7; n >= 4; k++, n -= 4, src += 4) {
+			tmp = src[0] << 24 | src[1] << 16 | src[2] << 8 | src[3];
+			if (sfc->cmd[k] != tmp) goto end;
+		}
+		if (n) {
+			tmp = src[0] << 24;
+			if (n >= 2) tmp |= src[1] << 16;
+			if (n > 2) tmp |= src[2] << 8;
+			tmp ^= sfc->cmd[k];
+			if (tmp >> (4 - n) * 8) goto end;
+			src += n;
+		}
+	}
+end:
+	return end - src;
 }
 
 /* return to reading mode */

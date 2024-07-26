@@ -31,6 +31,8 @@ unsigned sfc_read_status(int cs);
 void sfc_write_enable(int cs);
 void sfc_erase(int cs, int addr, int cmd, int addr_len);
 void sfc_write(int cs, int addr, const void *buf, unsigned size);
+void sfc_read(int cs, int addr, void *buf, unsigned size);
+unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size);
 void sfc_spiread(int cs);
 const char* sfc_getvendor(uint32_t id);
 const char* sfc_getname(uint32_t id);

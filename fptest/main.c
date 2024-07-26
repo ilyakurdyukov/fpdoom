@@ -168,6 +168,20 @@ static void test_sfc(void) {
 	name = sfc_getname(id);
 	if (name) printf("flash name: %s\n", name);
 	sfc_spiread(cs);
+	if (1) {
+		uint32_t addr = 0x000000; uint8_t *p;
+		unsigned i, n = 0x20000 - 1;
+		uint8_t *buf = malloc(n);
+		sfc_read(cs, addr, buf, n);
+		printf("sfc_compare: ret = %u\n", sfc_compare(cs, addr, buf, n));
+		sfc_spiread(cs);
+		p = (uint8_t*)(_chip == 1 ? 0x10000000 : 0x30000000);
+		p += (addr & ~0xff);
+		for (i = 0; i < n; i++)
+			if (buf[i] != p[i]) break;
+		printf("sfc_read check: %u / %u\n", i, n);
+		free(buf);
+	}
 #if 0 // test write
 	{
 		uint32_t addr = 0x390004; uint8_t *p;
