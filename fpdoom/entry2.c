@@ -33,11 +33,13 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 	memset(image_addr + image_size, 0, bss_size);
 
 #if !CHIP
-	if (fw_addr == 0x30000000) {
-		uint32_t t0 = MEM4(0x205003fc);
-		_chip = (int32_t)(t0 << 15) < 0 ? 2 : 3;
-		chip_fn[0] = chip_fn[1];
-	} else _chip = 1;
+	{
+		uint32_t tmp = MEM4(0x205003fc) - 0x65300000;
+		if (!(tmp >> 17)) {
+			_chip = (int32_t)(tmp << 15) < 0 ? 2 : 3;
+			chip_fn[0] = chip_fn[1];
+		} else _chip = 1;
+	}
 #if LIBC_SDIO < 3
 	usb_init_base();
 #endif
@@ -61,8 +63,7 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #if LIBC_SDIO
 		p -= sizeof(fatdata_t);
 		memcpy(&fatdata_glob, p, sizeof(fatdata_t));
-		p -= sizeof(unsigned);
-		sdio_shl = *(unsigned*)p;
+		sdio_shl = MEM4(CHIPRAM_ADDR);
 #endif
 		// load sys_data
 		p -= sizeof(sys_data);
@@ -73,7 +74,7 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #if CHIPRAM_ARGS || LIBC_SDIO >= 3
 	(void)arg_skip;
 	{
-		char *p = (char*)CHIPRAM_ADDR;
+		char *p = (char*)CHIPRAM_ADDR + 4;
 		argc = _argv_copy(&argv, *(short*)p, p + sizeof(short));
 	}
 #else

@@ -4,12 +4,6 @@
 extern int sc6531da_init_smc_asm[1];
 extern int sc6531da_init_smc_asm_end[1];
 #else
-static inline uint32_t sc6531da_get_psram(void) {
-	// check remap
-	uint32_t tmp = MEM4(0x205000e0) & 1;
-	return tmp << 29 | tmp << 28 | 0x04000000;
-}
-
 static inline void sc6531da_init_smc_1(uint32_t base) {
 	MEM4(base + 0x00) = 0x11110000;
 	MEM4(base + 0x20) = 0;
@@ -143,7 +137,12 @@ static void sc6531da_init_smc(void) {
 #else
 	sc6531da_init_smc_1(base);
 
-	ps = sc6531da_get_psram();
+#if LIBC_SDIO >= 3
+	ps = MEM4(0x205000e0) & 1;
+	ps = ps << 29 | ps << 28 | 0x04000000;
+#else
+	ps = 0x34000000;
+#endif
 
 	MEM4(base + 0x50) |= 0x20000;
 	MEM2(ps + (ps_off1 << 1)) = 0;

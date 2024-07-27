@@ -169,16 +169,22 @@ static void sdio_pin_init(int state) {
 	DELAY(100)
 }
 
+static inline
+void sdio_sdfreq_val(sdio_base_t *sdio, unsigned val) {
+	sdio->ctrl2 = (sdio->ctrl2 & ~(0xff << 8)) | val << 8;
+}
+
+__attribute__((unused))
 static void sdio_sdfreq(sdio_base_t *sdio, unsigned freq) {
 	unsigned j = 1, base = 48000000;
 
 	while (freq < base && j < 256) j <<= 1, base >>= 1;
 	j >>= 1;
-	SDIO_LOG("sdio FREQ: %u\n", base);
+	SDIO_LOG("sdio FREQ: %u (0x%02x)\n", base, j);
 
 	sdio_sdclk_off(sdio);
 	// SDCLK_FRQ_SEL
-	sdio->ctrl2 = (sdio->ctrl2 & ~(0xff << 8)) | j << 8;
+	sdio_sdfreq_val(sdio, j);
 }
 
 static void sdio_reset(void) {
@@ -245,7 +251,8 @@ void sdio_init(void) {
 		adi_write(0x820011a4, adi_read(0x820011a4) | 1);
 	}
 
-	sdio_sdfreq(sdio, 400000);
+	//sdio_sdfreq(sdio, 400000);
+	sdio_sdfreq_val(sdio, 0x40);
 	sdio_intclk_on(sdio);
 	sdio_sdclk_on(sdio);
 	sys_wait_ms(350);
@@ -384,7 +391,11 @@ copy_err:
 	return cmd_int;
 }
 
+#ifdef SDIO_SHL
+#define sdio_shl (*(volatile uint32_t*)SDIO_SHL)
+#else
 unsigned sdio_shl;
+#endif
 
 int sdcard_init(void) {
 	uint32_t resp[4], sd_int;
@@ -456,7 +467,8 @@ int sdcard_init(void) {
 		return 1;
 	}
 
-	sdio_sdfreq(sdio, 25000000);
+	//sdio_sdfreq(sdio, 25000000);
+	sdio_sdfreq_val(sdio, 1);
 
 	// select/deselect card
 	sd_int = sdio_cmd(SDIO_CMD7_TR, rca, SDIO_INT_COMMON, NULL, 0, resp);
@@ -490,7 +502,10 @@ int sdcard_init(void) {
 		int i, j;
 		sdio->ctrl1 |= 4; // HI_SPD_EN
 		for (i = 0; i < 2; i++) {
-			memset(data, 0, 64);
+			// memset(data, 0, 64);
+			j = 0;
+			do *(uint32_t*)(data + j) = 0;
+			while ((j += 4) < 64);
 			sd_int = sdio_cmd(SDIO_CMD6_TR, 0xfffff1 | i << 31, SDIO_CMD6_INT, data, 64, resp);
 			if (!(sd_int & SDIO_INT_CMD_COMPLETE)) {
 				DBG_LOG("sdio: CMD%u failed\n", 6);
@@ -504,7 +519,8 @@ int sdcard_init(void) {
 			if (!(data[0xd] & 2)) break;
 		}
 		if (i == 2) {
-			sdio_sdfreq(sdio, 50000000);
+			// sdio_sdfreq(sdio, 50000000);
+			sdio_sdfreq_val(sdio, 0);
 			DBG_LOG("sdio: high speed enabled\n");
 		}
 	}

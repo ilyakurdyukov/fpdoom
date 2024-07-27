@@ -11,7 +11,15 @@ static void sc6530_init_smc(void) {
 }
 #else
 static void sc6530_init_smc(void) {
-	uint32_t base = 0x20000000, ps = 0x34000000;
+	uint32_t base = 0x20000000, ps;
+
+#if LIBC_SDIO >= 3
+	ps = MEM4(0x205000e0) & 1;
+	ps = ps << 29 | ps << 28 | 0x04000000;
+#else
+	ps = 0x34000000;
+#endif
+
 	MEM4(base + 0x00) = 0x22220000;
 	MEM4(base + 0x04) = 0;
 	MEM4(base + 0x20) = 0;

@@ -106,11 +106,10 @@ CODE32_FN sc6531da_init_smc_asm
 	str	r3, [r7, #0x58]
 	str	r4, [r7, #0x5c]
 
-	// sc6531da_get_psram
+	// psram
 	ldr	r5, [r5]
-	and	r5, #1
-	orr	r5, r5, r5, lsl #1
-	lsl	r5, #28
+	ands	r5, #1
+	movne	r5, #0x30000000
 	orr	r5, #0x04000000
 
 	ldmia	r6!, {r1-r3}
@@ -192,6 +191,13 @@ CODE32_FN sc6530_init_smc_asm
 	bl	3f
 
 	ldmia	r6!, {r0-r3,r5}
+
+	// psram
+	ldr	r5, [r5]
+	ands	r5, #1
+	movne	r5, #0x30000000
+	orr	r5, #0x04000000
+
 	str	r0, [r7]
 	str	r3, [r7, #0x04]
 	eor	r8, r0, #0x100
@@ -224,7 +230,7 @@ CODE32_FN sc6530_init_smc_asm
 	bx	lr
 
 1:	.long	0x22220000, 0x00924ff0, 0x0151ffff, 0x00a0744f
-	.long	0x222211e0, 0x10323e, 0x20, 0x8080, 0x34000000
+	.long	0x222211e0, 0x10323e, 0x20, 0x8080, 0x205000e0
 	.long	0x00ac1fff, 0x015115ff, 0x00501015
 
 sc6530_init_smc_asm_end:
