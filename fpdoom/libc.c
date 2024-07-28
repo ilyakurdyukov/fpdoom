@@ -32,8 +32,11 @@ int fputs(const char *str, FILE *f) {
 	return fwrite(str, 1, len, f) != len ? EOF : 0;
 }
 
+void sys_reset(void);
+
 void exit(int code) {
 	fprintf(stderr, "!!! exit(%d)\n", code);
+	sys_reset();
 	for (;;);
 }
 

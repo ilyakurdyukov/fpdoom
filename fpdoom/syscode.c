@@ -899,3 +899,27 @@ void CHIP_FN(sys_start)(void) {
 	if (sys_data.keymap_addr)
 		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
 }
+
+void CHIP_FN(sys_wdg_reset)(unsigned val) {
+	uint32_t wdg;
+	// watchdog enable
+	if (_chip == 1) {
+		adi_write(0x82001408, adi_read(0x82001408) | 4);
+		adi_write(0x82001410, adi_read(0x82001410) | 4);
+		wdg = 0x82001040;
+	} else {
+		adi_write(0x820010e0, 4);
+		adi_write(0x820010e4, 2);
+		wdg = 0x82001480;
+	}
+	// set reset timer
+	adi_write(wdg + 0x20, 0xe551); // LOCK
+	adi_write(wdg + 8, adi_read(wdg + 8) | 9); // CTRL
+	// 1 / 32768
+	adi_write(wdg + 0, val & 0xffff); // LOAD_LOW
+	adi_write(wdg + 4, val >> 16); // LOAD_HIGH
+	adi_write(wdg + 8, adi_read(wdg + 8) | 2);
+	adi_write(wdg + 0x20, ~0xe551);
+	for (;;);
+}
+

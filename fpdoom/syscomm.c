@@ -13,6 +13,10 @@
 
 uint32_t *pinmap_addr;
 
+void sys_reset(void) {
+	CHIP_FN(sys_wdg_reset)(0x8000 / 2); // 0.5 sec
+}
+
 void scan_firmware(intptr_t fw_addr) {
 	int i, j; short *keymap = NULL;
 	uint32_t *pinmap = NULL;

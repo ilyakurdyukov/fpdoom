@@ -61,6 +61,7 @@ CHIP_FN_DECL(void, sys_brightness, (unsigned val))
 CHIP_FN_DECL(void, sys_framebuffer, (void*))
 CHIP_FN_DECL(void, sys_start_refresh, (void))
 CHIP_FN_DECL(void, sys_wait_refresh, (void))
+CHIP_FN_DECL(void, sys_wdg_reset, (unsigned))
 #undef CHIP_FN_DECL
 
 struct chip_fn2 {
