@@ -35,10 +35,10 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #if !CHIP
 	{
 		uint32_t tmp = MEM4(0x205003fc) - 0x65300000;
-		if (!(tmp >> 17)) {
-			_chip = (int32_t)(tmp << 15) < 0 ? 2 : 3;
-			chip_fn[0] = chip_fn[1];
-		} else _chip = 1;
+		int chip = 1;
+		if (!(tmp >> 17))
+			chip = (int32_t)(tmp << 15) < 0 ? 2 : 3;
+		_chip = chip;
 	}
 #if LIBC_SDIO < 3
 	usb_init_base();

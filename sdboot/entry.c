@@ -34,7 +34,7 @@ extern char __bss_start[];
 extern uint32_t _start[];
 
 static int read_key(int chip) {
-	uint32_t kpd = 0x87000000;
+	keypad_base_t *kpd = KEYPAD_BASE;
 	uint32_t tmp, add, rst;
 	int ret;
 	tmp = 0x8b0010a8; add = 0x1000;
@@ -53,15 +53,15 @@ static int read_key(int chip) {
 	MEM4(rst + add) = 1;
 	tmp += add; // power off
 
-	MEM4(kpd + 0x10) = 0xfff;
-	MEM4(kpd + 0x18) = 0xffff;
-	MEM4(kpd + 0x28) = 0;
-	MEM4(kpd + 0x1c) = 15;
-	MEM4(kpd) |= 1; // keypad enable
+	kpd->int_clr = 0xfff;
+	kpd->polarity = 0xffff;
+	kpd->clk_divide = 0;
+	kpd->debounce = 15;
+	kpd->ctrl |= 1; // keypad enable
 	sys_wait_ms(20);
 	ret = 0x100;
-	if (MEM4(kpd + 8) & 1) ret = MEM4(kpd + 0x2c) & 0x77;
-	MEM4(kpd + 0x10) = 0xfff;
+	if (kpd->int_raw & 1) ret = kpd->key_status & 0x77;
+	kpd->int_clr = 0xfff;
 	MEM4(tmp) = 0x40;	// keypad power off
 	return ret;
 }

@@ -32,11 +32,11 @@ int fputs(const char *str, FILE *f) {
 	return fwrite(str, 1, len, f) != len ? EOF : 0;
 }
 
-void sys_reset(void);
+void sys_wdg_reset(unsigned val);
 
 void exit(int code) {
 	fprintf(stderr, "!!! exit(%d)\n", code);
-	sys_reset();
+	sys_wdg_reset(0x8000 / 2); // 0.5 sec
 	for (;;);
 }
 

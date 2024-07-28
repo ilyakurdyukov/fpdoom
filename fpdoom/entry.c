@@ -117,7 +117,6 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			chip = (int32_t)(tmp << 15) < 0 ? 2 : 3;
 			if (chip == 2) init_sc6531da();
 			if (chip == 3) init_sc6530();
-			chip_fn[0] = chip_fn[1];
 		}
 	}
 #elif CHIP == 2

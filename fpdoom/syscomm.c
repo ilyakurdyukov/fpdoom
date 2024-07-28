@@ -13,10 +13,6 @@
 
 uint32_t *pinmap_addr;
 
-void sys_reset(void) {
-	CHIP_FN(sys_wdg_reset)(0x8000 / 2); // 0.5 sec
-}
-
 void scan_firmware(intptr_t fw_addr) {
 	int i, j; short *keymap = NULL;
 	uint32_t *pinmap = NULL;
@@ -166,14 +162,14 @@ struct sys_data sys_data;
 
 #if !CHIP
 int _chip;
-
-struct chip_fn2 chip_fn[2] = {
-#define X(pref) { \
-	pref##sys_start, pref##sys_event, \
-	pref##sys_framebuffer, pref##sys_brightness, \
-	pref##sys_start_refresh, pref##sys_wait_refresh }
-	X(sc6531e_), X(sc6531da_)
-#undef X
-};
 #endif
+
+void sys_init(void) { CHIP_FN(sys_init)(); }
+void sys_brightness(unsigned val) { CHIP_FN(sys_brightness)(val); }
+void sys_framebuffer(void *base) { CHIP_FN(sys_framebuffer)(base); }
+void sys_start_refresh(void) { CHIP_FN(sys_start_refresh)(); }
+void sys_wait_refresh(void) { CHIP_FN(sys_wait_refresh)(); }
+
+#define SYSCODE_AUTO 1
+#include "syscode.c"
 

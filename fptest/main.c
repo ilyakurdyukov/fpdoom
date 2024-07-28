@@ -46,8 +46,8 @@ static void gen_image(uint16_t *p, unsigned w, unsigned h, unsigned st) {
 static void test_refresh(void) {
 	uint32_t t0 = sys_timer_ms(), t1, n = 0, t2, t3;
 	do {
-		CHIP_FN2(sys_start_refresh)();
-		CHIP_FN2(sys_wait_refresh)();
+		sys_start_refresh();
+		sys_wait_refresh();
 		t1 = sys_timer_ms();
 		n++;
 	} while (t1 - t0 < 1000);
@@ -131,7 +131,7 @@ static void test_keypad(void) {
 	int type, key;
 
 	for (;;) {
-		type = CHIP_FN2(sys_event)(&key);
+		type = sys_event(&key);
 		switch (type) {
 		case EVENT_KEYUP:
 		case EVENT_KEYDOWN: {
@@ -223,8 +223,8 @@ int main(int argc, char **argv) {
 		struct sys_display *disp = &sys_data.display;
 		unsigned w = disp->w2, h = disp->h2;
 		framebuf_alloc();
-		CHIP_FN2(sys_framebuffer)(framebuf);
-		CHIP_FN2(sys_start)();
+		sys_framebuffer(framebuf);
+		sys_start();
 		gen_image(framebuf, w, h, w);
 		test_refresh();
 		free(framebuf_mem);

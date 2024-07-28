@@ -21,6 +21,27 @@ void set_cpsr_c(uint32_t a);
 #define IS_SC6530 (CHIP == 3)
 #endif
 
+#if SYSCODE_AUTO
+uint32_t adi_read(uint32_t addr) {
+	uint32_t a, rd_cmd = 0x82000008; // REG_ADI_RD_CMD
+	if (_chip != 1) rd_cmd += 0x10;
+	MEM4(rd_cmd) = addr & 0xfff;
+	// REG_ADI_RD_DATA, BIT_RD_CMD_BUSY
+	while ((a = MEM4(rd_cmd + 4)) >> 31);
+	return a & 0xffff;
+}
+
+void adi_write(uint32_t addr, uint32_t val) {
+	uint32_t fifo_sts = 0x82000004; // REG_ADI_FIFO_STS
+	uint32_t bit = 1 << 22; // BIT_FIFO_FULL
+	if (_chip != 1) fifo_sts += 0x1c, bit >>= 13;
+	while (MEM4(fifo_sts) & bit);
+	MEM4(addr) = val;
+	while (!(MEM4(fifo_sts) & bit >> 1)); // BIT_FIFO_EMPTY
+}
+#endif
+
+#if 0
 #if CHIP == 1 // SC6531E
 #define REG_ADI_FIFO_STS 0x82000004
 #define BIT_FIFO_EMPTY (1u << 21)
@@ -39,6 +60,8 @@ void set_cpsr_c(uint32_t a);
 #endif
 #define BIT_RD_CMD_BUSY (1u << 31)
 
+#define adi_read adi_read_static
+#define adi_write adi_write_static
 #if 0 // simple code
 static uint32_t adi_read(uint32_t addr) {
 	uint32_t a;
@@ -90,6 +113,7 @@ static void adi_write(uint32_t addr, uint32_t val) {
 	}
 }
 #endif
+#endif
 
 #if CHIP == 1 // SC6531E
 #define ANA_REG_BASE 0x82001400
@@ -112,6 +136,7 @@ static void adi_write(uint32_t addr, uint32_t val) {
 #define APB_PWR_ON(x) MEM4(0x8b000000 + (_chip != 1 ? 0xa0 : 0x10a8)) = (x)
 #define APB_PWR_OFF(x) MEM4(0x8b000000 + (_chip != 1 ? 0xa4 : 0x20a8)) = (x)
 
+#if !SYSCODE_AUTO
 static void init_chip_id(void) {
 	uint32_t t0, t1;
 #if CHIP == 1
@@ -727,59 +752,37 @@ void CHIP_FN(sys_framebuffer)(void *base) {
 	LCDC_CR(LCDC_OSD0_BASE_ADDR) = ((uint32_t)base + offset * 2) >> 2;
 	LCDC_CR(LCDC_OSD0_CTRL) |= 1;
 }
-
-static int read_eic_dbnc(int ch) {
-#if CHIP == 1 // SC6531E
-	uint32_t addr = 0x82001200;
-#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
-	uint32_t addr = 0x82001900;
 #endif
+
+#if SYSCODE_AUTO
+static int keypad_read_pb(void) {
+	uint32_t val, addr = 0x82001200, ch = 1;
+	if (_chip != 1) addr = 0x82001900, ch = 3;
 	// EIC_DBNC_DMSK
 	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
 	// EIC_DBNC_DATA
-	return adi_read(addr) >> ch & 1;
-}
-
-static int check_power_button(void) {
-#if CHIP == 1 // SC6531E
-	return read_eic_dbnc(1);
-#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
-	int val = read_eic_dbnc(3);
+	val = adi_read(addr) >> ch & 1;
 	// inverted on SC6531DA
-	if (sys_data.chip_id.ver >= 0x90003) val ^= 1;
+	if (_chip == 2) val ^= 1;
 	return val;
-#endif
 }
 
 static void eic_enable(void) {
 	// EIC_A
-#if CHIP == 1 // SC6531E
-	adi_write(0x82001410, adi_read(0x82001410) | 8);
-	adi_write(0x82001408, adi_read(0x82001408) | 8);
-#elif CHIP == 2 || CHIP == 3 // SC6530, SC6531DA
-	adi_write(0x820010e4, 0x20);
-	adi_write(0x820010e0, 0x80);
-#endif
+	if (_chip == 1) {
+		adi_write(0x82001410, adi_read(0x82001410) | 8);
+		adi_write(0x82001408, adi_read(0x82001408) | 8);
+	} else {
+		adi_write(0x820010e4, 0x20);
+		adi_write(0x820010e0, 0x80);
+	}
 	// EIC_D, not really needed
 	//APB_PWR_ON(0x4000000);
 	//APB_PWR_ON(0x2000000);
 }
 
-#define KEYPAD_CR(o) MEM4(0x87000000 + o)
-
-enum {
-	KPD_CTRL = 0x00,
-	KPD_INT_EN = 0x04,
-	KPD_INT_RAW_STATUS = 0x08,
-	KPD_INT_MASK_STATUS = 0x0c,
-	KPD_INT_CLR = 0x10,
-	KPD_POLARITY = 0x18,
-	KPD_DEBOUNCE_CNT = 0x1c,
-	KPD_CLK_DIVIDE_CNT = 0x28,
-	KPD_KEY_STATUS = 0x2c,
-};
-
-static void keypad_init(void) {
+void keypad_init(void) {
+	keypad_base_t *kpd = KEYPAD_BASE;
 	short *keymap = sys_data.keymap_addr;
 	int i, j, row = 0, col = 0, ctrl;
 	int nrow = _chip != 1 ? 8 : 5;
@@ -799,25 +802,25 @@ static void keypad_init(void) {
 
 	APB_PWR_ON(0x80040);
 
-	KEYPAD_CR(KPD_INT_CLR) = 0xfff;
-	KEYPAD_CR(KPD_CLK_DIVIDE_CNT) = 1;
-	KEYPAD_CR(KPD_DEBOUNCE_CNT) = 16;
-	KEYPAD_CR(KPD_INT_EN) = 0xfff;
-	KEYPAD_CR(KPD_POLARITY) = 0xffff;
+	kpd->int_clr = 0xfff;
+	kpd->clk_divide = 1;
+	kpd->debounce = 16;
+	kpd->int_en = 0xfff;
+	kpd->polarity = 0xffff;
 
-	ctrl = KEYPAD_CR(KPD_CTRL);
+	ctrl = kpd->ctrl;
 	//DBG_LOG("keypad: ctrl = %08x\n", ctrl);
 	ctrl |= 1; // enable
 	ctrl &= ~2; // sleep
 	ctrl |= 4; // long
 	ctrl |=	row << 16 | col << 8;
-	KEYPAD_CR(KPD_CTRL) = ctrl;
+	kpd->ctrl = ctrl;
 
 	// Required to check the status of the power button.
 	eic_enable();
 }
 
-int CHIP_FN(sys_event)(int *rkey) {
+int sys_event(int *rkey) {
 	static int static_i = 0;
 	static uint32_t static_ev, static_st;
 	uint32_t event, status;
@@ -828,17 +831,18 @@ int CHIP_FN(sys_event)(int *rkey) {
 	event = static_ev;
 	status = static_st;
 	if (!i) {
-		event = KEYPAD_CR(KPD_INT_RAW_STATUS);
-		status = KEYPAD_CR(KPD_KEY_STATUS);
+		keypad_base_t *kpd = KEYPAD_BASE;
+		event = kpd->int_raw;
+		status = kpd->key_status;
 		event &= 0xff;
 		if (!event) return EVENT_END;
-		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
+		kpd->int_clr = 0xfff;
 		if (status & 8) return EVENT_END;
 		static_ev = event;
 		static_st = status;
 	}
 
-	keytrn = sys_data.keytrn[check_power_button()];
+	keytrn = sys_data.keytrn[keypad_read_pb()];
 
 	for (; i < 8; i++) {
 		if (event >> i & 1) {
@@ -855,10 +859,13 @@ int CHIP_FN(sys_event)(int *rkey) {
 	static_i = 0;
 	return EVENT_END;
 }
+#endif
+
+#if !SYSCODE_AUTO
+void keypad_init(void);
 
 void CHIP_FN(sys_init)(void) {
 
-// 
 #if CHIP == 2 || CHIP == 3
 	// will allow to remove the battery after boot
 	if (!IS_SC6530 && sys_data.charge >= 2) {
@@ -893,14 +900,16 @@ void CHIP_FN(sys_init)(void) {
 		keytrn_init();
 	}
 }
+#endif // CHIP
 
-void CHIP_FN(sys_start)(void) {
-	CHIP_FN(sys_brightness)(sys_data.brightness);
+#if SYSCODE_AUTO
+void sys_start(void) {
+	sys_brightness(sys_data.brightness);
 	if (sys_data.keymap_addr)
-		KEYPAD_CR(KPD_INT_CLR) = 0xfff;
+		KEYPAD_BASE->int_clr = 0xfff;
 }
 
-void CHIP_FN(sys_wdg_reset)(unsigned val) {
+void sys_wdg_reset(unsigned val) {
 	uint32_t wdg;
 	// watchdog enable
 	if (_chip == 1) {
@@ -922,4 +931,5 @@ void CHIP_FN(sys_wdg_reset)(unsigned val) {
 	adi_write(wdg + 0x20, ~0xe551);
 	for (;;);
 }
+#endif
 

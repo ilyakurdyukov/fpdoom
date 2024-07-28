@@ -1,19 +1,21 @@
 #ifndef SYSCODE_H
 #define SYSCODE_H
 
+#ifndef INIT_MMU
 #define INIT_MMU 1
+#endif
 
 #define CHIPRAM_ADDR 0x40000000
-#if CHIP
-#if CHIP == 1
-#define FIRMWARE_ADDR 0x10000000
-#elif CHIP == 2 || CHIP == 3
-#define FIRMWARE_ADDR 0x30000000
-#endif
-#define RAM_ADDR (FIRMWARE_ADDR + 0x4000000)
-#endif
 #define FIRMWARE_SIZE (4 << 20)
-#define RAM_SIZE (4 << 20)
+
+#define KEYPAD_BASE ((keypad_base_t*)0x87000000)
+
+typedef volatile struct {
+	uint32_t ctrl, int_en, int_raw, int_mask;
+	uint32_t int_clr, dummy_14, polarity, debounce;
+	uint32_t long_key, sleep_cnt, clk_divide, key_status;
+	uint32_t sleep_stat, dbg_stat1, dbg_stat2;
+} keypad_base_t;
 
 #if !CHIP
 #define CHIP_FN(name) (_chip != 1 ? sc6531da_##name : sc6531e_##name)
@@ -37,6 +39,17 @@ void sys_wait_us(uint32_t delay);
 void sys_wait_clk(uint32_t delay);
 int sys_getkeymap(uint8_t *dest);
 
+uint32_t adi_read(uint32_t addr);
+void adi_write(uint32_t addr, uint32_t val);
+void sys_init(void);
+void sys_start(void);
+int sys_event(int *rkey);
+void sys_brightness(unsigned val);
+void sys_framebuffer(void *base);
+void sys_start_refresh(void);
+void sys_wait_refresh(void);
+void sys_wdg_reset(unsigned val);
+
 void clean_dcache(void);
 void clean_invalidate_dcache_range(void *start, void *end);
 
@@ -44,34 +57,16 @@ enum {
 	EVENT_KEYDOWN, EVENT_KEYUP, EVENT_END, EVENT_QUIT
 };
 
-#if !CHIP
 #define CHIP_FN_DECL(pre, name, arg) \
 	pre sc6531e_##name arg; \
 	pre sc6531da_##name arg;
-#define CHIP_FN2(name) (chip_fn[0].name)
-#else
-#define CHIP_FN_DECL(pre, name, arg) pre CHIP_FN(name) arg;
-#define CHIP_FN2(name) CHIP_FN(name)
-#endif
 
 CHIP_FN_DECL(void, sys_init, (void))
-CHIP_FN_DECL(void, sys_start, (void))
-CHIP_FN_DECL(int, sys_event, (int *rkey))
 CHIP_FN_DECL(void, sys_brightness, (unsigned val))
 CHIP_FN_DECL(void, sys_framebuffer, (void*))
 CHIP_FN_DECL(void, sys_start_refresh, (void))
 CHIP_FN_DECL(void, sys_wait_refresh, (void))
-CHIP_FN_DECL(void, sys_wdg_reset, (unsigned))
 #undef CHIP_FN_DECL
-
-struct chip_fn2 {
-	void (*sys_start)(void);
-	int (*sys_event)(int *rkey);
-	void (*sys_framebuffer)(void *base);
-	void (*sys_brightness)(unsigned val);
-	void (*sys_start_refresh)(void);
-	void (*sys_wait_refresh)(void);
-};
 
 // extern
 
@@ -95,8 +90,6 @@ extern struct sys_data {
 	uint32_t spi;
 	uint32_t lcd_id;
 } sys_data;
-
-extern struct chip_fn2 chip_fn[];
 
 // appinit
 

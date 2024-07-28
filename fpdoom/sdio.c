@@ -31,24 +31,6 @@ int sdio_verbose = 1;
 
 #define IS_SC6530 (_chip == 3)
 
-static uint32_t adi_read(uint32_t addr) {
-	uint32_t a, rd_cmd = 0x82000008; // REG_ADI_RD_CMD
-	if (_chip != 1) rd_cmd += 0x10;
-	MEM4(rd_cmd) = addr & 0xfff;
-	// REG_ADI_RD_DATA, BIT_RD_CMD_BUSY
-	while ((a = MEM4(rd_cmd + 4)) >> 31);
-	return a & 0xffff;
-}
-
-static void adi_write(uint32_t addr, uint32_t val) {
-	uint32_t fifo_sts = 0x82000004; // REG_ADI_FIFO_STS
-	uint32_t bit = 1 << 22; // BIT_FIFO_FULL
-	if (_chip != 1) fifo_sts += 0x1c, bit >>= 13;
-	while (MEM4(fifo_sts) & bit);
-	MEM4(addr) = val;
-	while (!(MEM4(fifo_sts) & bit >> 1)); // BIT_FIFO_EMPTY
-}
-
 #define SDIO0_BASE ((sdio_base_t*)0x20700000)
 #define SDIO1_BASE ((sdio_base_t*)0x20700100)
 

@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
 	argc = j;
 
 	framebuf = framebuffer_init();
-	CHIP_FN2(sys_framebuffer)(framebuf);
+	sys_framebuffer(framebuf);
 
 	_buildargc = argc;
 	_buildargv = (const char**)argv;
@@ -326,7 +326,7 @@ int setvideomode(int x, int y, int c, int fs) {
 	if (started) return 0;
 
 	started = 1;
-	CHIP_FN2(sys_start)();
+	sys_start();
 
 	getvalidmodes();
 	x = disp->w2; y = disp->h2;
@@ -376,7 +376,7 @@ int handleevents(void) {
 	int type, key, ret = 0;
 
 	for (;;) {
-		type = CHIP_FN2(sys_event)(&key);
+		type = sys_event(&key);
 		switch (type) {
 		case EVENT_KEYUP:
 		case EVENT_KEYDOWN:

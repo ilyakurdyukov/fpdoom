@@ -836,7 +836,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..a8b4fcd 100644
+index 9b311b3..4cf0921 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -937,7 +937,7 @@ index 9b311b3..a8b4fcd 100644
 +	keyup = 0;
 +    }
 +    for (;;) {
-+	type = CHIP_FN2(sys_event)(&key);
++	type = sys_event(&key);
 +	switch (type) {
 +	case EVENT_KEYDOWN:
 +	    if (key == KEY_ENTER && !menuactive) key = ' ';
@@ -987,9 +987,9 @@ index 9b311b3..a8b4fcd 100644
      }
  
 +#ifdef EMBEDDED
-+    CHIP_FN2(sys_wait_refresh)();
++    sys_wait_refresh();
 +    app_scr_update(screens[0], imagedata);
-+    CHIP_FN2(sys_start_refresh)();
++    sys_start_refresh();
 +#else
      // scales the screen size before blitting it
      if (multiply == 2)
@@ -1045,8 +1045,8 @@ index 9b311b3..a8b4fcd 100644
  
 +#ifdef EMBEDDED
 +    imagedata = framebuffer_init();
-+    CHIP_FN2(sys_framebuffer)(imagedata);
-+    CHIP_FN2(sys_start)();
++    sys_framebuffer(imagedata);
++    sys_start();
 +#else
      if (M_CheckParm("-2"))
  	multiply = 2;
