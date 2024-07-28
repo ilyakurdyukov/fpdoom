@@ -361,9 +361,9 @@ int setvideomode(int x, int y, int c, int fs) {
 void resetvideomode(void) {}
 
 void showframe(void) {
-	CHIP_FN2(sys_wait_refresh)();
+	sys_wait_refresh();
 	app_scr_update(frame, framebuf);
-	CHIP_FN2(sys_start_refresh)();
+	sys_start_refresh();
 }
 
 int setpalette(int start, int num, unsigned char *dapal) {
