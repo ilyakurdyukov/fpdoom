@@ -59,7 +59,11 @@ static int read_key(int chip) {
 	kpd->debounce = 15;
 	kpd->ctrl |= 1; // keypad enable
 	sys_wait_ms(20);
+#if LIBC_SDIO >= 3
+	ret = 0;
+#else
 	ret = 0x100;
+#endif
 	if (kpd->int_raw & 1) ret = kpd->key_status & 0x77;
 	kpd->int_clr = 0xfff;
 	MEM4(tmp) = 0x40;	// keypad power off
@@ -86,7 +90,8 @@ void entry_main(uint32_t load_addr) {
 #endif
 	key = read_key(chip);
 #if LIBC_SDIO >= 3
-	if (!(key & 0xff)) goto end;
+	key |= load_addr >> 30; // boot from CHIPRAM
+	if (!key) goto end;
 #endif
 
 	if (chip == 1) init_sc6531e();

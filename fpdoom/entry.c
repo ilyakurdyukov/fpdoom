@@ -19,10 +19,8 @@
 #include "microfat.h"
 #include "fatfile.h"
 #if CHIPRAM_ARGS || LIBC_SDIO >= 3
-static int read_args(FILE *fi, char *d) {
+static int read_args(FILE *fi, char *d, char *e) {
 	int argc = 0, j = 1, q = 0;
-	char *e = d + 0x1000 - 3;
-
 	for (;;) {
 		int a = fgetc(fi);
 		if (a == '#') {
@@ -33,27 +31,32 @@ static int read_args(FILE *fi, char *d) {
 			} while (a != '\n');
 			continue;
 		}
-		if (!a || a == EOF) break;
-		if (a == '"' || a == '\'') {
+		if (a <= 0x20) {
+			if (a == '\r') continue;
+			if (a != ' ' && a != '\t' && a != '\n') return -1;
+			if (!q) {
+				if (a == '\n' && argc) break;
+				if (j) continue;
+				a = 0;
+			}
+		} else if (a == '"' || a == '\'') {
 			if (!q) {	q = a; argc += j; j = 0; continue; }
 			if (q == a) { q = 0; continue; }
 		} else if (a == '\\' && q != '\'') {
 			do a = fgetc(fi); while (a == '\r');
-			if (a == EOF) break;
 			if (a == '\n') continue;
-			goto next;
-		} else if (!q && (a == ' ' || a == '\t' || a == '\n' || a == '\r')) {
-			if (j) continue;
-			a = q = 0; j = 1;
-		} else {
-next:
-			argc += j; j = 0;
+			if (a == EOF || a < 0x20) return -1;
 		}
+		argc += j;
 		if (d == e) return -1;
-		*d++ = a;
+		*d++ = a; j = !a;
 	}
 end:
-	/* if (!j) */ *d = 0;
+	if (q) return -1;
+	if (!j) {
+		if (d == e) return -1;
+		*d = 0;
+	}
 	return argc;
 }
 #endif
@@ -97,8 +100,6 @@ int entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size, uint8_t
 #endif
 void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
-	static const uint8_t fdl_ack[8] = {
-		0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
 	int argc1, argc; char **argv = NULL;
 	uint32_t fw_addr = (uint32_t)image_addr & 0xf0000000;
 	uint32_t ram_addr = fw_addr + 0x04000000, ram_size;
@@ -140,10 +141,12 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 
 #if LIBC_SDIO < 3
-	usb_init();
-	usb_write(fdl_ack, sizeof(fdl_ack));
 	{
+		static const uint8_t fdl_ack[8] = {
+			0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
 		char buf[4]; uint32_t t0, t1;
+		usb_init();
+		usb_write(fdl_ack, sizeof(fdl_ack));
 		for (;;) {
 			usb_read(buf, 1, USB_WAIT);
 			if (buf[0] == HOST_CONNECT) break;
@@ -225,7 +228,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		if (!argc1) {
 			FILE *fi = fopen("fpbin/config.txt", "rb");
 			if (!fi) exit(1);
-			argc1 = read_args(fi, p + sizeof(short));
+			argc1 = read_args(fi, p + sizeof(short), (char*)CHIPRAM_ADDR + 0x1000);
 			if (argc1 < 0) exit(1);
 			fclose(fi);
 		}

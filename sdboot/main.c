@@ -56,7 +56,7 @@ int sdmain(uint8_t *ram) {
 		unsigned clust = fat_entry_clust(p);
 		uint32_t size = p->entry.size, n;
 		printf("start = 0x%x, size = 0x%x\n", clust, size);
-		if (size > 3 << 20) {
+		if (size > (2 << 20) - 0x10000) {
 			printf("binary is too big\n");
 			return 1;
 		}
