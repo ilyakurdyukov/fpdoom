@@ -3,7 +3,7 @@ typedef struct {
 	int argc, skip; char *end;
 } extract_args_t;
 
-static char* get_first_arg(char *s) {
+static char* get_first_arg1(int depth, char *s) {
 	int a, n; char *ret;
 	n = *(uint8_t*)(s + 1) << 8 | *(uint8_t*)s;
 	//printf("argc = %d\n", n);
@@ -14,11 +14,18 @@ static char* get_first_arg(char *s) {
 		a |= *(uint8_t*)&s[2] << 8;
 		a |= *(uint8_t*)&s[3] << 16;
 		//printf("var: 0x%x, %p\n", a, s - a);
-		ret = get_first_arg(s - a);
+		if (depth >= 10) return (char*)~(uintptr_t)0;
+		ret = get_first_arg1(depth + 1, s - a);
 		if (ret) return ret;
 		s += 4;
 	}
 	return NULL;
+}
+
+static inline char* get_first_arg(char *s) {
+	s = get_first_arg1(0, s);
+	if (!~(uintptr_t)s) s = NULL;
+	return s;
 }
 
 static char* extract_args(int depth, extract_args_t *x, char *s, char *d) { 

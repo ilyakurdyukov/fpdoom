@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
 					break;
 				case 0x35: // 5
 				case 0x05: // DOWN
-					if (draw.sel < draw.mrows) draw.sel++;
+					if (draw.sel + 1 < draw.mrows) draw.sel++;
 					break;
 				// TODO
 				//case 0x34: // 4
