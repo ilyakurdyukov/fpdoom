@@ -36,6 +36,11 @@ CODE32_FN enable_mmu
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
 	bx	lr
 
+CODE32_FN clean_icache
+	mov	r0, #0
+	mcr	p15, #0, r0, c7, c5, #0
+	bx	lr
+
 CODE32_FN clean_dcache
 	// clean entire dcache using test and clean
 	// apsr_nzcv == r15 (Clang doesn't understand r15)

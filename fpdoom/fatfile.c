@@ -110,6 +110,7 @@ int fat_fgetc(fatfile_t *f) {
 
 size_t fat_fwrite(const void *src, size_t size, size_t count, fatfile_t *f) {
 #if !FAT_WRITE
+	(void)src; (void)size; (void)count; (void)f;
 	return 0;
 #else
 	const uint8_t *s = (const uint8_t*)src;

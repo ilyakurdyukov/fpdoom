@@ -1,0 +1,26 @@
+# This is a config file for running binaries from the FPDoom project from an SD card.
+
+# Comments begin with a hash sign.
+# The first non-empty line specifies the arguments to run the flat binary named "fpbin/fpmain.bin":
+
+--bright 50 --charge 2
+
+# If the "fpmenu" is located in this path, it will read the config file further.
+
+# You can wrap long lines using blackslash.
+# First arguments are stored in the $@ variable.
+# You can define and redefine variables:
+
+$@ = $@ --rotate 3
+
+# Variables must begin with a dollar sign.
+
+$doom = fpbin/fpdoom.bin $@
+
+# Menu items are defined using this pattern:
+# |Name| path/to/app.bin arg1 arg2 arg3
+
+|Doom 1| $doom --dir games/doom1 doom # -timedemo demo1
+|Duke 3D| fpbin/fpduke3d.bin $@ --dir games/duke3d duke3d # -cachesize 1648
+|Shadow Warrior| fpbin/fpsw.bin $@ --dir games/sw sw # -cachesize 1552
+|Blood| fpbin/fpblood.bin $@ --dir games/blood blood # -cachesize 1648

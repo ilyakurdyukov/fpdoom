@@ -471,7 +471,7 @@ unsigned fat_dir_clust(fatdata_t *fatdata, const char *name) {
 }
 
 unsigned fat_read_simple(fatdata_t *fatdata, unsigned clust,
-	void *buf, uint32_t size) {
+		void *buf, uint32_t size) {
 	uint8_t *dst = buf;
 	uint32_t spos, send, pos = 0;
 	for (;;) {

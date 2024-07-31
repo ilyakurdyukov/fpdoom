@@ -213,7 +213,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		exit(1);
 	}
 #else
+#if SDIO_SHL != CHIPRAM_ADDR
 	sdio_shl = MEM4(CHIPRAM_ADDR);
+#endif
 #endif
 	if (fat_init(&fatdata_glob, 0)) {
 		printf("!!! fat_init failed\n");

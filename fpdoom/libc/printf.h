@@ -117,7 +117,12 @@ str1:
 			}
 			len = 0;
 			do {
-				a = num + '0'; num /= 10;
+				a = num + '0';
+#ifndef __thumb__
+				num /= 10;
+#else // help the compiler not to call __aeabi_uidiv
+				num = (num * 0xcccccccdull) >> (32 + 3);
+#endif
 				buf[len++] = a - num * 10;
 			} while (num);
 			if (prec < (int)len) prec = len;

@@ -173,7 +173,7 @@ static void test_sfc(void) {
 		unsigned i, n = 0x20000 - 1;
 		uint8_t *buf = malloc(n);
 		sfc_read(cs, addr, buf, n);
-		printf("sfc_compare: ret = %u\n", sfc_compare(cs, addr, buf, n));
+		printf("sfc_compare: ret = %u\n", sfc_compare(cs, addr, buf, n, SFC_CMP_POST));
 		sfc_spiread(cs);
 		p = (uint8_t*)(_chip == 1 ? 0x10000000 : 0x30000000);
 		p += (addr & ~0xff);

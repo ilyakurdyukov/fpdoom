@@ -32,7 +32,10 @@ void sfc_write_enable(int cs);
 void sfc_erase(int cs, int addr, int cmd, int addr_len);
 void sfc_write(int cs, int addr, const void *buf, unsigned size);
 void sfc_read(int cs, int addr, void *buf, unsigned size);
-unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size);
+#define SFC_CMP_PRE 0 /* check if erasing is necessary */
+#define SFC_CMP_POST ~0 /* check that the data was written correctly */
+#define SFC_CMP_ERASE 1
+unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size, uint32_t mode);
 void sfc_spiread(int cs);
 const char* sfc_getvendor(uint32_t id);
 const char* sfc_getname(uint32_t id);

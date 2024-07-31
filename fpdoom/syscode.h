@@ -50,6 +50,7 @@ void sys_start_refresh(void);
 void sys_wait_refresh(void);
 void sys_wdg_reset(unsigned val);
 
+void clean_icache(void);
 void clean_dcache(void);
 void clean_invalidate_dcache_range(void *start, void *end);
 

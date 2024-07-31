@@ -194,9 +194,10 @@ void sfc_read(int cs, int addr, void *buf, unsigned size) {
 	}
 }
 
-unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size) {
+unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size, uint32_t mode) {
 	const uint8_t *src = (const uint8_t*)buf, *end = src + size;
 	sfc_base_t *sfc = SFC_BASE + cs;
+	uint32_t diff = 0, tmp2;
 
 	while (src < end) {
 		uint32_t tmp, k, n = end - src;
@@ -204,18 +205,28 @@ unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size) {
 		sfc_read_req(cs, addr, n);
 		addr += n;
 		for (k = 7; n >= 4; k++, n -= 4, src += 4) {
-			tmp = src[0] << 24 | src[1] << 16 | src[2] << 8 | src[3];
-			if (sfc->cmd[k] != tmp) goto end;
+			tmp = ~0;
+			if (mode != SFC_CMP_ERASE)
+				tmp = src[0] << 24 | src[1] << 16 | src[2] << 8 | src[3];
+			tmp2 = sfc->cmd[k] ^ tmp;
+			if (tmp2 & (tmp | mode)) goto end;
+			diff |= tmp2;
 		}
 		if (n) {
-			tmp = src[0] << 24;
-			if (n >= 2) tmp |= src[1] << 16;
-			if (n > 2) tmp |= src[2] << 8;
-			tmp ^= sfc->cmd[k];
-			if (tmp >> (4 - n) * 8) goto end;
+			tmp = ~0;
+			if (mode != SFC_CMP_ERASE) {
+				tmp = src[0] << 24;
+				if (n >= 2) tmp |= src[1] << 16;
+				if (n > 2) tmp |= src[2] << 8;
+			}
+			tmp2 = sfc->cmd[k] ^ tmp;
+			tmp >>= k = (4 - n) * 8; tmp2 >>= k;
+			if (tmp2 & (tmp | mode)) goto end;
+			diff |= tmp2;
 			src += n;
 		}
 	}
+	if (diff) return ~0;
 end:
 	return end - src;
 }
