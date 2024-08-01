@@ -785,11 +785,8 @@ void keypad_init(void) {
 	keypad_base_t *kpd = KEYPAD_BASE;
 	short *keymap = sys_data.keymap_addr;
 	int i, j, row = 0, col = 0, ctrl;
-	// Usually nrow = 5 for SC6531E, but F+ F197 use 8.
-	int nrow = _chip != 1 ? 8 : 5;
-	// Usually ncol = 5 for SC6531DA.
-	// But the Children's Camera has UP at i=6, j=3.
-	int ncol = _chip != 1 ? sys_data.keycols : 8;
+	int nrow = sys_data.keyrows;
+	int ncol = sys_data.keycols;
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++)

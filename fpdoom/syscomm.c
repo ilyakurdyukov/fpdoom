@@ -138,8 +138,8 @@ int sys_getkeymap(uint8_t *dest) {
 		{ "\007\006\004\005369258147" },
 		{ "\005\004\007\006987654321" },
 		{ "\006\007\005\004741852963" } };
-	int nrow = _chip != 1 ? 8 : 5;
-	int ncol = _chip != 1 ? sys_data.keycols : 8;
+	int nrow = sys_data.keyrows;
+	int ncol = sys_data.keycols;
 	int flags = 0;
 
 	memset(dest, 0, 64);

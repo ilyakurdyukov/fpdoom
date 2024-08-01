@@ -69,6 +69,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 23 | Samsung GT-E1272       | SC6531E  | ST???   128x160 | 2          |
 | 24 | Samsung GT-E1272       | SC6530   | ST7735  128x160 | center     |
 | 25 | F+ F197                | SC6531E  | NV3023  128x160 | 1          |
+| 26 | Alcatel 2003D          | SC6531E  | ST7789  240x320 | dial       |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
@@ -80,7 +81,8 @@ need keymap file
 * BQ 3586: use `--bl_gpio 19` for backlight to work properly
 * Fly TS114: use `--spi 1`
 * Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
-* YX Q5 Kids Camera: `--mac 0xa8` without `--rotate`
+* YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
+* Alcatel 2003D: use `--keyrows 8`
 
 ### Game controls
 

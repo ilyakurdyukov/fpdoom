@@ -257,7 +257,12 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	sys_data.charge = -1;
 	sys_data.spi_mode = 3;
 	sys_data.bl_gpio = 0xff;
-	sys_data.keycols = 5;
+	// Usually nrow = 5 for SC6531E.
+	// But F+ F197 and Alcatel 2003D use 8.
+	sys_data.keyrows = _chip != 1 ? 8 : 5;
+	// Usually ncol = 5 for SC6531DA.
+	// But the Children's Camera use 7.
+	sys_data.keycols = _chip != 1 ? 5 : 8;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -303,9 +308,14 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
 			sys_data.charge = atoi(argv[1]);
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--keyrows")) {
+			unsigned a = atoi(argv[1]);
+			if (a - 2 <= 6) sys_data.keyrows = a;
+			if (_chip == 1 && a == 8) sys_data.keycols = 5;
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keycols")) {
 			unsigned a = atoi(argv[1]);
-			if (a <= 8) sys_data.keycols = a;
+			if (a - 2 <= 6) sys_data.keycols = a;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
