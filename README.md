@@ -70,6 +70,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 24 | Samsung GT-E1272       | SC6530   | ST7735  128x160 | center     |
 | 25 | F+ F197                | SC6531E  | NV3023  128x160 | 1          |
 | 26 | Alcatel 2003D          | SC6531E  | ST7789  240x320 | dial       |
+| 27 | Alcatel 2019G          | SC6531E  | GC9308  320x240 | dial       |
 
 * Vertex M115, Nobby 170B, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
@@ -83,6 +84,7 @@ need keymap file
 * Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
 * Alcatel 2003D: use `--keyrows 8`
+* Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
 
 ### Game controls
 
