@@ -25,7 +25,8 @@ SECTIONS {
 		__image_end = .;
 		__stack_top = ALIGN(16);
 		__stack_bottom = __stack_top + STACK_SIZE;
-	}
+		/* . = DEFINED(IMAGE_ALIGN) ? ALIGN(IMAGE_ALIGN) : .; */
+	} = 0xffffffff
 	ASSERT(__stack_bottom - IMAGE_START <= IMAGE_SIZE, "image overflow")
 
 	__image_size = __image_end - __image_start;

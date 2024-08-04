@@ -62,17 +62,21 @@ void scan_firmware(intptr_t fw_addr) {
 					CHECK_KEY
 				}
 #undef CHECK_KEY
-			if (j >= 40) do {
-				if (empty < 10) break;
-				tmp = 1 << 1 | 1 << 8 | 1 << 9; // DIAL, LSOFT, RSOFT
-				if ((mask0 & tmp) != tmp) break;
+			if (j >= 40 && empty >= 10) {
+				mask0 |= ~(1 << 8); // LSOFT
 				tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
-				if ((mask1 & tmp) != tmp) break;
-				if (keymap) {
-					DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)s);
-					flags &= ~1; keymap = NULL;
-				} else keymap = (short*)s;
-			} while (0);
+				mask1 |= ~tmp;
+				if (!~(mask1 & mask0)) {
+					if (keymap) {
+						DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)s);
+						flags &= ~1; keymap = NULL;
+					} else {
+						keymap = (short*)s;
+						i += j * 2 - 4;
+						continue;
+					}
+				}
+			}
 		}
 
 		do {

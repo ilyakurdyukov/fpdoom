@@ -92,15 +92,16 @@ static void usbio_bench(int arg, unsigned len, unsigned n) {
 			arg ? "write" : "read", i, t1);
 }
 
-static void sdio_bench(uint32_t size) {
+static void sdio_bench(uint32_t pos, uint32_t size) {
 	void *mem = malloc(512 + 32);
 	uint8_t *buf = (uint8_t*)(((intptr_t)mem + 31) & ~31);
 	unsigned i, n = size >> 9;
 	uint32_t t0, t1;
 
+	pos >>= 9;
 	t0 = sys_timer_ms();
 	for (i = 0; i < n; i++)
-		if (sdio_read_block(i, buf)) break;
+		if (sdio_read_block(pos + i, buf)) break;
 	t1 = sys_timer_ms();
 	free(mem);
 	t1 -= t0;
@@ -157,9 +158,9 @@ static int boot_cable_check(void) {
 }
 
 static void test_sfc(void) {
-	unsigned cs = SFC_BASE->cs & 1;
+	unsigned cs = 0; // SFC_BASE->cs & 1;
 	uint32_t id; const char *name;
-	printf("sfc: cs = %u\n", cs);
+	printf("sfc: cs1 start = 0x%02x\n", MEM4(0x20a00200) & 0xff);
 	sfc_init();
 	id = sfc_readid(cs);
 	printf("sfc: id = 0x%06x\n", id);
@@ -167,6 +168,22 @@ static void test_sfc(void) {
 	if (name) printf("flash vendor: %s\n", name);
 	name = sfc_getname(id);
 	if (name) printf("flash name: %s\n", name);
+	{
+		int sr2 = -1, sr3 = -1;
+		switch (id >> 16) {
+		case 0xef: /* Winbond */
+			sr3 = 0x15; /* fallthrough */
+		case 0xc8: /* GigaDevice */
+		case 0xf8: /* Fidelix/Dosilicon */
+			sr2 = 0x35; break;
+		}
+		printf("sfc: sr1 = 0x%02x\n", sfc_read_status(cs));
+		if (sr2 >= 0)
+			printf("sfc: sr2 = 0x%02x\n", sfc_cmd_read(cs, sr2, 1) >> 24);
+		if (sr3 >= 0)
+			printf("sfc: sr3 = 0x%02x\n", sfc_cmd_read(cs, sr3, 1) >> 24);
+	}
+
 	sfc_spiread(cs);
 	if (1) {
 		uint32_t addr = 0x000000; uint8_t *p;
@@ -249,7 +266,7 @@ int main(int argc, char **argv) {
 		sdio_init();
 		if (!sdcard_init()) {
 			SDIO_VERBOSITY(0);
-			sdio_bench(1 << 20);
+			sdio_bench(1 << 20, 1 << 20);
 			if (0) sdio_write_test(1);
 		}
 	}

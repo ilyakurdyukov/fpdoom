@@ -34,6 +34,7 @@ CFLAGS += -fomit-frame-pointer
 CFLAGS += -ffunction-sections -fdata-sections
 LFLAGS = -nostartfiles -nodefaultlibs -nostdlib -Wl,-T,$(LDSCRIPT) -Wl,--gc-sections -Wl,-z,notext
 # -Wl,--no-dynamic-linker
+#LFLAGS += -Wl,--defsym,IMAGE_ALIGN=0x1000
 LFLAGS += $(LD_EXTRA)
 CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 CFLAGS += -isystem $(FPDOOM)/include

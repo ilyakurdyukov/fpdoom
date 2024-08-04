@@ -142,7 +142,12 @@ void entry_main(uint32_t load_addr) {
 #endif
 
 	ram_addr = fw_addr + 0x04000000;
-	ram_size = get_ram_size(ram_addr);
+	{
+		/* extra loader on Samsung B310E checks this value */
+		uint32_t old = MEM4(ram_addr);
+		ram_size = get_ram_size(ram_addr);
+		MEM4(ram_addr) = old;
+	}
 #if INIT_MMU
 	{
 		volatile uint32_t *tab = (volatile uint32_t*)(ram_addr + ram_size - 0x4000);
