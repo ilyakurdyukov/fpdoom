@@ -137,93 +137,93 @@ void sfc_write(int cs, int addr, const void *buf, unsigned size) {
 	}
 }
 
-static void sfc_read_req(int cs, int addr, unsigned n) {
-	uint32_t tmp, k;
-	sfc_base_t *sfc0 = SFC_BASE, *sfc;
-	sfc = sfc0 + cs;
+static void sfc_read_req(int cs, int cmd, int addr_len,
+		int addr, uint8_t *buf, unsigned n) {
+	uint32_t tmp, k, n2;
+	sfc_base_t *sfc0 = SFC_BASE, *sfc = sfc0 + cs;
 
 	while (sfc_read_status(cs) & 1);
 
 	sfc->tbuf_clr = 1;
 	sfc0->cmd_set &= 1; // write
 	SFC_CMDSET(sfc, 1, 7);
-	sfc->cmd[0] = addr >> 24 ? 0x13 : 0x03; // Read Array
+	sfc->cmd[0] = cmd;
 	sfc->cmd[1] = addr;
-	tmp = SFC_TYPEINFO(1, 1, WRITE, 0) |
-			SFC_TYPEINFO(1, 3, WRITE, 1) << 8;
-	if (addr >> 24) tmp += 1 << (3 + 8);
-	sfc->type_info[0] = tmp;
-	k = 7; do {
+	sfc->type_info[0] =
+			SFC_TYPEINFO(1, 1, WRITE, 0) |
+			SFC_TYPEINFO(1, addr_len, WRITE, 1) << 8;
+	k = 7; n2 = n; do {
 		tmp = 4;
-		if (n < 4) tmp = n;
-		n -= tmp;
+		if (n2 < 4) tmp = n2;
+		n2 -= tmp;
 		tmp = SFC_TYPEINFO(1, tmp, READ, 0);
 		sfc->type_info[k >> 2] |= tmp << (k & 3) * 8;
 		k++;
-	} while (n);
+	} while (n2);
 	sfc0->int_clr = 1 << cs;
 	sfc0->soft_req |= 1;
 	while (!(sfc->status & 1));
+
+	for (k = 7; n >= 4; k++, n -= 4, buf += 4) {
+		tmp = sfc->cmd[k];
+		buf[0] = tmp >> 24;
+		buf[1] = tmp >> 16;
+		buf[2] = tmp >> 8;
+		buf[3] = tmp;
+	}
+	if (n) {
+		tmp = sfc->cmd[k];
+		buf[0] = tmp >> 24;
+		if (n >= 2) buf[1] = tmp >> 16;
+		if (n > 2) buf[2] = tmp >> 8;
+	}
+}
+
+static unsigned sfc_read_chunk(int cs, int addr, void *buf, unsigned n) {
+	uint32_t j, k = 20;
+	if ((j = 0xffffff - addr) < 19) k = j + 1;
+	if (n > k) n = k;
+	sfc_read_req(cs, addr >> 24 ? 0x13 : 0x03, addr >> 24 ? 4 : 3, addr, buf, n);
+	return n;
 }
 
 void sfc_read(int cs, int addr, void *buf, unsigned size) {
 	uint8_t *dst = (uint8_t*)buf, *end = dst + size;
-	sfc_base_t *sfc0 = SFC_BASE, *sfc;
-	sfc = sfc0 + cs;
+	unsigned n;
 
-	while (dst < end) {
-		uint32_t tmp, k, n = end - dst;
-		if (n > 20) n = 20;
-		sfc_read_req(cs, addr, n);
-		addr += n;
-		for (k = 7; n >= 4; k++, n -= 4, dst += 4) {
-			tmp = sfc->cmd[k];
-			dst[0] = tmp >> 24;
-			dst[1] = tmp >> 16;
-			dst[2] = tmp >> 8;
-			dst[3] = tmp;
-		}
-		if (n) {
-			tmp = sfc->cmd[k];
-			dst[0] = tmp >> 24;
-			if (n >= 2) dst[1] = tmp >> 16;
-			if (n > 2) dst[2] = tmp >> 8;
-			dst += n;
-		}
+	while ((n = end - dst)) {
+		n = sfc_read_chunk(cs, addr, dst, n);
+		addr += n; dst += n;
 	}
 }
 
-unsigned sfc_compare(int cs, int addr, const void *buf, unsigned size, uint32_t mode) {
-	const uint8_t *src = (const uint8_t*)buf, *end = src + size;
-	sfc_base_t *sfc = SFC_BASE + cs;
-	uint32_t diff = 0, tmp2;
+/* Serial Flash Discoverable Parameter */
+void sfc_read_sfdp(int cs, int addr, void *buf, unsigned size) {
+	uint8_t *dst = (uint8_t*)buf, *end = dst + size;
+	unsigned n;
 
-	while (src < end) {
-		uint32_t tmp, k, n = end - src;
+	while ((n = end - dst)) {
 		if (n > 20) n = 20;
-		sfc_read_req(cs, addr, n);
+		sfc_read_req(cs, 0x5a, 4, addr << 8, dst, n);
+		addr += n; dst += n;
+	}
+}
+
+unsigned sfc_compare(int cs, int addr, const void *src0, unsigned size, uint32_t mode) {
+	const uint8_t *src = (const uint8_t*)src0, *end = src + size;
+	uint32_t diff = 0, tmp2; unsigned n;
+
+	while ((n = end - src)) {
+		uint32_t tmp, k; uint8_t buf[20];
+		n = sfc_read_chunk(cs, addr, buf, n);
 		addr += n;
-		for (k = 7; n >= 4; k++, n -= 4, src += 4) {
+		k = 0; do {
 			tmp = ~0;
-			if (mode != SFC_CMP_ERASE)
-				tmp = src[0] << 24 | src[1] << 16 | src[2] << 8 | src[3];
-			tmp2 = sfc->cmd[k] ^ tmp;
+			if (mode != SFC_CMP_ERASE) tmp = *src;
+			tmp2 = buf[k] ^ tmp;
 			if (tmp2 & (tmp | mode)) goto end;
-			diff |= tmp2;
-		}
-		if (n) {
-			tmp = ~0;
-			if (mode != SFC_CMP_ERASE) {
-				tmp = src[0] << 24;
-				if (n >= 2) tmp |= src[1] << 16;
-				if (n > 2) tmp |= src[2] << 8;
-			}
-			tmp2 = sfc->cmd[k] ^ tmp;
-			tmp >>= k = (4 - n) * 8; tmp2 >>= k;
-			if (tmp2 & (tmp | mode)) goto end;
-			diff |= tmp2;
-			src += n;
-		}
+			diff |= tmp2; src++;
+		} while (++k < n);
 	}
 	if (diff) return ~0;
 end:

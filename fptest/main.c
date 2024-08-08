@@ -183,7 +183,16 @@ static void test_sfc(void) {
 		if (sr3 >= 0)
 			printf("sfc: sr3 = 0x%02x\n", sfc_cmd_read(cs, sr3, 1) >> 24);
 	}
-
+	{
+		union { uint8_t u8[256]; uint32_t u32[64]; } buf;
+		sfc_read_sfdp(cs, 0, buf.u8, 256);
+		if (buf.u32[0] == 0x50444653) {
+			int i;
+			printf("sfc: SFDP data\n");
+			for (i = 0; i < 256; i++)
+				printf("%02x%s", buf.u8[i], (i + 1) & 15 ? " " : "\n");
+		} else printf("sfc: no SFDP support\n");
+	}
 	sfc_spiread(cs);
 	if (1) {
 		uint32_t addr = 0x000000; uint8_t *p;
