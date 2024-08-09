@@ -46,7 +46,8 @@ void lcd_appinit(void) {
 typedef struct {
 	uint8_t *framebuf_mem; uint16_t *framebuf;
 	char *menu0, *menu;
-	unsigned cols, rows, st, sel, mrows;
+	unsigned st, flags;
+	unsigned cols, rows, sel, msel, mrows;
 	union { uint16_t u16[2]; uint32_t u32; } pal[2];
 	struct { unsigned clust, size; } fatfile;
 } draw_t;
@@ -54,7 +55,7 @@ typedef struct {
 static void draw_text(draw_t *draw, unsigned y0, const char *str) {
 	unsigned a, x, y, st = draw->st, n = draw->cols;
 	uint16_t *p0 = draw->framebuf, *p;
-	unsigned sel = y0 == draw->sel;
+	unsigned sel = y0 == draw->sel - draw->msel;
 	p0 += y0 * st * FONT_H;
 	do {
 		const uint8_t *bm; uint32_t c = sel;
@@ -67,6 +68,35 @@ static void draw_text(draw_t *draw, unsigned y0, const char *str) {
 			p[x] = c >> ((a & 0x80) >> 3);
 		p0 += FONT_W;
 	} while (--n);
+}
+
+static void draw_msel(draw_t *draw, unsigned msel) {
+	unsigned msel1 = draw->msel;
+	char *p = draw->menu;
+	int skip = msel - msel1;
+	draw->msel = msel;
+	if (skip < 0) p = draw->menu0, skip = msel;
+	while (skip--) {
+		uint32_t next = *(uint32_t*)p;
+		if (!next) break;
+		p += next;
+	}
+	draw->menu = p;
+	draw->flags |= 1;
+}
+
+static void draw_menu_adv(draw_t *draw, int adv) {
+	if (adv < 0) {
+		if (draw->sel > 0) {
+			if (--draw->sel < draw->msel)
+			draw_msel(draw, draw->sel);
+		}
+	} else {
+		if (draw->sel + 1 < draw->mrows) {
+			if (++draw->sel - draw->msel >= draw->rows)
+				draw_msel(draw, draw->msel + 1);
+		}
+	}
 }
 
 /* 888 -> 565 */
@@ -120,7 +150,7 @@ static int run_binary(draw_t *draw) {
 	char *d = (char*)CHIPRAM_ADDR;
 	int argc;
 
-	args = menu_file(draw->menu, draw->sel);
+	args = menu_file(draw->menu, draw->sel - draw->msel);
 	if (!args) return 0;
 	name = get_first_arg(args);
 	if (!strcmp(name, "exit")) return 1;
@@ -166,6 +196,8 @@ static int run_binary(draw_t *draw) {
 int main(int argc, char **argv) {
 	char *menu; draw_t draw;
 	(void)argc; (void)argv;
+	unsigned key_time[2] = { 0 };
+	unsigned scroll_len = 0;
 
 	{
 		FILE *fi;
@@ -214,47 +246,64 @@ int main(int argc, char **argv) {
 		draw.framebuf = (uint16_t*)p;
 	}
 
+	draw.flags = 1;
 	draw.sel = 0;
-	draw.mrows = menu_count(draw.menu, draw.rows);
+	draw.msel = 0;
+	draw.mrows = menu_count(draw.menu, ~0);
 	if (draw.mrows <= 0) return 1;
 
 	sys_framebuffer(draw.framebuf);
 	sys_start();
 
-	{
-		struct sys_display *disp = &sys_data.display;
-		unsigned size = disp->w2 * disp->h2;
-		uint16_t *p = draw.framebuf, a = draw.pal[0].u16[0];
-		do *p++ = a; while (--size);
-	}
-
 	for (;;) {
 		sys_wait_refresh();
+		if (draw.flags & 1){
+			unsigned size = draw.st * draw.rows * FONT_H;
+			uint16_t *p = draw.framebuf;
+			unsigned a = draw.pal[0].u16[0];
+			do *p++ = a; while (--size);
+			draw.flags &= ~1;
+		}
 		{
-			char *p = draw.menu; int i = 0;
-			for (;;) {
+			unsigned i;
+			char *p = draw.menu;
+			for (i = 0; i < draw.rows; i++) {
 				uint32_t next = *(uint32_t*)p;
 				if (!next) break;
 				p += next;
-				draw_text(&draw, i++, p + 4);
+				draw_text(&draw, i, p + 4);
 			}
 		}
 		sys_start_refresh();
 		sys_wait_ms(10);
+		if (!(draw.flags & 6)) scroll_len = 0;
 		for (;;) {
 			int type, key;
 			type = sys_event(&key);
 			if (type == EVENT_END) break;
+			if (type == EVENT_KEYUP) {
+				switch (key) {
+				case 0x32: // 2
+				case 0x04: // UP
+					draw.flags &= ~2; break;
+				case 0x35: // 5
+				case 0x05: // DOWN
+					draw.flags &= ~4; break;
+				}
+				continue;
+			}
 			if (type == EVENT_KEYDOWN) {
 				DBG_LOG("key = 0x%02x\n", key);
 				switch (key) {
 				case 0x32: // 2
 				case 0x04: // UP
-					if (draw.sel > 0) draw.sel--;
+					draw.flags |= 2; draw_menu_adv(&draw, -1);
+					key_time[0] = sys_timer_ms();
 					break;
 				case 0x35: // 5
 				case 0x05: // DOWN
-					if (draw.sel + 1 < draw.mrows) draw.sel++;
+					draw.flags |= 4; draw_menu_adv(&draw, 1);
+					key_time[1] = sys_timer_ms();
 					break;
 				// TODO
 				//case 0x34: // 4
@@ -267,6 +316,17 @@ int main(int argc, char **argv) {
 					if (run_binary(&draw)) goto loop_end;
 					break;
 				}
+			}
+		}
+		{
+			unsigned i, time = sys_timer_ms();
+			unsigned scroll_delay = scroll_len ? 50 : 350;
+			for (i = 0; i < 2; i++)
+			if (draw.flags >> i & 2)
+			if (time - key_time[i] > scroll_delay) {
+				key_time[i] += scroll_delay;
+				draw_menu_adv(&draw, i ? 1 : -1);
+				if (scroll_len < 20) scroll_len++;
 			}
 		}
 	}
