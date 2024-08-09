@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
 
 	for (;;) {
 		sys_wait_refresh();
-		if (draw.flags & 1){
+		if (draw.flags & 1) {
 			unsigned size = draw.st * draw.rows * FONT_H;
 			uint16_t *p = draw.framebuf;
 			unsigned a = draw.pal[0].u16[0];

@@ -1,0 +1,334 @@
+diff --git a/src/InfoNES.cpp b/src/InfoNES.c
+similarity index 96%
+rename from src/InfoNES.cpp
+rename to src/InfoNES.c
+index a6a7745..7c8083d 100644
+--- a/src/InfoNES.cpp
++++ b/src/InfoNES.c
+@@ -190,7 +190,9 @@ BYTE PPU_MirrorTable[][ 4 ] =
+ BYTE APU_Reg[ 0x18 ];
+ 
+ /* APU Mute ( 0:OFF, 1:ON ) */
++#ifndef APU_Mute
+ int APU_Mute = 0;
++#endif
+ 
+ /* Pad data */
+ DWORD PAD1_Latch;
+@@ -631,7 +633,7 @@ void InfoNES_Cycle()
+     {
+       FrameStep %= STEP_PER_FRAME;
+       IRQ_REQ;
+-      APU_Reg[ 0x4015 ] |= 0x40;
++      APU_Reg[ 0x15 ] |= 0x40;
+     }
+ 
+     // A mapper function in H-Sync
+diff --git a/src/InfoNES.h b/src/InfoNES.h
+index 958604b..818306a 100644
+--- a/src/InfoNES.h
++++ b/src/InfoNES.h
+@@ -137,7 +137,11 @@ extern BYTE PPU_UpDown_Clip;
+ #define SCAN_VBLANK_START             243
+ #define SCAN_VBLANK_END               262
+ 
++#if 0
+ #define STEP_PER_SCANLINE             113
++#else
++extern unsigned STEP_PER_SCANLINE;
++#endif
+ #define STEP_PER_FRAME                29828
+ 
+ /* Develop Scroll Registers */
+@@ -209,7 +213,9 @@ extern WORD PalTable[];
+ /*-------------------------------------------------------------------*/
+ 
+ extern BYTE APU_Reg[];
++#ifndef APU_Mute
+ extern int APU_Mute;
++#endif
+ 
+ extern DWORD PAD1_Latch;
+ extern DWORD PAD2_Latch;
+diff --git a/src/InfoNES_Mapper.cpp b/src/InfoNES_Mapper.c
+similarity index 100%
+rename from src/InfoNES_Mapper.cpp
+rename to src/InfoNES_Mapper.c
+diff --git a/src/InfoNES_Types.h b/src/InfoNES_Types.h
+index f187afc..18cfcc2 100644
+--- a/src/InfoNES_Types.h
++++ b/src/InfoNES_Types.h
+@@ -13,15 +13,18 @@
+ /*  Type definition                                                  */
+ /*-------------------------------------------------------------------*/
+ #ifndef DWORD
+-typedef unsigned long  DWORD;
++typedef unsigned int   DWORD;
++#define DWORD DWORD
+ #endif /* !DWORD */
+ 
+ #ifndef WORD
+ typedef unsigned short WORD;
++#define WORD WORD
+ #endif /* !WORD */
+ 
+ #ifndef BYTE
+ typedef unsigned char  BYTE;
++#define BYTE BYTE
+ #endif /* !BYTE */
+ 
+ /*-------------------------------------------------------------------*/
+diff --git a/src/InfoNES_pAPU.cpp b/src/InfoNES_pAPU.c
+similarity index 99%
+rename from src/InfoNES_pAPU.cpp
+rename to src/InfoNES_pAPU.c
+index 12f7a47..276d864 100644
+--- a/src/InfoNES_pAPU.cpp
++++ b/src/InfoNES_pAPU.c
+@@ -29,6 +29,7 @@ WORD entertime;
+ #define APU_WRITEFUNC(name, evtype) \
+ void ApuWrite##name(WORD addr, BYTE value) \
+ { \
++  if (cur_event >= APU_EVENT_MAX) return; \
+   ApuEventQueue[cur_event].time = entertime - g_wPassedClocks; \
+   ApuEventQueue[cur_event].type = APUET_W_##evtype; \
+   ApuEventQueue[cur_event].data = value; \
+@@ -132,10 +133,10 @@ BYTE ApuC1a, ApuC1b, ApuC1c, ApuC1d;
+ BYTE* ApuC1Wave;
+ DWORD ApuC1Skip;
+ DWORD ApuC1Index;
+-DWORD ApuC1EnvPhase;
++int ApuC1EnvPhase;
+ BYTE  ApuC1EnvVol;
+ BYTE  ApuC1Atl;
+-DWORD ApuC1SweepPhase;
++int ApuC1SweepPhase;
+ DWORD ApuC1Freq;   
+ 
+ /*-------------------------------------------------------------------*/
+@@ -146,10 +147,10 @@ BYTE ApuC2a, ApuC2b, ApuC2c, ApuC2d;
+ BYTE* ApuC2Wave;
+ DWORD ApuC2Skip;
+ DWORD ApuC2Index;
+-DWORD ApuC2EnvPhase;
++int ApuC2EnvPhase;
+ BYTE  ApuC2EnvVol;
+ BYTE  ApuC2Atl;   
+-DWORD ApuC2SweepPhase;
++int ApuC2SweepPhase;
+ DWORD ApuC2Freq;   
+ 
+ /*-------------------------------------------------------------------*/
+@@ -175,7 +176,7 @@ DWORD ApuC4Skip;
+ DWORD ApuC4Index;
+ BYTE  ApuC4Atl;
+ BYTE  ApuC4EnvVol;
+-DWORD ApuC4EnvPhase;
++int ApuC4EnvPhase;
+ 
+ /*-------------------------------------------------------------------*/
+ /*  DPCM resources                                                   */
+diff --git a/src/K6502.cpp b/src/K6502.c
+similarity index 99%
+rename from src/K6502.cpp
+rename to src/K6502.c
+index 66e2721..8cd8c8e 100644
+--- a/src/K6502.cpp
++++ b/src/K6502.c
+@@ -18,7 +18,7 @@
+ /*-------------------------------------------------------------------*/
+ 
+ // Clock Op.
+-#define CLK(a)   g_wPassedClocks += (a);
++#define CLK(a)   ( g_wPassedClocks += (a) )
+ 
+ // Addressing Op.
+ // Address
+@@ -33,9 +33,9 @@
+ // Zero Page,Y
+ #define AA_ZPY   (BYTE)( K6502_Read( PC++ ) + Y )
+ // Absolute
+-#define AA_ABS   ( K6502_Read( PC++ ) | (WORD)K6502_Read( PC++ ) << 8 )
++#define AA_ABS   ( PC += 2, K6502_Read( PC-2 ) | K6502_Read( PC-1 ) << 8 )
+ // Absolute2 ( PC-- )
+-#define AA_ABS2  ( K6502_Read( PC++ ) | (WORD)K6502_Read( PC ) << 8 )
++#define AA_ABS2  ( PC++, K6502_Read( PC-1 ) | K6502_Read( PC ) << 8 )
+ // Absolute,X
+ #define AA_ABSX  AA_ABS + X
+ // Absolute,Y
+diff --git a/src/K6502.h b/src/K6502.h
+index 30eae77..742f000 100644
+--- a/src/K6502.h
++++ b/src/K6502.h
+@@ -11,15 +11,18 @@
+ 
+ // Type definition
+ #ifndef DWORD
+-typedef unsigned long  DWORD;
++typedef unsigned int   DWORD;
++#define DWORD DWORD
+ #endif
+ 
+ #ifndef WORD
+ typedef unsigned short WORD;
++#define WORD WORD
+ #endif
+ 
+ #ifndef BYTE
+ typedef unsigned char  BYTE;
++#define BYTE BYTE
+ #endif
+ 
+ #ifndef NULL
+diff --git a/src/K6502_rw.h b/src/K6502_rw.h
+index a4a0900..6bd3efc 100644
+--- a/src/K6502_rw.h
++++ b/src/K6502_rw.h
+@@ -129,7 +129,7 @@ static inline BYTE K6502_Read( WORD wAddr )
+       if ( wAddr == 0x4015 )
+       {
+         // APU control
+-        byRet = APU_Reg[ 0x4015 ];
++        byRet = APU_Reg[ 0x15 ];
+ 	if ( ApuC1Atl > 0 ) byRet |= (1<<0);
+ 	if ( ApuC2Atl > 0 ) byRet |= (1<<1);
+ 	if (  !ApuC3Holdnote ) {
+@@ -140,7 +140,7 @@ static inline BYTE K6502_Read( WORD wAddr )
+ 	if ( ApuC4Atl > 0 ) byRet |= (1<<3);
+ 
+ 	// FrameIRQ
+-        APU_Reg[ 0x4015 ] &= ~0x40;
++        APU_Reg[ 0x15 ] &= ~0x40;
+         return byRet;
+       }
+       else
+diff --git a/src/mapper/InfoNES_Mapper_001.cpp b/src/mapper/InfoNES_Mapper_001.cpp
+index 216300c..cc93901 100644
+--- a/src/mapper/InfoNES_Mapper_001.cpp
++++ b/src/mapper/InfoNES_Mapper_001.cpp
+@@ -9,12 +9,12 @@ DWORD Map1_Cnt;
+ BYTE  Map1_Latch;
+ WORD  Map1_Last_Write_Addr;
+ 
+-enum Map1_Size_t
++typedef enum
+ {
+   Map1_SMALL,
+   Map1_512K,
+   Map1_1024K
+-};
++} Map1_Size_t;
+ 
+ Map1_Size_t Map1_Size;
+ DWORD Map1_256K_base;
+diff --git a/src/mapper/InfoNES_Mapper_018.cpp b/src/mapper/InfoNES_Mapper_018.cpp
+index a6b1ad7..9a14a04 100644
+--- a/src/mapper/InfoNES_Mapper_018.cpp
++++ b/src/mapper/InfoNES_Mapper_018.cpp
+@@ -51,7 +51,7 @@ void Map18_Init()
+   ROMBANK3 = ROMLASTPAGE( 0 );
+ 
+   /* Initialize Regs */
+-  for ( int i = 0; i < sizeof( Map18_Regs ); i++ )
++  for ( unsigned i = 0; i < sizeof( Map18_Regs ); i++ )
+   {
+     Map18_Regs[ i ] = 0;
+   }
+diff --git a/src/mapper/InfoNES_Mapper_019.cpp b/src/mapper/InfoNES_Mapper_019.cpp
+index 086c63c..bf22595 100644
+--- a/src/mapper/InfoNES_Mapper_019.cpp
++++ b/src/mapper/InfoNES_Mapper_019.cpp
+@@ -69,7 +69,6 @@ void Map19_Init()
+   /* Initialize State Register */
+   Map19_Regs[ 0 ] = 0x00;
+   Map19_Regs[ 1 ] = 0x00;
+-  Map19_Regs[ 2 ] = 0x00;
+ 
+   /* Set up wiring of the interrupt pin */
+   K6502_Set_Int_Wiring( 1, 1 ); 
+diff --git a/src/mapper/InfoNES_Mapper_045.cpp b/src/mapper/InfoNES_Mapper_045.cpp
+index 043aee9..ff5e65b 100644
+--- a/src/mapper/InfoNES_Mapper_045.cpp
++++ b/src/mapper/InfoNES_Mapper_045.cpp
+@@ -6,7 +6,7 @@
+ 
+ BYTE  Map45_Regs[7];
+ DWORD Map45_P[4],Map45_Prg0,Map45_Prg1,Map45_Prg2,Map45_Prg3;
+-DWORD Map45_C[4],Map45_Chr0, Map45_Chr1,Map45_Chr2, Map45_Chr3;
++DWORD Map45_C[8],Map45_Chr0, Map45_Chr1,Map45_Chr2, Map45_Chr3;
+ DWORD Map45_Chr4, Map45_Chr5, Map45_Chr6, Map45_Chr7;
+ 
+ BYTE Map45_IRQ_Enable;
+diff --git a/src/mapper/InfoNES_Mapper_080.cpp b/src/mapper/InfoNES_Mapper_080.cpp
+index 2bc8299..1567e5f 100644
+--- a/src/mapper/InfoNES_Mapper_080.cpp
++++ b/src/mapper/InfoNES_Mapper_080.cpp
+@@ -115,6 +115,7 @@ void Map80_Sram( WORD wAddr, BYTE byData )
+       } else {
+         InfoNES_Mirroring( 0 );
+       }
++      break;
+ 
+     /* Set ROM Banks */
+     case 0x7efa:
+diff --git a/src/mapper/InfoNES_Mapper_082.cpp b/src/mapper/InfoNES_Mapper_082.cpp
+index 9096bc4..1831b25 100644
+--- a/src/mapper/InfoNES_Mapper_082.cpp
++++ b/src/mapper/InfoNES_Mapper_082.cpp
+@@ -158,6 +158,7 @@ void Map82_Sram( WORD wAddr, BYTE byData )
+       } else {
+         InfoNES_Mirroring( 0 );
+       }
++      break;
+ 
+     /* Set ROM Banks */
+     case 0x7efa:
+diff --git a/src/mapper/InfoNES_Mapper_086.cpp b/src/mapper/InfoNES_Mapper_086.cpp
+index ec16bdb..3335f2d 100644
+--- a/src/mapper/InfoNES_Mapper_086.cpp
++++ b/src/mapper/InfoNES_Mapper_086.cpp
+@@ -68,7 +68,7 @@ void Map86_Sram( WORD wAddr, BYTE byData )
+   switch ( wAddr )
+   {
+     case 0x6000:
+-      byChrBank = byData & 0x03 | ( byData & 0x40 ) >> 4;
++      byChrBank = ( byData & 0x03 ) | ( byData & 0x40 ) >> 4;
+       byPrgBank = ( byData & 0x30 ) >> 4;
+ 
+       byPrgBank = ( byPrgBank << 2 ) % ( NesHeader.byRomSize << 1 );
+diff --git a/src/mapper/InfoNES_Mapper_135.cpp b/src/mapper/InfoNES_Mapper_135.cpp
+index 8b83262..859f6ca 100644
+--- a/src/mapper/InfoNES_Mapper_135.cpp
++++ b/src/mapper/InfoNES_Mapper_135.cpp
+@@ -92,10 +92,10 @@ void Map135_Apu( WORD wAddr, BYTE byData )
+       break;
+     case	5:
+       /* Set ROM Banks */
+-      ROMBANK0 = ROMPAGE( (((byData%0x07)<<2) + 0 ) % (NesHeader.byRomSize << 1) );
+-      ROMBANK1 = ROMPAGE( (((byData%0x07)<<2) + 1 ) % (NesHeader.byRomSize << 1) );
+-      ROMBANK2 = ROMPAGE( (((byData%0x07)<<2) + 2 ) % (NesHeader.byRomSize << 1) );
+-      ROMBANK3 = ROMPAGE( (((byData%0x07)<<2) + 3 ) % (NesHeader.byRomSize << 1) );
++      ROMBANK0 = ROMPAGE( (((byData&0x07)<<2) + 0 ) % (NesHeader.byRomSize << 1) );
++      ROMBANK1 = ROMPAGE( (((byData&0x07)<<2) + 1 ) % (NesHeader.byRomSize << 1) );
++      ROMBANK2 = ROMPAGE( (((byData&0x07)<<2) + 2 ) % (NesHeader.byRomSize << 1) );
++      ROMBANK3 = ROMPAGE( (((byData&0x07)<<2) + 3 ) % (NesHeader.byRomSize << 1) );
+       break;
+     case	6:
+       break;
+diff --git a/src/mapper/InfoNES_Mapper_140.cpp b/src/mapper/InfoNES_Mapper_140.cpp
+index 30a4e9f..68a068e 100644
+--- a/src/mapper/InfoNES_Mapper_140.cpp
++++ b/src/mapper/InfoNES_Mapper_140.cpp
+@@ -71,9 +71,9 @@ void Map140_Apu( WORD wAddr, BYTE byData )
+ {
+   /* Set ROM Banks */
+   ROMBANK0 = ROMPAGE( (((byData&0xF0)>>2) + 0 ) % (NesHeader.byRomSize << 1) );
+-  ROMBANK1 = ROMPAGE( (((byData%0xF0)>>2) + 1 ) % (NesHeader.byRomSize << 1) );
+-  ROMBANK2 = ROMPAGE( (((byData%0xF0)>>2) + 2 ) % (NesHeader.byRomSize << 1) );
+-  ROMBANK3 = ROMPAGE( (((byData%0xF0)>>2) + 3 ) % (NesHeader.byRomSize << 1) );
++  ROMBANK1 = ROMPAGE( (((byData&0xF0)>>2) + 1 ) % (NesHeader.byRomSize << 1) );
++  ROMBANK2 = ROMPAGE( (((byData&0xF0)>>2) + 2 ) % (NesHeader.byRomSize << 1) );
++  ROMBANK3 = ROMPAGE( (((byData&0xF0)>>2) + 3 ) % (NesHeader.byRomSize << 1) );
+ 
+   /* Set PPU Banks */
+   PPUBANK[ 0 ] = VROMPAGE( (((byData&0x0F)<<3) + 0) % (NesHeader.byVRomSize << 3) );
