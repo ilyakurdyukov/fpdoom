@@ -398,7 +398,7 @@ int sdcard_init(void) {
 		sd_int = sdio_cmd(SDIO_CMD8_TR, 0x1aa, SDIO_INT_COMMON, NULL, 0, resp);
 		if (sd_int & SDIO_INT_CMD_TIMEOUT) {
 			if (sys_timer_ms() - time0 > 500) break;
-			sys_wait_ms(5);
+			sys_wait_ms(20);
 		} else if ((sd_int & SDIO_INT_CMD_COMPLETE) && resp[0] == 0x1aa) {
 			sd_ver = 1;
 			break;
@@ -414,8 +414,11 @@ int sdcard_init(void) {
 		if (sd_int & SDIO_INT_CMD_COMPLETE)
 			sd_int = sdio_cmd(SDIO_ACMD41_TR, 0xff8000 | sd_ver << 30, SDIO_ACMD41_INT, NULL, 0, resp);
 		if ((sd_int & SDIO_INT_CMD_TIMEOUT) || ((sd_int & SDIO_INT_CMD_COMPLETE) && !(resp[0] >> 31))) {
-			if (sys_timer_ms() - time0 > 500) break;
-			sys_wait_ms(5);
+			// Timeout usually means that the SD card is not inserted.
+			// Some junk cards take more than half a second to be ready.
+			unsigned delay = !(sd_int & SDIO_INT_CMD_COMPLETE) ? 500 : 5000;
+			if (sys_timer_ms() - time0 > delay) break;
+			sys_wait_ms(20);
 		} else break;
 	}
 	if (!(sd_int & SDIO_INT_CMD_COMPLETE)) {
