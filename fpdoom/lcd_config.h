@@ -908,7 +908,7 @@ static const lcd_config_t lcd_config[] = {
 	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 39000000 },  0x48, cmd9305_init },
 	// GlaxyCore GC9306
 	{ 0x009306, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 39000000 },  0x48, cmd9306_init },
-	// GlaxyCore GC9300 (untested)
+	// GlaxyCore GC9300
 	{ 0x009300, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 0 },  0x48, cmd9300_init },
 
 /* F+ Ezzy 4 */

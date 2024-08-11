@@ -19,7 +19,7 @@ void scan_firmware(intptr_t fw_addr) {
 	uint32_t time0 = sys_timer_ms();
 	int flags = 3;
 
-	for (i = 0; i < FIRMWARE_SIZE - 0x1000; i += 4) {
+	for (i = 0x20; i < FIRMWARE_SIZE - 0x1000; i += 4) {
 		volatile short *s = (short*)(fw_addr + i);
 		// "DRPS", "CAPN" : start of compressed data
 		if (MEM4(s) == 0x53505244 && MEM4(s + 8) == 0x4e504143) break;
@@ -28,19 +28,22 @@ void scan_firmware(intptr_t fw_addr) {
 		if (flags & 1)
 		if (MEM4(s + 38) == 0xffffffff) {
 			uint32_t mask0 = 0, mask1 = 0, empty = 0, tmp;
+			int likely_keymap = 0;
+			if (MEM4(s - 6) == 0x4d && MEM4(s - 4) == 0x400 && MEM4(s - 2) == 0xa)
+				likely_keymap = 1;
 
 #define CHECK_KEY \
 	empty -= a >> 31; \
 	if (a != -1) { \
+		uint32_t tmp2; \
+		if (likely_keymap) { \
+			if ((unsigned)a - 0x69 < 4) continue; \
+		} \
 		if ((unsigned)(a - 1) > (unsigned)0x39 - 1) break; \
 		tmp = 1u << (a & 31); \
-		if (a & 32) { \
-			if (mask1 & tmp) break; \
-			mask1 |= tmp; \
-		} else { \
-			if (mask0 & tmp) break; \
-			mask0 |= tmp; \
-		} \
+		if (a & 32) tmp2 = mask1, mask1 |= tmp; \
+		else tmp2 = mask0, mask0 |= tmp; \
+		if (!likely_keymap && (tmp2 & tmp)) break; \
 	}
 
 			if (_chip != 1) {

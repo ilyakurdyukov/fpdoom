@@ -224,7 +224,7 @@ static void wait_frame(void) {
 	if (t2 >= 1000) t0 -= TIMER_MUL * 60, t2 -= 1000;
 	timertick = t0;
 	timertick_ms = t2;
-	t1 += timerlast;	// time to next frame
+	t1 += timerlast; // time to next frame
 	timerlast = t1;
 	t0 = sys_timer_ms();
 	t1 -= t0;

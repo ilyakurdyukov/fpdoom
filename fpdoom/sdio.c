@@ -413,19 +413,23 @@ int sdcard_init(void) {
 		sd_int = sdio_cmd(SDIO_CMD55_TR, 0, SDIO_INT_COMMON, NULL, 0, NULL);
 		if (sd_int & SDIO_INT_CMD_COMPLETE)
 			sd_int = sdio_cmd(SDIO_ACMD41_TR, 0xff8000 | sd_ver << 30, SDIO_ACMD41_INT, NULL, 0, resp);
-		if ((sd_int & SDIO_INT_CMD_TIMEOUT) || ((sd_int & SDIO_INT_CMD_COMPLETE) && !(resp[0] >> 31))) {
+		{
+			unsigned delay = 500;
 			// Timeout usually means that the SD card is not inserted.
-			// Some junk cards take more than half a second to be ready.
-			unsigned delay = !(sd_int & SDIO_INT_CMD_COMPLETE) ? 500 : 5000;
+			if (!(sd_int & SDIO_INT_CMD_TIMEOUT)) {
+				if (!(sd_int & SDIO_INT_CMD_COMPLETE)) break;
+				if ((int32_t)resp[0] < 0) goto acmd51_done;
+				// Some junk cards take more than half a second to be ready.
+				delay = 5000;
+			}
 			if (sys_timer_ms() - time0 > delay) break;
 			sys_wait_ms(20);
-		} else break;
+		}
 	}
-	if (!(sd_int & SDIO_INT_CMD_COMPLETE)) {
-		DBG_LOG("sdio: ACMD%u failed\n", 41);
-		return 1;
-	}
+	DBG_LOG("sdio: ACMD%u failed\n", 41);
+	return 1;
 
+acmd51_done:
 	sdio_shl = sd_ver == 1 ? resp[0] >> 30 & 0 : 9;
 
 	// read CID
