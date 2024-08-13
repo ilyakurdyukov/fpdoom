@@ -10,8 +10,10 @@ uint32_t get_cpsr(void);
 void set_cpsr_c(uint32_t a);
 
 #define DBG_LOG(...) fprintf(stderr, __VA_ARGS__)
-#define ERR_EXIT(...) \
-	do { fprintf(stderr, "!!! " __VA_ARGS__); exit(1); } while (0)
+#define ERR_EXIT(...) do { \
+	fprintf(stderr, "!!! " __VA_ARGS__); \
+	exit(1); \
+} while (0)
 
 #define FATAL() ERR_EXIT("error at %s:%d\n", __FILE__, __LINE__)
 
@@ -294,6 +296,7 @@ void CHIP_FN(sys_brightness)(unsigned val) {
 		gpio_set(id, 0, val2 != 0); // GPIODATA
 	}
 }
+#endif
 
 #define LCM_REG_BASE 0x20800000
 #define LCM_CR(x) MEM4(LCM_REG_BASE + (x))
@@ -335,6 +338,7 @@ enum {
 	LCDC_IRQ_RAW = 0x11c,
 };
 
+#if !SYSCODE_AUTO
 typedef struct {
 	uint32_t id, id_mask;
 	uint16_t cs, extra02; uint32_t extra04;
@@ -897,6 +901,7 @@ void CHIP_FN(sys_init)(void) {
 		keypad_init();
 		keytrn_init();
 	}
+	sys_data.init_done = 1;
 }
 #endif // CHIP
 
@@ -905,6 +910,15 @@ void sys_start(void) {
 	sys_brightness(sys_data.brightness);
 	if (sys_data.keymap_addr)
 		KEYPAD_BASE->int_clr = 0xfff;
+}
+
+void sys_exit(void) {
+	if (sys_data.init_done) {
+		sys_brightness(0);
+		LCDC_CR(LCDC_CTRL) &= ~1;
+		AHB_PWR_OFF(0x1000 | 0x40); // LCDC, LCM
+	}
+	sys_wdg_reset(SYS_RESET_DELAY); // 0.5 sec
 }
 
 void sys_wdg_reset(unsigned val) {

@@ -32,12 +32,12 @@ int fputs(const char *str, FILE *f) {
 	return fwrite(str, 1, len, f) != len ? EOF : 0;
 }
 
-void sys_wdg_reset(unsigned val);
+__attribute__((noreturn))
+void sys_exit(void);
 
 void exit(int code) {
 	fprintf(stderr, "!!! exit(%d)\n", code);
-	sys_wdg_reset(0x8000 / 2); // 0.5 sec
-	for (;;);
+	sys_exit();
 }
 
 int atexit(void (*func)(void)) {

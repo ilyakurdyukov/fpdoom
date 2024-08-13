@@ -48,6 +48,10 @@ void sys_brightness(unsigned val);
 void sys_framebuffer(void *base);
 void sys_start_refresh(void);
 void sys_wait_refresh(void);
+__attribute__((noreturn))
+void sys_exit(void);
+__attribute__((noreturn))
+#define SYS_RESET_DELAY (0x8000 / 2) /* 0.5 sec */
 void sys_wdg_reset(unsigned val);
 
 void clean_icache(void);
@@ -77,7 +81,7 @@ extern struct sys_data {
 	short *keymap_addr;
 	struct { uint32_t num, ver, adi; } chip_id;
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
-	int brightness;
+	uint8_t brightness, init_done;
 	uint16_t keytrn[2][64];
 	uint8_t keyrows, keycols;
 	uint8_t scaler;

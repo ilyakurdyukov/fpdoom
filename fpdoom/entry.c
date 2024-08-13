@@ -85,6 +85,11 @@ static uint32_t get_ram_size(uint32_t addr) {
 	return size;
 }
 
+#define ERR_EXIT(...) do { \
+	fprintf(stderr, "!!! " __VA_ARGS__); \
+	exit(1); \
+} while (0)
+
 #if TWO_STAGE
 struct entry2 {
 	uint32_t code[3];
@@ -208,19 +213,15 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #if LIBC_SDIO
 #if LIBC_SDIO < 3
 	sdio_init();
-	if (sdcard_init()) {
-		printf("!!! sdcard_init failed\n");
-		exit(1);
-	}
+	if (sdcard_init())
+		ERR_EXIT("sdcard_init failed\n");
 #else
 #if SDIO_SHL != CHIPRAM_ADDR
 	sdio_shl = MEM4(CHIPRAM_ADDR);
 #endif
 #endif
-	if (fat_init(&fatdata_glob, 0)) {
-		printf("!!! fat_init failed\n");
-		exit(1);
-	}
+	if (fat_init(&fatdata_glob, 0))
+		ERR_EXIT("fat_init failed\n");
 #endif
 #if CHIPRAM_ARGS || LIBC_SDIO >= 3
 	{
@@ -229,9 +230,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #if LIBC_SDIO
 		if (!argc1) {
 			FILE *fi = fopen("fpbin/config.txt", "rb");
-			if (!fi) exit(1);
+			if (!fi) ERR_EXIT("failed to open fpbin/config.txt");
 			argc1 = read_args(fi, p + sizeof(short), (char*)CHIPRAM_ADDR + 0x1000);
-			if (argc1 < 0) exit(1);
+			if (argc1 < 0) ERR_EXIT("read_args failed");
 			fclose(fi);
 		}
 #endif
@@ -333,10 +334,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			fatdata_t *fatdata = &fatdata_glob;
 			const char *name = argv[1];
 			unsigned clust = fat_dir_clust(fatdata, name);
-			if (!clust) {
-				printf("dir \"%s\" not found\n", name);
-				exit(1);
-			}
+			if (!clust)
+				ERR_EXIT("!!! dir \"%s\" not found\n", name);
 			fatdata->curdir = clust;
 #else
 			printf("dir option ignored\n");
@@ -346,8 +345,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			argc -= 1; argv += 1;
 			break;
 		} else if (argv[0][0] == '-') {
-			printf("!!! unknown option \"%s\"\n", argv[0]);
-			exit(1);
+			ERR_EXIT("unknown option \"%s\"\n", argv[0]);
 		} else break;
 	}
 

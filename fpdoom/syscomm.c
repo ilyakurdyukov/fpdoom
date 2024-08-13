@@ -9,8 +9,6 @@
 #define ERR_EXIT(...) \
 	do { fprintf(stderr, "!!! " __VA_ARGS__); exit(1); } while (0)
 
-#define FATAL() ERR_EXIT("error at %s:%d\n", __FILE__, __LINE__)
-
 uint32_t *pinmap_addr;
 
 void scan_firmware(intptr_t fw_addr) {
