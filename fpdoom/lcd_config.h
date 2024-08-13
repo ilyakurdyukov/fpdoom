@@ -569,6 +569,35 @@ static const uint8_t cmd9106_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9106_texet_init[] = {
+	LCM_DELAY(120),
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xb3, 1), 0x03, // ???
+	LCM_CMD(0xb6, 1), 0x01, // ???
+	LCM_CMD(0xa3, 1), 0x11, // Frame Rate
+	LCM_CMD(0x21, 0), // Display Inversion ON
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0xb4, 1), 0x21, // Display Inversion Control
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x25,0x58,0x24,0x68,
+		0xad,0x36,0x38,0x00, 0x0b,0x15,0x15,0x17, 0x15,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x00,0x1e,0x25,0x30,
+		0x97,0x03,0x03,0x00, 0x00,0x07,0x07,0x15, 0x14,0x0f,
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	//LCM_CMD(0xff, 0), // ???
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x44, 1), 0x00,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_CMD(0x2c, 0),
+	LCM_END
+};
+
 static const uint8_t cmd9108_init[] = {
 	LCM_DELAY(120),
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
@@ -913,6 +942,8 @@ static const lcd_config_t lcd_config[] = {
 
 /* F+ Ezzy 4 */
 
+// It looks like the timings for GlaxyCore in the firmware were mistakenly copied from Sitronix LCDs.
+
 	// GlaxyCore GC9102 (untested)
 	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 0 },  0xd0, cmd9102_init },
 	// GlaxyCore GC9106
@@ -965,12 +996,21 @@ static const lcd_config_t lcd_config[] = {
 #endif
 
 #if CHIP == 2 || CHIP == 3
+
 /* Joy's S21 */
 
+// Barely visible but uncomfortable checkerboard pattern artifacts on screen refresh when using this config for GC9106.
+// It looks like half of the frame is updated every other pixel, and then the rest. Which probably increases the frame rate, but it hurts the eyes.
+
 	// GlaxyCore GC9106
-	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
+	{ 0x80009106, 0xffffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
 	// GlaxyCore GC9108
 	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9108_init },
+
+/* Texet TM-122, TM-130 */
+
+	// GlaxyCore GC9106
+	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_texet_init },
 
 /* Vector M115 */
 
