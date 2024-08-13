@@ -140,15 +140,28 @@ static void spi_pin_grp_select(uint32_t spi, unsigned pin_gid) {
 #endif
 
 static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
-	uint32_t id, cs = 0;
+	uint32_t id, cs = 0, tmp;
 
 	(void)clk_rate;
 
-	if (!SPI_ID(spi))
+	if (!SPI_ID(spi)) {
 		AHB_PWR_ON(0x4000); // SPI0 enable
-	else
+		tmp = _chip == 1 ? 0x800 : 0;
+	} else {
 		AHB_PWR_ON(0x80000); // SPI1 enable
+		tmp = IS_SC6530 ? 0x20 : 0x8000;
+	}
 	DELAY(100)
+
+	// SPI reset
+	if (tmp) {
+		uint32_t rst = 0x20501040, add = 0x1000;
+		if (_chip != 1) rst = 0x8b000060, add = 4;
+		MEM4(rst) = tmp;
+		DELAY(1000)
+		MEM4(rst + add) = tmp;
+		DELAY(1000)
+	}
 
 #if CHIP == 2
 	spi_pin_grp_select(spi, 1);
