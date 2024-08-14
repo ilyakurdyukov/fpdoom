@@ -1,9 +1,13 @@
 # 0 - detect, 1 - SC6531E, 2 - SC6531DA, 3 - SC6530
 CHIP = 0
-LIBC_SDIO = 0
+LIBC_SDIO = 3
 SRCS = asmcode usbio common libc syscomm
 
+ifneq ($(CHIP), 0)
+NAME = sdboot$(CHIP)
+else
 NAME = sdboot
+endif
 FPDOOM = ../fpdoom
 OBJDIR = obj$(CHIP)
 

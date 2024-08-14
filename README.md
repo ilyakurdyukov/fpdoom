@@ -1,6 +1,6 @@
 ## FPDoom: Doom for feature phones
 
-Currently only for feature phones based on the SC6530/SC6531(E/DA) chipset.
+Currently only for feature phones based on the SC6530/SC6531 chipset.
 
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, USE AT YOUR OWN RISK!
 
@@ -71,8 +71,8 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 25 | F+ F197                | SC6531E  | NV3023  128x160 | 1          |
 | 26 | Alcatel 2003D          | SC6531E  | ST7789  240x320 | dial       |
 | 27 | Alcatel 2019G          | SC6531E  | GC9308  320x240 | dial       |
-| 28 | Texet TM-122           | SC6531   | GC9106  128x160 | 0          |
-| 29 | Texet TM-130           | SC6531   | GC9106  128x160 | 0          |
+| 28 | Texet TM-122           | SC6531DA | GC9106  128x160 | 0          |
+| 29 | Texet TM-130           | SC6531DA | GC9106  128x160 | 0          |
 | 30 | Olmio E29              | SC6531E  | GC9300  240x320 | left soft  |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
