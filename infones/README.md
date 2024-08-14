@@ -30,6 +30,7 @@ I hope that the author of InfoNES will pay attention to the huge number of bugs 
 | Power + Left   | select             |
 | Power + Right  | start              |
 | Power + Center | B                  |
+| Power + 0      | force save SRAM    |
 
 * The reset/exit keys must be held for 1 second to activate. This is to prevent accidental pressing.
 
@@ -40,4 +41,8 @@ I hope that the author of InfoNES will pay attention to the huge number of bugs 
 * Most games that use iNES Mapper 004 are unplayable due to serious graphical glitches.
 
 * This emulator only supports NTSC 60Hz mode.
+
+* Some game cartridges have SRAM for saves, this memory is saved on exit or if you force save SRAM. If the device is turned off, the SRAM changes will be lost.
+
+* The FAT32 file system driver can't create files with long names, if you want to save SRAM the ROM file name must be in DOS 8.3 format or you need to create an empty file with the ROM name and the `.srm` extension in advance.
 

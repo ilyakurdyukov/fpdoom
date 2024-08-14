@@ -13,11 +13,14 @@ static const char *szRomName;
 static char szSaveName[256];
 static char nSRAM_SaveFlag;
 static char app_quit = 0;
+static BYTE SRAM_COPY[SRAM_SIZE];
 
 // 112: Darkwing Duck
 // 113: Battle City
 // 113: Lode Runner
 unsigned STEP_PER_SCANLINE = 112;
+// 1: fix right border
+unsigned NES_Hacks = 0;
 
 #define FRAMERATE 60
 #define TIMER_MUL (((1000 << 12) + FRAMERATE - 1) / FRAMERATE)
@@ -45,10 +48,15 @@ WORD NesPalette[64] = { /* ARGB1555 */
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w1, h = disp->h1, sh;
+	int scaler = sys_data.scaler - 1;
+	unsigned crop = 0;
 	if (h > w) h = w;
-	sys_data.scaler = sh = h <= 128;
+	if (scaler >= 99) crop = 8, scaler -= 100;
+	if ((unsigned)scaler > 2) scaler = h <= 128 ? 1 : 0;
+	sys_data.scaler = scaler | crop << 3;
+	sh = scaler == 1 ? 1 : 0;
 	disp->w2 = 256 >> sh;
-	disp->h2 = 240 >> sh;
+	disp->h2 = (240 - crop * 2) >> sh;
 }
 
 static void *framebuf_mem;
@@ -67,10 +75,18 @@ static void framebuf_init(void) {
 
 int main(int argc, char **argv) {
 
-	if (argc > 3 && !strcmp(argv[1], "--scanline_step")) {
-		unsigned a = atoi(argv[2]);
-		if (a - 110 < 10) STEP_PER_SCANLINE = a;
-		argc -= 2; argv += 2;
+	while (argc > 1) {
+		if (argc > 2 && !strcmp(argv[1], "--scanline_step")) {
+			unsigned a = atoi(argv[2]);
+			if (a - 110 < 10) STEP_PER_SCANLINE = a;
+			argc -= 2; argv += 2;
+		} else if (argc > 2 && !strcmp(argv[1], "--hacks")) {
+			NES_Hacks = atoi(argv[2]);
+			argc -= 2; argv += 2;
+		} else if (!strcmp(argv[1], "--")) {
+			argc -= 1; argv += 1;
+			break;
+		} else break;
 	}
 
 	if (argc != 2) return 1;
@@ -97,7 +113,6 @@ int main(int argc, char **argv) {
 
 	InfoNES_Main();
 	SaveSRAM();
-	sys_brightness(0);
 	return 0;
 }
 
@@ -126,6 +141,7 @@ static int LoadSRAM(void) {
 		do SRAM[pos++] = a; while (--k);
 	}
 	fclose(f);
+	memcpy(SRAM_COPY, SRAM, SRAM_SIZE);
 	return pos < SRAM_SIZE ? -1 : 0;
 }
 
@@ -135,6 +151,8 @@ static int SaveSRAM(void) {
 	unsigned char *dst, *dst_buf;
 
 	if (!nSRAM_SaveFlag) return 0;
+	if (!memcmp(SRAM_COPY, SRAM, SRAM_SIZE)) return 0;
+	memcpy(SRAM_COPY, SRAM, SRAM_SIZE);
 
 	dst_buf = malloc(SRAM_SIZE + (SRAM_SIZE >> 7) + 1);
 	hist = (unsigned short*)dst_buf;
@@ -262,14 +280,13 @@ void scr_update_1d2(void *src, uint16_t *dst, int32_t w, int32_t h) {
 			a = *s;
 			b = *(uint32_t*)((uint8_t*)s + st);
 			s++;
-			c = (a & 0x7c1f7c1f) + (b & 0x7c1f7c1f);
-			a = (a & 0x03e003e0) + (b & 0x03e003e0);
-			c += c >> 16; a += a >> 16;
+			c = (a & 0x03e07c1f) + (b & 0x03e07c1f);
+			a = (a & 0x7c1f03e0) + (b & 0x7c1f03e0);
+			a = c + (a >> 16 | a << 16);
 			// rounding half to even
-			c += (0x401 & c >> 2) + 0x401;
-			a += (0x20 & a >> 2) + 0x20;
-			c &= 0x7c1f << 2; a &= 0x03e0 << 2;
-			a = (a | c) >> 2;
+			a += (0x200401 & a >> 2) + 0x200401;
+			a >>= 2; a &= 0x03e07c1f;
+			a |= a >> 16;
 			*dst++ = a + (a & ~0x1f);
 		} while ((h += 2 << 16) < 0);
 		s = (uint32_t*)((uint8_t*)s + st);
@@ -278,11 +295,17 @@ void scr_update_1d2(void *src, uint16_t *dst, int32_t w, int32_t h) {
 #endif
 
 void InfoNES_LoadFrame(void) {
+	unsigned h, scaler, crop;
+	WORD *src;
 	sys_wait_refresh();
-	if (!sys_data.scaler)
-		scr_update_1d1(WorkFrame, framebuf, 256 * 240);
+	scaler = sys_data.scaler;
+	crop = scaler >> 3;
+	h = 240 - crop * 2;
+	src = WorkFrame + crop * 256;
+	if (!(scaler & 7))
+		scr_update_1d1(src, framebuf, 256 * h);
 	else
-		scr_update_1d2(WorkFrame, framebuf, 256, 240);
+		scr_update_1d2(src, framebuf, 256, h);
 	sys_start_refresh();
 	wait_frame();
 }
@@ -292,7 +315,7 @@ enum { KEYPAD_ENUM(X) };
 #undef X
 
 enum {
-	KEY_RESET = 1, KEY_EXIT,
+	KEY_RESET = 1, KEY_EXIT, KEY_SAVE,
 	KEY_A = 8, KEY_B, KEY_SELECT, KEY_START,
 	KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT,
 };
@@ -334,6 +357,7 @@ void keytrn_init(void) {
 		KEY(LEFT, KEY_SELECT)
 		KEY(RIGHT, KEY_START)
 		KEY(CENTER, KEY_B)
+		KEY(0, KEY_SAVE)
 	};
 	int i, flags = sys_getkeymap(keymap);
 	(void)flags;
@@ -385,6 +409,7 @@ void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem) {
 			break;
 		case EVENT_KEYDOWN:
 			if (key >= 8) *pdwPad1 |= 1 << (key - 8);
+			else if (key == KEY_SAVE) SaveSRAM();
 			else if ((key -= KEY_RESET) < 2) {
 				key_flags |= 1 << key;
 				key_timer[key] = sys_timer_ms();

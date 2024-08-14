@@ -2,7 +2,7 @@ diff --git a/src/InfoNES.cpp b/src/InfoNES.c
 similarity index 96%
 rename from src/InfoNES.cpp
 rename to src/InfoNES.c
-index a6a7745..7c8083d 100644
+index a6a7745..496c1b3 100644
 --- a/src/InfoNES.cpp
 +++ b/src/InfoNES.c
 @@ -190,7 +190,9 @@ BYTE PPU_MirrorTable[][ 4 ] =
@@ -24,11 +24,20 @@ index a6a7745..7c8083d 100644
      }
  
      // A mapper function in H-Sync
+@@ -1055,6 +1057,8 @@ void InfoNES_DrawLine()
+ 
+       pPointTop = &WorkFrame[ PPU_Scanline * NES_DISP_WIDTH ];
+       InfoNES_MemorySet( pPointTop, 0, 8 << 1 );
++      if ( NES_Hacks & 1 )
++        InfoNES_MemorySet( pPointTop + NES_DISP_WIDTH - 8, 0, 8 << 1 );
+     }
+ 
+     if ( nSprCnt >= 8 )
 diff --git a/src/InfoNES.h b/src/InfoNES.h
-index 958604b..818306a 100644
+index 958604b..4c1ac1b 100644
 --- a/src/InfoNES.h
 +++ b/src/InfoNES.h
-@@ -137,7 +137,11 @@ extern BYTE PPU_UpDown_Clip;
+@@ -137,7 +137,12 @@ extern BYTE PPU_UpDown_Clip;
  #define SCAN_VBLANK_START             243
  #define SCAN_VBLANK_END               262
  
@@ -36,11 +45,12 @@ index 958604b..818306a 100644
  #define STEP_PER_SCANLINE             113
 +#else
 +extern unsigned STEP_PER_SCANLINE;
++extern unsigned NES_Hacks;
 +#endif
  #define STEP_PER_FRAME                29828
  
  /* Develop Scroll Registers */
-@@ -209,7 +213,9 @@ extern WORD PalTable[];
+@@ -209,7 +214,9 @@ extern WORD PalTable[];
  /*-------------------------------------------------------------------*/
  
  extern BYTE APU_Reg[];

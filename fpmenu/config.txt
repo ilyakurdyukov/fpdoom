@@ -7,13 +7,19 @@
 
 # If the "fpmenu" is located in this path, it will read the config file further.
 
+# Variables must begin with a dollar sign.
 # You can wrap long lines using blackslash.
 # First arguments are stored in the $@ variable.
 # You can define and redefine variables:
 
 $@ = $@ --rotate 3
 
-# Variables must begin with a dollar sign.
+$nes_args = --dir games/nes infones
+$nes = fpbin/infones.bin $@ $nes_args
+# Workaround for some games to display correctly.
+$nes2 = $nes --scanline_step 113
+# This crops the top and bottom tiles, there is garbage in some games.
+$nes_crop = fpbin/infones.bin $@ --scaler 99 $nes_args
 
 $doom = fpbin/fpdoom.bin $@
 
@@ -24,3 +30,13 @@ $doom = fpbin/fpdoom.bin $@
 |Duke 3D| fpbin/fpduke3d.bin $@ --dir games/duke3d duke3d # -cachesize 1648
 |Shadow Warrior| fpbin/fpsw.bin $@ --dir games/sw sw # -cachesize 1552
 |Blood| fpbin/fpblood.bin $@ --dir games/blood blood # -cachesize 1648
+
+#1234567890123456# 128px = 16 chars
+#12345678901234567890# 160px = 20 chars
+#123456789012345678901234567890# 240px = 30 chars
+
+|=== NES ===|
+|NES Example 1| $nes "Example 1.nes"
+|NES Example 2| $nes2 "Example 2.nes"
+|NES Example 3| $nes_crop "Example 3.nes"
+
