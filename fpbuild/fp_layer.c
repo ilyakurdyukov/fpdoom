@@ -172,6 +172,8 @@ void keytrn_init(void) {
 		KEY(HASH, KEY_A) /* jump */
 		KEY(STAR, KEY_Z) /* crouch */
 		KEY(0, KEY_RBRACKET) /* next item */
+		KEY(VOLUP, KEY_EQUALS)
+		KEY(VOLDOWN, KEY_MINUS)
 		KEY(PLUS, KEY_TAB) /* map */
 	};
 	static const uint8_t keys_power[] = {

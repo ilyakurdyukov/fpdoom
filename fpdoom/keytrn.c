@@ -27,6 +27,8 @@ void keytrn_init(void) {
 		//KEY(8, ' ') /* use */
 		KEY(7, '[') /* prev weapon */
 		KEY(9, ']') /* next weapon */
+		KEY(VOLUP, KEY_EQUALS)
+		KEY(VOLDOWN, KEY_MINUS)
 		KEY(PLUS, KEY_TAB) /* map */
 	};
 	static const uint8_t keys_power[] = {

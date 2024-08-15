@@ -348,6 +348,10 @@ void keytrn_init(void) {
 		KEY(STAR, KEY_A)
 		KEY(0, KEY_A)
 		KEY(HASH, KEY_A)
+
+		KEY(VOLUP, KEY_A)
+		KEY(VOLDOWN, KEY_B)
+		KEY(PLUS, KEY_START)
 	};
 	static const uint8_t keys_power[] = {
 		KEY(LSOFT, KEY_RESET)

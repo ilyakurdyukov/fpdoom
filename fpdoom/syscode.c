@@ -825,6 +825,7 @@ void keypad_init(void) {
 int sys_event(int *rkey) {
 	static int static_i = 0;
 	static uint32_t static_ev, static_st;
+	static uint8_t pb_saved[8] = { 0 };
 	uint32_t event, status;
 	int i = static_i;
 	uint16_t *keytrn;
@@ -840,16 +841,24 @@ int sys_event(int *rkey) {
 		if (!event) return EVENT_END;
 		kpd->int_clr = 0xfff;
 		if (status & 8) return EVENT_END;
+		event = (event & 0xfff) | keypad_read_pb() << 12;
 		static_ev = event;
 		static_st = status;
 	}
 
-	keytrn = sys_data.keytrn[keypad_read_pb()];
-
 	for (; i < 8; i++) {
 		if (event >> i & 1) {
 			uint32_t k = status >> ((i & 3) * 8);
+			keytrn = sys_data.keytrn[0];
 			k = (k & 0x70) >> 1 | (k & 7);
+			if (i < 4) {
+				if (event >> 12)
+					pb_saved[k >> 3] |= 1 << (k & 7), keytrn += 64;
+			} else {
+				uint8_t *p = &pb_saved[k >> 3];
+				unsigned a = *p, b = 1 << (k & 7);
+				if (a & b) *p = a ^ b, keytrn += 64;
+			}
 			k = keytrn[k];
 			if (k) {
 				*rkey = k;
