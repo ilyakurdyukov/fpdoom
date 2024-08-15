@@ -350,7 +350,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	}
 
 	scan_firmware(fw_addr);
-	CHIP_FN(sys_init)();
+	sys_init();
 #if TWO_STAGE
 	memcpy(data_copy, &sys_data, sizeof(sys_data));
 	data_copy += sizeof(sys_data);

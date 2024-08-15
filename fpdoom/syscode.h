@@ -18,11 +18,11 @@ typedef volatile struct {
 } keypad_base_t;
 
 #if !CHIP
-#define CHIP_FN(name) (_chip != 1 ? sc6531da_##name : sc6531e_##name)
+#define CHIP_FN(name) (_chip != 1 ? sc6531_##name : sc6531e_##name)
 #elif CHIP == 1 // SC6531E
 #define CHIP_FN(name) sc6531e_##name
 #elif CHIP == 2 // SC6531DA
-#define CHIP_FN(name) sc6531da_##name
+#define CHIP_FN(name) sc6531_##name
 #elif CHIP == 3 // SC6530
 #define CHIP_FN(name) sc6530_##name
 #else
@@ -62,9 +62,14 @@ enum {
 	EVENT_KEYDOWN, EVENT_KEYUP, EVENT_END, EVENT_QUIT
 };
 
+#if !CHIP
 #define CHIP_FN_DECL(pre, name, arg) \
 	pre sc6531e_##name arg; \
-	pre sc6531da_##name arg;
+	pre sc6531_##name arg;
+#else
+#define CHIP_FN_DECL(pre, name, arg) \
+	pre CHIP_FN(name) arg;
+#endif
 
 CHIP_FN_DECL(void, sys_init, (void))
 CHIP_FN_DECL(void, sys_brightness, (unsigned val))
