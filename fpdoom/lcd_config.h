@@ -997,20 +997,20 @@ static const lcd_config_t lcd_config[] = {
 
 #if CHIP == 2 || CHIP == 3
 
-/* Joy's S21 */
-
-// Barely visible but uncomfortable checkerboard pattern artifacts on screen refresh when using this config for GC9106.
+// GC9106 has checkerboard pattern artifacts on screen refresh when using the wrong config. It's not possible to detect which version of GC9106 is used since the ID is the same.
 // It looks like half of the frame is updated every other pixel, and then the rest. Which probably increases the frame rate, but it hurts the eyes.
-
-	// GlaxyCore GC9106
-	{ 0x80009106, 0xffffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
-	// GlaxyCore GC9108
-	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9108_init },
 
 /* Texet TM-122, TM-130 */
 
 	// GlaxyCore GC9106
-	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_texet_init },
+	{ 0x80009106, 0xffffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_texet_init },
+
+/* Joy's S21 */
+
+	// GlaxyCore GC9106
+	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
+	// GlaxyCore GC9108
+	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9108_init },
 
 /* Vector M115 */
 

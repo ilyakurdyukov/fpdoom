@@ -88,6 +88,7 @@ need keymap file
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
 * Alcatel 2003D: use `--keyrows 8`
 * Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
+* Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 
 ### Game controls
 
