@@ -1,4 +1,5 @@
 
+ZIPDIR = .
 jfbuild_hash = efd88d9cc24f753038a28479c9d8e7ac398909c8
 jfmact_hash = 1f0746a3b9704906669d8aaed2bbb982053a393e
 jfduke3d_hash = 41cd46bc00633e7457d07d88c8add9f99a7d9d41
@@ -13,15 +14,16 @@ NBlood_list = source/blood/src/*
 
 .PHONY: all patch gitinit diff
 all: jfbuild jfmact jfduke3d jfsw NBlood
+download: $(patsubst %,$(ZIPDIR)/%.zip,jfbuild jfmact jfduke3d jfsw NBlood)
 
-.PRECIOUS: jf%.zip
-jf%.zip:
-	wget -O $@ "https://github.com/jonof/$(@:%.zip=%)/archive/$($(@:%.zip=%)_hash).zip"
+.PRECIOUS: $(ZIPDIR)/jf%.zip
+$(ZIPDIR)/jf%.zip:
+	wget -O $@ "https://github.com/jonof/$(@:$(ZIPDIR)/%.zip=%)/archive/$($(@:$(ZIPDIR)/%.zip=%)_hash).zip"
 
-NBlood.zip:
-	wget -O $@ "https://github.com/nukeykt/NBlood/archive/$($(@:%.zip=%)_hash).zip"
+$(ZIPDIR)/NBlood.zip:
+	wget -O $@ "https://github.com/nukeykt/NBlood/archive/$(NBlood_hash).zip"
 
-%: %.zip
+%: $(ZIPDIR)/%.zip
 	name="$@-$($@_hash)"; unzip -q $< $(patsubst %,"$$name/%",$($@_list)) && mv $$name $@
 
 for_fn = \
