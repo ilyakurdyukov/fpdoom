@@ -6,7 +6,14 @@ Currently only for feature phones based on the SC6530/SC6531 chipset.
 
 ### Other ports
 
-Port of some games on Build Engine [here](fpbuild). Reuses code written for FPDoom.
+There are other ports that reuse code written for FPDoom:
+
+[fpbuild](fpbuild): Duke 3D, Shadow Warrior, Blood  
+[infones](infones): NES emulator  
+
+### Installation on SD card
+
+Please read the instructions [here](sdboot/README.md).
 
 ### Build
 
@@ -74,6 +81,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 28 | Texet TM-122           | SC6531DA | GC9106  128x160 | 0          |
 | 29 | Texet TM-130           | SC6531DA | GC9106  128x160 | 0          |
 | 30 | Olmio E29              | SC6531E  | GC9300  240x320 | left soft  |
+| 31 | Texet TM-B307          | SC6531E  | ST7789  240x320 | 2          |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
@@ -89,6 +97,7 @@ need keymap file
 * Alcatel 2003D: use `--keyrows 8`
 * Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
+* Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 
 ### Game controls
 

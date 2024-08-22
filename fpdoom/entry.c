@@ -299,7 +299,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			unsigned a = strtol(argv[1], NULL, 0);
 			if (a < 0x100) sys_data.mac = a | 0x100;
 			argc -= 2; argv += 2;
-		} else if (argc >= 2 && !strcmp(argv[0], "--gpio_init")) {
+		} else if (!strcmp(argv[0], "--gpio_init")) {
 			sys_data.gpio_init = 1;
 			argc -= 1; argv += 1;
 		} else if (argc >= 2 && !strcmp(argv[0], "--bl_gpio")) {

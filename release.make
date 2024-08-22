@@ -24,9 +24,6 @@ all: $(BINS)
 clean:
 	$(RM) $(BINS)
 
-test:
-	echo $(words $(BINDIR)) $(words $(ZIPDIR))
-
 define getsrc
 	test -d $@ || ( mkdir -p $(ZIPDIR); cd $(1) && $(MAKE) -f helper.make ZIPDIR="../$(ZIPDIR)" all patch )
 endef
