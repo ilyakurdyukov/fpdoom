@@ -66,11 +66,18 @@ void lcd_appinit(void) {
 	unsigned crop = 0;
 	if (h > w) h = w;
 	if (scaler >= 99) crop = 8, scaler -= 100;
-	if ((unsigned)scaler > 2) scaler = h <= 128 ? 1 : 0;
+	if ((unsigned)scaler > 3) {
+		if (w > 320) { // for 320x480 screens
+			crop = 13; // 240 - 13 * 2 = 214
+			scaler = 2;
+		} else scaler = h <= 128 ? 1 : 0;
+	}
 	sys_data.scaler = scaler | crop << 3;
 	sh = scaler == 1 ? 1 : 0;
-	disp->w2 = 256 >> sh;
-	disp->h2 = (240 - crop * 2) >> sh;
+	if (scaler == 2) w = 384, h = 320;
+	else w = 256 >> sh, h = (240 - crop * 2) >> sh;
+	disp->w2 = w;
+	disp->h2 = h;
 }
 
 static void *framebuf_mem;
@@ -80,7 +87,7 @@ static void framebuf_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size = w * h; uint8_t *p;
-
+	if ((sys_data.scaler & 7) == 2) size += w;
 	p = malloc(size * 2 + 31);
 	framebuf_mem = p;
 	p += -(intptr_t)p & 31;
@@ -270,14 +277,15 @@ static void wait_frame(void) {
 }
 
 #ifdef USE_ASM
-void scr_update_1d1_asm(void *src, uint16_t *dst, unsigned n);
-void scr_update_1d2_asm(void *src, uint16_t *dst, int32_t w, int32_t h);
+void scr_update_1d1_asm(void *src, uint16_t *dst, unsigned h);
+void scr_update_1d2_asm(void *src, uint16_t *dst, unsigned h);
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
 #else
-void scr_update_1d1(void *src, uint16_t *dst, unsigned n) {
+void scr_update_1d1(void *src, uint16_t *dst, unsigned h) {
 	uint32_t *s = (uint32_t*)src;
 	uint32_t *d = (uint32_t*)dst;
+	unsigned n = h << 8;
 	do {
 		uint32_t a = *s++;
 		a = (a & 0x7fff7fff) + (a & 0x7fe07fe0);
@@ -285,9 +293,9 @@ void scr_update_1d1(void *src, uint16_t *dst, unsigned n) {
 	} while ((n -= 2));
 }
 
-void scr_update_1d2(void *src, uint16_t *dst, int32_t w, int32_t h) {
+void scr_update_1d2(void *src, uint16_t *dst, unsigned h) {
 	uint32_t *s = (uint32_t*)src;
-	uint32_t a, b, c, st = w << 1;
+	uint32_t a, b, c, w = 256, st = w << 1;
 	do {
 		h -= w << 16;
 		do {
@@ -302,13 +310,57 @@ void scr_update_1d2(void *src, uint16_t *dst, int32_t w, int32_t h) {
 			a >>= 2; a &= 0x03e07c1f;
 			a |= a >> 16;
 			*dst++ = a + (a & ~0x1f);
-		} while ((h += 2 << 16) < 0);
+		} while ((int32_t)(h += 2 << 16) < 0);
 		s = (uint32_t*)((uint8_t*)s + st);
 	} while ((h -= 2));
 }
 #endif
 
+void scr_update_3d2(void *src, uint16_t *dst, unsigned h) {
+	uint32_t *s = (uint32_t*)src;
+	uint32_t a, b, w = 256, st = w << 1;
+	do {
+		h -= w << 16;
+		do {
+			uint16_t *dst1 = dst + 0x180, *dst2 = dst + 0x180 * 2;
+			uint32_t r = 0x400801, m = 0x07c0f81f;
+			uint32_t aa, bb, ab, a0, a1, b0, b1;
+			a = *s;
+			b = *(uint32_t*)((uint8_t*)s + st);
+			s++;
+			a = (a & 0x7fff7fff) + (a & 0x7fe07fe0);
+			b = (b & 0x7fff7fff) + (b & 0x7fe07fe0);
+			a1 = (a >> 16 | a << 16) & m; a0 = a & m;
+			b1 = (b >> 16 | b << 16) & m; b0 = b & m;
+			aa = a0 + a1; bb = b0 + b1;
+			aa += r & aa >> 1; aa = (aa >> 1) & m;
+			bb += r & bb >> 1; bb = (bb >> 1) & m;
+			dst[0] = a;
+			dst[1] = aa | aa >> 16;
+			dst[2] = a >> 16;
+			dst2[0] = b;
+			dst2[1] = bb | bb >> 16;
+			dst2[2] = b >> 16;
+			aa = a0 + b0; bb = a1 + b1; ab = aa + bb;
+			aa += r & aa >> 1; aa = (aa >> 1) & m;
+      bb += r & bb >> 1; bb = (bb >> 1) & m;
+			aa |= bb >> 16 | bb << 16;
+			ab += (r & ab >> 2) + r; ab = (ab >> 2) & m;
+			dst1[0] = aa;
+			dst1[1] = ab | ab >> 16;
+			dst1[2] = aa >> 16;
+			dst += 3;
+		} while ((int32_t)(h += 2 << 16) < 0);
+		s = (uint32_t*)((uint8_t*)s + st);
+		dst += 0x180 * 2;
+	} while ((h -= 2));
+}
+
+typedef void (*scr_update_t)(void *src, uint16_t *dst, unsigned h);
+
 void InfoNES_LoadFrame(void) {
+	static const scr_update_t fn[] = {
+		scr_update_1d1, scr_update_1d2, scr_update_3d2 };
 	unsigned h, scaler, crop;
 	WORD *src;
 	sys_wait_refresh();
@@ -316,10 +368,7 @@ void InfoNES_LoadFrame(void) {
 	crop = scaler >> 3;
 	h = 240 - crop * 2;
 	src = WorkFrame + crop * 256;
-	if (!(scaler & 7))
-		scr_update_1d1(src, framebuf, 256 * h);
-	else
-		scr_update_1d2(src, framebuf, 256, h);
+	fn[scaler & 7](src, framebuf, h);
 	sys_start_refresh();
 	wait_frame();
 }

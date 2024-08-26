@@ -11,6 +11,48 @@
 
 uint32_t *pinmap_addr;
 
+static int check_keymap(const void *buf) {
+	const uint16_t *s = (const uint16_t*)buf;
+	uint32_t a, tmp, t0 = 0, t1 = 0;
+	unsigned i, n, nrow, ncol;
+	n = 40; // _chip == 1 ? 40 : 64;
+	for (i = 0; i < n; i++) {
+		a = s[i];
+		if (a == 0xffff) { t0++; t1 += (i & 7) >= 6; continue; }
+		if (a - 0x69 < 5) continue;
+		if (a - 1 >= 0x39) break;
+	}
+	t1 -= (i >> 3) * 2;
+	if (_chip == 1) {
+		ncol = 8; nrow = 5;
+		if (i < 40) {
+			if (i < 35) return 0;
+			ncol = 7;
+		} else if (!t1) ncol = 5, nrow = 8;
+	} else {
+		if (i < 40 || t1) return 0;
+		ncol = i >> 3;
+		nrow = 8;
+	}
+	n = nrow * ncol;
+	if (t0 < n - 32) return 0;
+	t0 = 0; t1 = 0;
+	for (i = 0; i < n; i++) {
+		a = s[i];
+		if (a >= 0x40) continue;
+		tmp = 1u << (a & 31);
+		if (a & 32) t1 |= tmp; else t0 |= tmp;
+	}
+	t0 |= ~(1 << 8); // LSOFT
+	tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
+	t1 |= ~tmp;
+	if (~(t1 & t0)) return 0;
+	// DBG_LOG("keyrows = %u, keycols = %u\n", nrow, ncol);
+	if (!sys_data.keyrows) sys_data.keyrows = nrow;
+	if (!sys_data.keycols) sys_data.keycols = ncol;
+	return n;
+}
+
 void scan_firmware(intptr_t fw_addr) {
 	int i, j; short *keymap = NULL;
 	uint32_t *pinmap = NULL;
@@ -18,70 +60,27 @@ void scan_firmware(intptr_t fw_addr) {
 	int flags = 3;
 
 	for (i = 0x20; i < FIRMWARE_SIZE - 0x1000; i += 4) {
-		volatile short *s = (short*)(fw_addr + i);
+		uint32_t *p = (uint32_t*)(fw_addr + i);
 		// "DRPS", "CAPN" : start of compressed data
-		if (MEM4(s) == 0x53505244 && MEM4(s + 8) == 0x4e504143) break;
+		if (p[0] == 0x53505244 && p[4] == 0x4e504143) break;
 
 		// keymap filter
 		if (flags & 1)
-		if (MEM4(s + 38) == 0xffffffff) {
-			uint32_t mask0 = 0, mask1 = 0, empty = 0, tmp;
-			int likely_keymap = 0;
-			if (MEM4(s - 6) == 0x4d && MEM4(s - 4) == 0x400 && MEM4(s - 2) == 0xa)
-				likely_keymap = 1;
-
-#define CHECK_KEY \
-	empty -= a >> 31; \
-	if (a != -1) { \
-		uint32_t tmp2; \
-		if (likely_keymap) { \
-			if ((unsigned)a - 0x69 < 4) continue; \
-		} \
-		if ((unsigned)(a - 1) > (unsigned)0x39 - 1) break; \
-		tmp = 1u << (a & 31); \
-		if (a & 32) tmp2 = mask1, mask1 |= tmp; \
-		else tmp2 = mask0, mask0 |= tmp; \
-		if (!likely_keymap && (tmp2 & tmp)) break; \
-	}
-
-			if (_chip != 1) {
-				for (j = 0; j < 64; j += 8) {
-					int k, empty_ = empty, m0 = mask0, m1 = mask1;
-					if (*(int32_t*)(s + j + 6) != -1) break;
-					for (k = 0; k < 6; k++) {
-						int a = s[j + k];
-						CHECK_KEY
-					}
-					if (k < 6) {
-						empty = empty_; mask0 = m0; mask1 = m1;
-						break;
-					}
-				}
-			} else
-				for (j = 0; j < 40; j++) {
-					int a = s[j];
-					CHECK_KEY
-				}
-#undef CHECK_KEY
-			if (j >= 40 && empty >= 10) {
-				mask0 |= ~(1 << 8); // LSOFT
-				tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
-				mask1 |= ~tmp;
-				if (!~(mask1 & mask0)) {
-					if (keymap) {
-						DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)s);
-						flags &= ~1; keymap = NULL;
-					} else {
-						keymap = (short*)s;
-						i += j * 2 - 4;
-						continue;
-					}
+		if (p[-3] == 0x4d && p[-2] == 0x400 && p[-1] == 0xa) {
+			int ret = check_keymap(p);
+			if (ret) {
+				if (keymap) {
+					DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)p);
+					flags &= ~1; keymap = NULL;
+				} else {
+					keymap = (short*)p;
+					i += ret * 2 - 4;
+					continue;
 				}
 			}
 		}
 
 		do {
-			volatile uint32_t *p = (uint32_t*)s;
 			if (*p >> 12 != 0x8c000000 >> 12) break;
 			for (j = 2; ; j += 2) {
 				uint32_t a = p[j];

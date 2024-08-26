@@ -82,6 +82,8 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 29 | Texet TM-130           | SC6531DA | GC9106  128x160 | 0          |
 | 30 | Olmio E29              | SC6531E  | GC9300  240x320 | left soft  |
 | 31 | Texet TM-B307          | SC6531E  | ST7789  240x320 | 2          |
+| 32 | Olmio E35              | SC6531E  | ILI9481 320x480 | 0          |
+| 33 | Texet TM-D324          | SC6531E  | NT35310 320x480 | 0          |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
@@ -94,7 +96,6 @@ need keymap file
 * Fly TS114: use `--spi 1`
 * Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
-* Alcatel 2003D: use `--keyrows 8`
 * Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on

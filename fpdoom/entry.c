@@ -260,10 +260,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	sys_data.bl_gpio = 0xff;
 	// Usually nrow = 5 for SC6531E.
 	// But F+ F197 and Alcatel 2003D use 8.
-	sys_data.keyrows = _chip != 1 ? 8 : 5;
+	//sys_data.keyrows = _chip != 1 ? 8 : 5;
 	// Usually ncol = 5 for SC6531DA.
 	// But the Children's Camera use 7.
-	sys_data.keycols = _chip != 1 ? 5 : 8;
+	//sys_data.keycols = _chip != 1 ? 5 : 8;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -321,11 +321,19 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--keymap")) {
 			FILE *f = fopen(argv[1], "rb");
 			if (f) {
+				unsigned i, n, nrow;
 				printf("keymap loaded from file\n");
 				sys_data.keymap_addr = (short*)sys_data.keytrn;
 				memset(sys_data.keytrn, -1, 64 * 2);
-				fread(sys_data.keytrn, 1, 64 * 2, f);
+				n = fread(sys_data.keytrn, 1, 64 * 2, f);
 				fclose(f);
+				nrow = 8;
+				if (_chip == 1)
+				for (i = 0; i < n; i += 8)
+					if (*(int32_t*)&sys_data.keytrn[i + 6] != -1) {
+						nrow = 5; break;
+					}
+				sys_data.keyrows = nrow;
 				sys_data.keycols = 8;
 			}
 			argc -= 2; argv += 2;

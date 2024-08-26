@@ -15,7 +15,7 @@ void set_cpsr_c(uint32_t a);
 	exit(1); \
 } while (0)
 
-#define FATAL() ERR_EXIT("error at %s:%d\n", __FILE__, __LINE__)
+#define FATAL() ERR_EXIT("error at syscode.c:%d\n", __LINE__)
 
 #if defined(CHIP_AUTO) && CHIP == 2
 #define IS_SC6530 ((int32_t)(MEM4(0x205003fc) << 15) >= 0)
@@ -497,7 +497,7 @@ static unsigned lcd_getid(void) {
 }
 
 #define LCM_CMD(cmd, len) 0x80 | len, cmd
-#define LCM_DATA(...) len, __VA_ARGS__
+#define LCM_DATA(len) len
 #define LCM_DELAY(delay) 0x40 | (delay >> 8 & 0x1f), (delay & 0xff)
 #define LCM_END 0
 
@@ -530,12 +530,13 @@ static void lcm_exec(const uint8_t *cmd) {
 static unsigned lcd_getid2(void) {
 	unsigned id;
 
-	// RenesasSP R61529
 	// Manufacturer Command Access Protect
 	lcm_send_cmd(0xb0);
-	lcm_send_data(0x04);
+	lcm_send_data(0x00);
 	// Device Code Read
-	id = lcd_cmdret(0xbf, 5); // 0x0122xxxx
+	// 0x0122xxxx: RenesasSP
+	// 0x0204xxxx: Ilitek
+	id = lcd_cmdret(0xbf, 5);
 	return id;
 }
 
@@ -601,6 +602,8 @@ static void lcm_init(void) {
 	id = sys_data.lcd_id;
 	if (!id) id = lcd_getid();
 	if (!id) id = lcd_getid2();
+	// workaround for NT35310
+	else if (id == 0x8000) id = lcd_cmdret(0xd4, 4);
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
 	for (i = 0; i < n; i++)
