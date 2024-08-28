@@ -20,6 +20,9 @@ CODE32_FN _start
 	.long	0xffffffff
 	.ascii	"SDLOADER"
 	.long	__image_size
+	.global sdbootkey
+sdbootkey: // sdboot + 0x14
+	.long	0xffffffff
 3:	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
 	bic	r0, #5
 .if 0

@@ -32,18 +32,39 @@ static uint32_t get_ram_size(uint32_t addr) {
 
 extern char __bss_start[];
 extern uint32_t _start[];
+#if defined(SDBOOTKEY) && SDBOOTKEY < 0
+extern uint32_t sdbootkey;
+#undef SDBOOTKEY
+#define SDBOOTKEY sdbootkey
+#endif
 
 static int read_key(int chip) {
 	keypad_base_t *kpd = KEYPAD_BASE;
-	uint32_t tmp, add, rst;
+	uint32_t tmp, add, rst, mask = 0;
 	int ret;
-	tmp = 0x8b0010a8; add = 0x1000;
-#if CHIP
-	(void)chip;
-	if (CHIP != 1)
-#else
-	if (chip != 1)
+#ifdef SDBOOTKEY
+	{
+		uint32_t key = SDBOOTKEY;
+		uint32_t col = key & 7, row = key >> 4, mask1;
+		uint32_t a = 0x2c, e1 = 0x208a, e2 = 0x2001; // SC6531E
+		mask1 = 1 << (row + 16);
+		if (chip != 1) {
+			a = 0x180; e1 = 0x18a; e2 = 0x101; // SC6530
+			if (row >= 7) goto badkey; row += 8;
+			if (chip == 2) a += 0x20, e1 = 0x60a, e2 = 0x401; // SC6531
+		} else {
+			if (col >= 5 || row >= 5) goto badkey;
+			row += 5;
+		}
+		a += 0x8c000000;
+		MEM4(a + col * 4) = e1;
+		MEM4(a + row * 4) = e2;
+		mask = 1 << (col + 8) | mask1;
+	}
+badkey:
 #endif
+	tmp = 0x8b0010a8; add = 0x1000;
+	if (chip != 1)
 		tmp = 0x8b0000a0, add = 4;
 	MEM4(tmp) = 0x80040; // keypad power on
 	rst = tmp + 0x60 - 0xa0;
@@ -57,14 +78,22 @@ static int read_key(int chip) {
 	kpd->polarity = 0xffff;
 	kpd->clk_divide = 0;
 	kpd->debounce = 15;
-	kpd->ctrl |= 1; // keypad enable
+	kpd->ctrl |= 1 | mask; // keypad enable
 	sys_wait_ms(20);
 #if LIBC_SDIO >= 3
 	ret = 0;
 #else
 	ret = 0x100;
 #endif
-	if (kpd->int_raw & 1) ret = kpd->key_status & 0x77;
+	if (kpd->int_raw & 1) {
+		ret = kpd->key_status & 0x77;
+#ifdef SDBOOTKEY
+		{
+			int key = SDBOOTKEY;
+			if (key != -1) ret = ret == key;
+		}
+#endif
+	}
 	kpd->int_clr = 0xfff;
 	MEM4(tmp) = 0x40;	// keypad power off
 	return ret;
