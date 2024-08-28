@@ -3,6 +3,7 @@ CHIP = 0
 TWO_STAGE = 1
 LIBC_SDIO = 0
 USE_ASM = 1
+NO_FLOAT = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 SRCS = asmcode usbio common libc syscomm
 ifeq ($(CHIP), 0)
@@ -161,7 +162,9 @@ GAME_CFLAGS = -DEMBEDDED=2 -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1 -DNO_OSD=1
 ifneq ($(USE_ASM), 0)
 GAME_CFLAGS += -DUSE_ASM
 endif
+ifneq ($(NO_FLOAT), 0)
 GAME_CFLAGS += -DNO_FLOAT=1 -I$(OBJDIR)
+endif
 GAME_CFLAGS += -DMAXXDIM=480 -DMAXYDIM=320
 GAME_CFLAGS += -DNO_NEWSTYLE=1
 # saves 256KB (slower voxels)

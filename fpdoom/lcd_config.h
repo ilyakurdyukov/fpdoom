@@ -1014,6 +1014,33 @@ static const uint8_t cmd5CB1F0_init[] = {
 	LCM_DELAY(120),
 	LCM_END
 };
+
+static const uint8_t cmd8552_init[] = {
+	LCM_DELAY(120),
+	LCM_CMD(0xb0, 2), 0x00,0xe0, // RAM Control
+	LCM_CMD(0xb2, 5), 0x0c,0x0c,0x00,0x33,0x33, // Porch Setting
+	LCM_CMD(0xb7, 1), 0x15, // Gate Control
+	LCM_CMD(0xbb, 1), 0x10, // VCOM Setting
+	LCM_CMD(0xc0, 1), 0x2c, // LCM Control
+	LCM_CMD(0xc2, 1), 0x01, // VDV and VRH Command Enable
+	LCM_CMD(0xc3, 1), 0x11, // VRH Set
+	LCM_CMD(0xc6, 1), 0x0f, // Frame Rate Control in Normal Mode
+	LCM_CMD(0xd0, 2), 0xa4,0xa1, // Power Control 1
+	//LCM_CMD(0xd0, 2), 0xa7,0xa1, // Power Control 1
+	// Positive Voltage Gamma Control
+	LCM_CMD(0xe0, 14), 0xf0,0x03,0x0c,0x12,
+		0x13,0x2c,0x3b,0x44, 0x4c,0x0a,0x12,0x11, 0x1e,0x21,
+	// Negative Voltage Gamma Control
+	LCM_CMD(0xe1, 14), 0xf0,0x01,0x08,0x0c,
+		0x0e,0x28,0x3b,0x54, 0x4c,0x3c,0x16,0x16, 0x21,0x24,
+	LCM_CMD(0x3a, 1), 0x55, // Interface Pixel Format
+	//LCM_DATA(1), 0x22,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_END
+};
 #endif
 
 static const lcd_config_t lcd_config[] = {
@@ -1152,6 +1179,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// Sitronix ST7735 BYD
 	{ 0x5cb1f0, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 10, 30, 60 }, { 0 }, 0xc8, cmd5CB1F0_init },
+
+/* Texet TM-302 */
+
+	// Sitronix ST7789
+	{ 0x858552, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 15, 120, 75, 40, 50, 50 }, { 0 }, 0x00, cmd8552_init },
 #endif
 };
 
