@@ -2,9 +2,9 @@
 CHIP = 0
 TWO_STAGE = 1
 LIBC_SDIO = 0
-USE_ASM = 1
+USE_ASM = 0
+NO_FLOAT = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
-OBJDIR = obj$(CHIP)
 SRCS = asmcode usbio common libc syscomm
 ifeq ($(CHIP), 0)
 SRCS += chip1_syscode chip2_syscode
@@ -15,25 +15,48 @@ ifneq ($(LIBC_SDIO), 0)
 SRCS += sdio microfat
 endif
 
-NAME = infones
+NAME = wolf3d
+GAMESRC = Wolf4SDL
+OBJDIR = obj$(CHIP)
 FPDOOM = ../fpdoom
-INFONES = InfoNES/src
+HOSTCC = cc
+NM = nm
 
-SRCS += InfoNES_System
-ifneq ($(USE_ASM), 0)
-SRCS += nesasm
+ifeq ($(GAMEVER),)
+GAMEVER = CARMACIZED GOODTIMES # v1.4
+ifneq ($(filter %_apo,$(NAME)),)
+GAMEVER = CARMACIZED # v1.4 apogee
+else ifneq ($(filter %_sw,$(NAME)),)
+GAMEVER = CARMACIZED UPLOAD # sw v1.4
+else ifneq ($(filter %_sod,$(NAME)),)
+GAMEVER = CARMACIZED GOODTIMES SPEAR
+else ifneq ($(filter %_sdm,$(NAME)),)
+GAMEVER = CARMACIZED SPEAR SPEARDEMO
 endif
-NES_SRCS = K6502 InfoNES InfoNES_Mapper InfoNES_pAPU
-NES_OBJS = $(NES_SRCS:%=$(OBJDIR)/nes/%.o)
+endif
+ifneq ($(GAMEVER),)
+GAMEFLAGS = -DVERSIONALREADYCHOSEN $(GAMEVER:%=-D%)
+endif
+
+GAME_SRCS = \
+	id_ca id_in id_pm id_sd id_us id_vh id_vl \
+	signon wl_act1 wl_act2 wl_agent wl_atmos \
+	wl_cloudsky wl_debug wl_draw wl_game wl_inter \
+	wl_main wl_menu wl_parallax wl_plane wl_play \
+	wl_scale wl_shade wl_state wl_text wl_utils
+
+SRCS += extra scr_update wlsys_fp
+
+GAME_OBJS = $(GAME_SRCS:%=$(OBJDIR)/game/%.o)
 
 ifeq ($(TWO_STAGE), 0)
 SRCS := start entry $(SRCS)
-OBJS = $(SRCS:%=$(OBJDIR)/sys/%.o) $(NES_OBJS)
+OBJS = $(SRCS:%=$(OBJDIR)/sys/%.o) $(GAME_OBJS)
 else
 SRCS1 = start1 entry $(SRCS)
 SRCS2 = start2 entry2 $(SRCS)
-OBJS1 = $(SRCS1:%=$(OBJDIR)/sys/%.o) $(NES_OBJS)
-OBJS2 = $(SRCS2:%=$(OBJDIR)/sys/%.o) $(NES_OBJS)
+OBJS1 = $(SRCS1:%=$(OBJDIR)/sys/%.o)
+OBJS2 = $(SRCS2:%=$(OBJDIR)/sys/%.o) $(GAME_OBJS)
 endif
 
 LDSCRIPT = $(FPDOOM)/sc6531e_fdl.ld
@@ -52,7 +75,7 @@ else
 CFLAGS = -Os
 endif
 
-CFLAGS += -Wall -Wextra -funsigned-char
+CFLAGS += -Wall -Wextra -fsigned-char
 CFLAGS += -fno-PIE -ffreestanding -march=armv5te -mthumb $(EXTRA_CFLAGS) -fno-strict-aliasing
 CFLAGS += -fomit-frame-pointer
 CFLAGS += -ffunction-sections -fdata-sections
@@ -73,7 +96,6 @@ CFLAGS += -DTWO_STAGE=$(TWO_STAGE)
 ifneq ($(LIBC_SDIO), 0)
 CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DFAT_DEBUG=1
-#CFLAGS += -DCHIPRAM_ARGS=1
 endif
 
 ifeq ($(COMPILER), clang)
@@ -94,38 +116,59 @@ CFLAGS += --sysroot="$(SYSROOT)"
 endif
 
 CFLAGS += -std=c99 -pedantic
-#CFLAGS += -Wno-unused -Wno-unused-parameter
-CFLAGS += -Wno-strict-prototypes
 
-MAIN_CFLAGS = -I$(FPDOOM) -I$(INFONES)
-ifneq ($(USE_ASM), 0)
-MAIN_CFLAGS += -DUSE_ASM
+GAME_CFLAGS = -DEMBEDDED=2 -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_JOYSTICK=1
+GAME_CFLAGS += -DVIEWMAP -DREVEALMAP
+#GAME_CFLAGS += -DTRACE_UPDATE=1
+ifeq ($(LIBC_SDIO), 0)
+GAME_CFLAGS += -DLINUX_FN_FIX=1
 endif
-NES_CFLAGS = -Wno-unused-parameter -Wno-extra-semi
-NES_CFLAGS += -DAPU_Mute=1
+ifneq ($(USE_ASM), 0)
+GAME_CFLAGS += -DUSE_ASM
+endif
+ifneq ($(NO_FLOAT), 0)
+GAME_CFLAGS += -DNO_FLOAT=1 -I$(OBJDIR)
+endif
+GAME_CFLAGS += -I$(GAMESRC) -I.
+GAME_CFLAGS += -Wno-unused -Wno-unused-parameter
+GAME_CFLAGS += -Wno-strict-prototypes
 
-.PHONY: all clean
+.PHONY: all clean map
 
-all: $(NAME).bin
+all: $(NAME).bin map
+map: $(OBJDIR)/$(NAME)_map.txt
 
 clean:
 	$(RM) -r $(OBJDIR) $(NAME).bin
 
 $(OBJDIR):
-	mkdir -p $@/sys $@/nes
+	mkdir -p $@/sys $@/game
+
+%.asm: %.c
+	$(CC) $(CFLAGS) $< -S -o $@
+
+ifneq ($(NO_FLOAT), 0)
+$(OBJDIR)/game/wl_draw.o: $(OBJDIR)/wolf3d_tables.h
+
+$(OBJDIR)/calctables: calctables.c | $(OBJDIR)
+	$(HOSTCC) -O2 $< -o $@ -lm
+
+$(OBJDIR)/wolf3d_tables.h: $(OBJDIR)/calctables
+	$(OBJDIR)/calctables $@
+endif
 
 -include $(OBJS:.o=.d)
 
 compile_fn = $(CC) $(CFLAGS) $(1) -MMD -MP -MF $(@:.o=.d) $< -c -o $@
 
+$(OBJDIR)/game/%.o: $(GAMESRC)/%.c | $(OBJDIR)
+	$(call compile_fn,$(GAME_CFLAGS))
+
 $(OBJDIR)/sys/%.o: %.c | $(OBJDIR)
-	$(call compile_fn,$(MAIN_CFLAGS))
+	$(call compile_fn,$(GAME_CFLAGS) -I$(ENGINEROOT)/src -I$(FPDOOM))
 
 $(OBJDIR)/sys/%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,)
-
-$(OBJDIR)/nes/%.o: $(INFONES)/%.c | $(OBJDIR)
-	$(call compile_fn,$(NES_CFLAGS))
 
 $(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
@@ -133,10 +176,10 @@ $(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 $(OBJDIR)/sys/chip2_%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
-$(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
+$(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
 	$(CC) $< -c -o $@
 
-$(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
+$(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@
 
 %.rel: %.elf

@@ -10,6 +10,7 @@ There are other ports that reuse code written for FPDoom:
 
 [fpbuild](fpbuild): Duke 3D, Shadow Warrior, Blood  
 [infones](infones): NES emulator  
+[wolf3d](wolf3d): Wolfenstein 3D  
 
 ### Installation on SD card
 
@@ -85,10 +86,11 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 32 | Olmio E35              | SC6531E  | ILI9481 320x480 | 0          |
 | 33 | Texet TM-D324          | SC6531E  | NT35310 320x480 | 0          |
 | 34 | Texet TM-302           | SC6531DA | ST7789  240x320 | 0          |
+| 35 | Strike A13             | SC6531DA | GC9106  128x160 | left soft  |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
-F+ F197, Texet TM-302:
+F+ F197, Texet TM-302, Strike A13:
 need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable

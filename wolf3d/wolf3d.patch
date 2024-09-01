@@ -1,0 +1,1792 @@
+diff --git a/id_ca.c b/id_ca.c
+index e81502b..7d3dc44 100644
+--- a/id_ca.c
++++ b/id_ca.c
+@@ -41,11 +41,11 @@ typedef struct
+ typedef struct
+ {
+     word RLEWtag;
+-#if MAPPLANES >= 4
++//#if MAPPLANES >= 4
+     word numplanes;       // unused, but WDC needs 2 bytes here for internal usage
+-#endif
++//#endif
+     int32_t headeroffsets[NUMMAPS];
+-} mapfiletype;
++} PACKED mapfiletype;
+ 
+ 
+ /*
+@@ -155,7 +155,11 @@ void CA_WriteFile (const char *filename, void *ptr, int32_t length)
+         CA_CannotOpen (filename);
+ 
+     if (!fwrite(ptr,length,1,file))
++#ifdef EMBEDDED
++        Quit ("Error writing file: %s",filename);
++#else
+         Quit ("Error writing file %s: %s",filename,strerror(errno));
++#endif
+ 
+     fclose (file);
+ }
+@@ -188,7 +192,11 @@ void CA_LoadFile (const char *filename, void **ptr)
+     *ptr = SafeMalloc(size);
+ 
+     if (!fread(*ptr,size,1,file))
++#ifdef EMBEDDED
++        Quit ("Error reading file: %s",filename);
++#else
+         Quit ("Error reading file %s: %s",filename,strerror(errno));
++#endif
+ 
+     fclose (file);
+ }
+@@ -547,7 +555,12 @@ void CAL_SetupMapFile (void)
+ 
+     tinf = SafeMalloc(sizeof(*tinf));
+ 
++#if MAPPLANES >= 4
+     fread (tinf,sizeof(*tinf),1,file);
++#else
++    fread (&tinf->RLEWtag,sizeof(tinf->RLEWtag),1,file);
++    fread (&tinf->headeroffsets,sizeof(tinf->headeroffsets),1,file);
++#endif
+     fclose (file);
+ 
+ //
+@@ -684,6 +697,7 @@ void CA_Shutdown (void)
+ 
+     switch(oldsoundmode)
+     {
++        default:
+         case sdm_Off:
+             return;
+         case sdm_PC:
+@@ -788,6 +802,7 @@ void CA_CacheAdlibSoundChunk (int chunk)
+ 
+ void CA_LoadAllSounds (void)
+ {
++#if !NO_SOUND
+     unsigned start,i;
+ 
+     if (oldsoundmode != sdm_Off)
+@@ -831,6 +846,7 @@ void CA_LoadAllSounds (void)
+         for (i=0;i<NUMSOUNDS;i++,start++)
+             CA_CacheAudioChunk(start);
+     }
++#endif
+ }
+ 
+ //===========================================================================
+@@ -958,7 +974,7 @@ void CA_CacheGrChunks (FILE *grfile)
+ 
+         fseek (grfile,pos,SEEK_SET);
+ 
+-        bufferseg = SafeMalloc(compressed);
++        bufferseg = SafeMalloc(compressed + 1); // extra byte for buggy mods
+         source = bufferseg;
+ 
+         fread (source,compressed,1,grfile);
+diff --git a/id_ca.h b/id_ca.h
+index 2e25fb4..9e7768a 100644
+--- a/id_ca.h
++++ b/id_ca.h
+@@ -16,7 +16,7 @@ typedef struct
+     word    planelength[MAPPLANES];
+     word    width,height;
+     char    name[16];
+-} maptype;
++} PACKED maptype;
+ 
+ //===========================================================================
+ 
+diff --git a/id_in.c b/id_in.c
+index 522f1ee..ca81b2d 100644
+--- a/id_in.c
++++ b/id_in.c
+@@ -61,6 +61,9 @@ static	byte    DirTable[] =        // Quick lookup for total direction
+ ///////////////////////////////////////////////////////////////////////////
+ static int INL_GetMouseButtons (void)
+ {
++#if NO_MOUSE
++    int buttons = 0;
++#else
+     int buttons = SDL_GetMouseState(NULL,NULL);
+     int middlePressed = buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE);
+     int rightPressed = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+@@ -71,6 +74,7 @@ static int INL_GetMouseButtons (void)
+         buttons |= 1 << 2;
+     if (rightPressed)
+         buttons |= 1 << 1;
++#endif
+ 
+     return buttons;
+ }
+@@ -81,6 +85,12 @@ static int INL_GetMouseButtons (void)
+ //		joystick (from +/-127)
+ //
+ ///////////////////////////////////////////////////////////////////////////
++#if NO_JOYSTICK
++void IN_GetJoyDelta(int *dx, int *dy) { *dx = 0; *dx = 0; }
++void IN_GetJoyFineDelta(int *dx, int *dy) { *dx = 0; *dx = 0; }
++int IN_JoyButtons(void) { return 0; }
++boolean IN_JoyPresent(void) { return 0; }
++#else
+ void IN_GetJoyDelta (int *dx, int *dy)
+ {
+     if (!Joystick)
+@@ -178,6 +188,7 @@ boolean IN_JoyPresent (void)
+ {
+     return Joystick != NULL;
+ }
++#endif
+ 
+ 
+ /*
+@@ -190,8 +201,10 @@ boolean IN_JoyPresent (void)
+ 
+ void IN_CenterMouse (void)
+ {
++#if !NO_MOUSE
+     if (MousePresent && GrabInput)
+         SDL_WarpMouseInWindow (window,screenWidth / 2,screenHeight / 2);
++#endif
+ }
+ 
+ 
+@@ -203,6 +216,7 @@ void IN_CenterMouse (void)
+ ===================
+ */
+ 
++#ifndef EMBEDDED
+ ScanCode IN_MapKey (int key)
+ {
+     ScanCode scan = key;
+@@ -233,6 +247,7 @@ ScanCode IN_MapKey (int key)
+ 
+     return scan;
+ }
++#endif
+ 
+ 
+ /*
+@@ -243,6 +258,7 @@ ScanCode IN_MapKey (int key)
+ ===================
+ */
+ 
++#if !NO_MOUSE
+ void IN_SetWindowGrab (SDL_Window *window)
+ {
+     const char *which[] = {"hide","show"};
+@@ -255,6 +271,7 @@ void IN_SetWindowGrab (SDL_Window *window)
+     if (SDL_SetRelativeMouseMode(GrabInput))
+         Quit ("Unable to set relative mode for mouse: %s\n",SDL_GetError());
+ }
++#endif
+ 
+ 
+ /*
+@@ -280,6 +297,35 @@ void IN_SetWindowGrab (SDL_Window *window)
+ ===========================================
+ */
+ 
++#ifdef EMBEDDED
++int RunInvert;
++static void IN_HandleEvents(int wait) {
++    for (;;) {
++        int key, type = sys_event(&key);
++        if (type == EVENT_END) {
++            if (!wait) break;
++            SDL_Delay(10);
++            continue;
++        }
++        wait = 0;
++        switch (type) {
++        case EVENT_QUIT:
++            Quit(NULL);
++            break;
++        case EVENT_KEYDOWN:
++            LastScan = key;
++            if (key == sc_CapsLock) RunInvert ^= 1;
++            if (key < sc_Last) Keyboard[key] = 1;
++            break;
++        case EVENT_KEYUP:
++            if (key < sc_Last) Keyboard[key] = 0;
++            break;
++        }
++    }
++}
++void IN_ProcessEvents(void) { IN_HandleEvents(0); }
++void IN_WaitAndProcessEvents(void) { IN_HandleEvents(1); }
++#else
+ static void IN_HandleEvent (SDL_Event *event)
+ {
+     int key;
+@@ -293,6 +339,7 @@ static void IN_HandleEvent (SDL_Event *event)
+             break;
+ 
+         case SDL_KEYDOWN:
++#if !NO_MOUSE
+             if (key == sc_ScrollLock || key == sc_F12)
+             {
+                 GrabInput = !GrabInput;
+@@ -301,6 +348,7 @@ static void IN_HandleEvent (SDL_Event *event)
+ 
+                 return;
+             }
++#endif
+ 
+             LastScan = IN_MapKey(key);
+ 
+@@ -360,6 +408,7 @@ void IN_WaitAndProcessEvents (void)
+     IN_WaitEvent ();
+     IN_ProcessEvents ();
+ }
++#endif
+ 
+ 
+ ///////////////////////////////////////////////////////////////////////////
+@@ -374,6 +423,7 @@ void IN_Startup(void)
+ 
+     IN_ClearKeysDown();
+ 
++#if !NO_JOYSTICK
+     if (param_joystickindex >= 0 && param_joystickindex < SDL_NumJoysticks())
+     {
+         Joystick = SDL_JoystickOpen(param_joystickindex);
+@@ -391,7 +441,9 @@ void IN_Startup(void)
+                 Quit ("The joystickhat param must be between 0 and %i!",JoyNumHats - 1);
+         }
+     }
++#endif
+ 
++#if !NO_MOUSE
+     SDL_EventState (SDL_MOUSEMOTION,SDL_IGNORE);
+ 
+     if (fullscreen || forcegrabmouse)
+@@ -400,12 +452,15 @@ void IN_Startup(void)
+ 
+         IN_SetWindowGrab (window);
+     }
++#endif
+ 
+     // I didn't find a way to ask libSDL whether a mouse is present, yet...
+ #if defined(GP2X)
+     MousePresent = false;
+ #elif defined(_arch_dreamcast)
+     MousePresent = DC_MousePresent();
++#elif NO_MOUSE
++    MousePresent = false;
+ #else
+     MousePresent = true;
+ #endif
+@@ -423,8 +478,10 @@ void IN_Shutdown(void)
+ 	if (!IN_Started)
+ 		return;
+ 
++#if !NO_JOYSTICK
+     if (Joystick)
+         SDL_JoystickClose(Joystick);
++#endif
+ 
+ 	IN_Started = false;
+ }
+@@ -444,7 +501,11 @@ void IN_ClearKeysDown(void)
+ 
+ void IN_ClearTextInput (void)
+ {
++#ifdef EMBEDDED
++    textinput[0] = 0;
++#else
+     memset (textinput,0,sizeof(textinput));
++#endif
+ }
+ 
+ 
+@@ -466,6 +527,7 @@ void IN_ReadControl (ControlInfo *info)
+ 
+ 	IN_ProcessEvents();
+ 
++#ifndef EMBEDDED
+     if (Keyboard[sc_Home])
+     {
+         mx = -1;
+@@ -486,6 +548,7 @@ void IN_ReadControl (ControlInfo *info)
+         mx = 1;
+         my = 1;
+     }
++#endif
+ 
+     if (Keyboard[sc_UpArrow])
+         my = -1;
+diff --git a/id_in.h b/id_in.h
+index 6c557f5..ca60169 100644
+--- a/id_in.h
++++ b/id_in.h
+@@ -8,6 +8,9 @@
+ #ifndef	__ID_IN_H_
+ #define	__ID_IN_H_
+ 
++#ifdef EMBEDDED
++#define TEXTINPUTSIZE   20
++#else
+ #define TEXTINPUTSIZE   SDL_TEXTINPUTEVENT_TEXT_SIZE
+ 
+ #define	sc_None         SDL_SCANCODE_UNKNOWN
+@@ -98,6 +101,7 @@
+ #define	sc_X            SDL_SCANCODE_X
+ #define	sc_Y            SDL_SCANCODE_Y
+ #define	sc_Z            SDL_SCANCODE_Z
++#endif
+ 
+ #define sc_Alt          sc_LAlt
+ #define sc_Control      sc_LControl
+diff --git a/id_sd.c b/id_sd.c
+index 1bd9163..75a56c9 100644
+--- a/id_sd.c
++++ b/id_sd.c
+@@ -28,6 +28,34 @@
+ //
+ 
+ #include "wl_def.h"
++#if NO_SOUND
++boolean AdLibPresent = false, SoundBlasterPresent = false;
++byte SoundMode = smm_Off, MusicMode = smm_Off, DigiMode = sds_Off;
++int DigiMap[LASTSOUND];
++int DigiChannel[STARTMUSIC - STARTDIGISOUNDS];
++
++void Delay(int32_t wolfticks) {
++  if (wolfticks > 0)
++    SDL_Delay((wolfticks * 100) / 7);
++}
++
++void SD_StopDigitized(void) {}
++void SD_PrepareSound(int which) {}
++int SD_PlayDigitized(word which,int leftpos,int rightpos) { return 0; }
++void SD_SetDigiDevice(byte mode) {}
++boolean SD_SetSoundMode(byte mode) { return mode == smm_Off; }
++boolean SD_SetMusicMode(byte mode) { return mode == smm_Off; }
++void SD_Startup(void) {}
++void SD_Shutdown(void) {}
++boolean SD_PlaySound(int sound) { return 0; }
++word SD_SoundPlaying(void) { return 0; }
++void SD_StopSound(void) {}
++void SD_WaitSoundDone(void) {}
++void SD_MusicOn(void) {}
++int SD_MusicOff(void) { return 0; }
++void SD_StartMusic(int chunk) {}
++void SD_ContinueMusic(int chunk, int startoffs) {}
++#else
+ #include <SDL_mixer.h>
+ #if defined(GP2X_940)
+ #include "gp2x/fmopl.h"
+@@ -1294,3 +1322,4 @@ SD_MusicPlaying(void)
+ 
+     return(result);
+ }
++#endif
+diff --git a/id_us.c b/id_us.c
+index 88a5590..7baab83 100644
+--- a/id_us.c
++++ b/id_us.c
+@@ -39,6 +39,10 @@ static	boolean		US_Started;
+ 		void		(*USL_MeasureString)(const char *,word *,word *) = VW_MeasurePropString;
+ 		void		(*USL_DrawString)(const char *) = VWB_DrawPropString;
+ 
++#ifdef __GNUC__
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
++#endif
+ 		SaveGame	Games[MaxSaveGames];
+ 		HighScore	Scores[MaxScores] =
+ 					{
+@@ -50,6 +54,9 @@ static	boolean		US_Started;
+ 						{"John Romero",10000,1},
+ 						{"Jay Wilbur",10000,1},
+ 					};
++#ifdef __GNUC__
++#pragma GCC diagnostic pop
++#endif
+ 
+ int rndindex = 0;
+ 
+@@ -595,6 +602,7 @@ US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+ 			}
+ 		}
+ 
++#if !NO_MOUSE
+ 		if((int)(curtime - lastbuttontime) > TickBase / 4)   // 250 ms
+ 		{
+ 			if(ci.button0)             // acts as return
+@@ -623,11 +631,13 @@ US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+ 				checkkey = false;
+ 			}
+ 		}
++#endif
+ 
+ 		if(checkkey)
+ 		{
+ 			switch (sc)
+ 			{
++#ifndef EMBEDDED
+ 				case sc_LeftArrow:
+ 					if (cursor)
+ 						cursor--;
+@@ -657,6 +667,7 @@ US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+ 					cursor = (int) strlen(s);
+ 					cursormoved = true;
+ 					break;
++#endif
+ 
+ 				case sc_Return:
+ 					snprintf (buf,maxchars + 1,"%s",s);
+@@ -671,6 +682,7 @@ US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+ 					}
+ 					break;
+ 
++#ifndef EMBEDDED
+ 				case sc_BackSpace:
+ 					if (cursor)
+ 					{
+@@ -690,6 +702,7 @@ US_LineInput(int x,int y,char *buf,const char *def,boolean escok,
+ 					}
+ 					cursormoved = true;
+ 					break;
++#endif
+ 			}
+ 
+ 			for (text = textinput; *text; text++)
+diff --git a/id_vh.c b/id_vh.c
+index 2f85e15..12d9097 100644
+--- a/id_vh.c
++++ b/id_vh.c
+@@ -73,11 +73,15 @@ void VW_MeasurePropString (const char *string, word *width, word *height)
+ 
+ void VH_UpdateScreen (SDL_Surface *surface)
+ {
++#ifdef EMBEDDED
++    wlsys_refresh(surface, 0);
++#else
+ 	SDL_BlitSurface (surface,NULL,screen,NULL);
+ 
+     SDL_UpdateTexture(texture, NULL, screen->pixels, screenPitch);
+     SDL_RenderCopy(renderer, texture, NULL, NULL);
+     SDL_RenderPresent(renderer);
++#endif
+ }
+ 
+ void VWB_DrawTile8 (int x, int y, int tile)
+@@ -236,10 +240,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+             return true;
+         }
+ 
++#ifdef EMBEDDED
++        sys_wait_refresh();
++#else
+         byte *destptr = VL_LockSurface(screen);
+-
+         if (!destptr)
+             Quit ("Unable to lock dest surface: %s\n",SDL_GetError());
++#endif
+ 
+         for (p = 0; p < pixperframe; p++)
+         {
+@@ -261,6 +268,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+                 //
+                 // copy one pixel
+                 //
++#ifdef EMBEDDED
++                {
++                    unsigned pos = (y1 + y) * screenWidth + x1 + x;
++                    uint16_t *d = framebuf, *pal = d - 0x100;
++                    d[pos] = pal[srcptr[pos]];
++                }
++#else
+                 if(screenBits == 8)
+                 {
+                     *(destptr + (y1 + y) * screen->pitch + x1 + x)
+@@ -273,6 +287,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+                     memcpy(destptr + (y1 + y) * screen->pitch + (x1 + x) * screen->format->BytesPerPixel,
+                         &fullcol, screen->format->BytesPerPixel);
+                 }
++#endif
+             }
+ 
+             if (rndval == 1)
+@@ -282,7 +297,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+                 //
+                 VL_UnlockSurface (screenBuffer);
+                 VL_UnlockSurface (screen);
+-                VH_UpdateScreen (screenBuffer);
++                VW_UpdateScreenEx (1 | 16);
+ 
+                 return false;
+             }
+@@ -290,9 +305,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+ 
+         VL_UnlockSurface(screen);
+ 
++#ifdef EMBEDDED
++        sys_start_refresh();
++#else
+         SDL_UpdateTexture(texture, NULL, screen->pixels, screenPitch);
+         SDL_RenderCopy(renderer, texture, NULL, NULL);
+         SDL_RenderPresent(renderer);
++#endif
+ 
+         frame++;
+         Delay(frame - GetTimeCount());        // don't go too fast
+diff --git a/id_vh.h b/id_vh.h
+index 851e80e..1e328da 100644
+--- a/id_vh.h
++++ b/id_vh.h
+@@ -67,7 +67,22 @@ void VWB_Vlin (int y1, int y2, int x, int color);
+ #define VWB_VlinScaledCoord VW_Vlin
+ 
+ void VH_UpdateScreen (SDL_Surface *surface);
++#if TRACE_UPDATE
++void print_trace(const char *file, int line);
++#define VW_UpdateScreen1() do { \
++    print_trace(__FILE__, __LINE__); \
++    VH_UpdateScreen (screenBuffer); \
++} while (0)
++#define VW_UpdateScreen VW_UpdateScreen1
++#else
+ #define VW_UpdateScreen()   VH_UpdateScreen (screenBuffer)
++#endif
++#ifdef EMBEDDED
++#define VW_UpdateScreenEx(type) wlsys_refresh(screenBuffer, type)
++#else
++#define VW_UpdateScreenEx(type) VW_UpdateScreen()
++#endif
++
+ 
+ //
+ // wolfenstein EGA compatability stuff
+diff --git a/id_vl.c b/id_vl.c
+index e19cb31..ba1d485 100644
+--- a/id_vl.c
++++ b/id_vl.c
+@@ -39,11 +39,15 @@ unsigned screenPitch;
+ SDL_Surface *screenBuffer = NULL;
+ unsigned bufferPitch;
+ 
++#ifndef EMBEDDED
+ SDL_Window *window = NULL;
+ SDL_Renderer *renderer = NULL;
+ SDL_Texture *texture = NULL;
++#endif
+ 
++#if EMBEDDED != 2
+ int      scaleFactor;
++#endif
+ 
+ boolean	 screenfaded;
+ unsigned bordercolor;
+@@ -55,7 +59,11 @@ SDL_Color curpal[256];
+ 
+ 
+ #define CASSERT(x) extern int ASSERT_COMPILE[((x) != 0) * 2 - 1];
++#ifdef EMBEDDED
++#define RGB(r, g, b) {(r)*65>>4, (g)*65>>4, (b)*65>>4, SDL_ALPHA_OPAQUE}
++#else
+ #define RGB(r, g, b) {(r)*255/63, (g)*255/63, (b)*255/63, SDL_ALPHA_OPAQUE}
++#endif
+ 
+ SDL_Color gamepal[]={
+ #ifdef SPEAR
+@@ -80,11 +88,13 @@ CASSERT(lengthof(gamepal) == 256)
+ 
+ void VL_Shutdown (void)
+ {
+-    SDL_FreeSurface (screenBuffer);
+-
++#ifdef EMBEDDED
++    wlsys_end();
++#else
+     SDL_DestroyRenderer(renderer);
+     SDL_DestroyWindow(window);
+     SDL_DestroyTexture(texture);
++#endif
+ 
+     free (ylookup);
+     free (pixelangle);
+@@ -112,6 +122,12 @@ void VL_Shutdown (void)
+ void VL_SetVGAPlaneMode (void)
+ {
+     int i;
++#ifdef EMBEDDED
++    screenBuffer = wlsys_init();
++    memcpy(curpal, gamepal, sizeof(SDL_Color) * 256);
++    wlsys_setpal(gamepal);
++    bufferPitch = screenWidth;
++#else
+     uint32_t a,r,g,b;
+ 
+ #ifdef SPEAR
+@@ -157,9 +173,12 @@ void VL_SetVGAPlaneMode (void)
+ 
+     screenPitch = screen->pitch;
+     bufferPitch = screenBuffer->pitch;
++#endif
+ 
++#if EMBEDDED != 2
+     scaleFactor = screenWidth/320;
+     if(screenHeight/200 < scaleFactor) scaleFactor = screenHeight/200;
++#endif
+ 
+     ylookup = SafeMalloc(screenHeight * sizeof(*ylookup));
+     pixelangle = SafeMalloc(screenWidth * sizeof(*pixelangle));
+@@ -259,6 +278,10 @@ void VL_SetPalette (SDL_Color *palette, bool forceupdate)
+ {
+     memcpy(curpal, palette, sizeof(SDL_Color) * 256);
+ 
++#ifdef EMBEDDED
++    wlsys_setpal(palette);
++    if (forceupdate) wlsys_refresh(screenBuffer, last_refresh_type);
++#else
+     if(screenBits == 8)
+         SDL_SetPaletteColors(screen->format->palette, palette, 0, 256);
+     else
+@@ -267,6 +290,7 @@ void VL_SetPalette (SDL_Color *palette, bool forceupdate)
+         if (forceupdate)
+             VH_UpdateScreen (screenBuffer);
+     }
++#endif
+ }
+ 
+ 
+@@ -398,6 +422,13 @@ void VL_FadeIn (int start, int end, SDL_Color *palette, int steps)
+ =============================================================================
+ */
+ 
++#ifdef EMBEDDED
++byte *VL_LockSurface(SDL_Surface *surface) { return surface; }
++void VL_UnlockSurface(SDL_Surface *surface) { (void)surface; }
++void VL_ClearScreen(int c) {
++    memset(screenBuffer, c, screenWidth * screenHeight);
++}
++#else
+ byte *VL_LockSurface(SDL_Surface *surface)
+ {
+     if(SDL_MUSTLOCK(surface))
+@@ -415,6 +446,7 @@ void VL_UnlockSurface(SDL_Surface *surface)
+         SDL_UnlockSurface(surface);
+     }
+ }
++#endif
+ 
+ /*
+ =================
+@@ -459,7 +491,11 @@ byte VL_GetPixel (int x, int y)
+     if (!VL_LockSurface(screenBuffer))
+         return 0;
+ 
++#ifdef EMBEDDED
++    col = screenBuffer[ylookup[y] + x];
++#else
+     col = ((byte *) screenBuffer->pixels)[ylookup[y] + x];
++#endif
+ 
+     VL_UnlockSurface(screenBuffer);
+ 
+@@ -717,7 +753,9 @@ void VL_MemToScreenScaledCoord2 (byte *source, int origwidth, int srcx, int srcy
+ =================
+ */
+ 
++#ifndef EMBEDDED
+ void VL_ScreenToScreen (SDL_Surface *source, SDL_Surface *dest)
+ {
+     SDL_BlitSurface(source, NULL, dest, NULL);
+ }
++#endif
+diff --git a/id_vl.h b/id_vl.h
+index 8fb4851..7816cb8 100644
+--- a/id_vl.h
++++ b/id_vl.h
+@@ -13,15 +13,21 @@
+ //===========================================================================
+ 
+ extern SDL_Surface *screen, *screenBuffer;
++#ifndef EMBEDDED
+ extern SDL_Window *window;
+ extern SDL_Renderer *renderer;
+ extern SDL_Texture *texture;
++#endif
+ 
+ extern  boolean  fullscreen;
+ extern  int16_t  screenWidth, screenHeight;
+ extern  unsigned screenPitch, bufferPitch;
+ extern  int      screenBits;
++#if EMBEDDED == 2
++#define scaleFactor 1
++#else
+ extern  int      scaleFactor;
++#endif
+ 
+ extern	boolean  screenfaded;
+ extern	unsigned bordercolor;
+@@ -37,7 +43,11 @@ extern SDL_Color gamepal[256];
+ //
+ 
+ #define VL_WaitVBL(a)        SDL_Delay((a)*8)
++#ifdef EMBEDDED
++void VL_ClearScreen(int c);
++#else
+ #define VL_ClearScreen(c)    SDL_FillRect(screenBuffer,NULL,(c))
++#endif
+ 
+ void VL_DePlaneVGA (byte *source, int width, int height);
+ void VL_SetVGAPlaneMode (void);
+diff --git a/version.h b/version.h
+index 791e595..f36a71d 100644
+--- a/version.h
++++ b/version.h
+@@ -48,7 +48,9 @@
+ //#define VIEWMAP             // Enables the overhead map
+ //#define REVEALMAP           // Enables showing only the areas of the overhead map that have been seen
+ 
++#if 0
+ #define DEBUGKEYS             // Comment this out to compile without the Tab debug keys
++#endif
+ #define ARTSEXTERN
+ #define DEMOSEXTERN
+ #define PLAYDEMOLIKEORIGINAL  // When playing or recording demos, several bug fixes do not take
+diff --git a/wl_act1.c b/wl_act1.c
+index f49f80f..cbd2d83 100644
+--- a/wl_act1.c
++++ b/wl_act1.c
+@@ -22,6 +22,10 @@ typedef struct
+     uint32_t   specialFlags;    // they are ORed to the statobj_t flags
+ } statinfo_t;
+ 
++#ifdef __GNUC__
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
++#endif
+ statinfo_t statinfo[] =
+ {
+     {SPR_STAT_0},                           // puddle          spr1v
+@@ -121,6 +125,9 @@ statinfo_t statinfo[] =
+ #endif
+     {-1}                                    // terminator
+ };
++#ifdef __GNUC__
++#pragma GCC diagnostic pop
++#endif
+ 
+ /*
+ ===============
+diff --git a/wl_act2.c b/wl_act2.c
+index 0678042..4afcf37 100644
+--- a/wl_act2.c
++++ b/wl_act2.c
+@@ -1644,10 +1644,14 @@ void T_Launch (objtype *ob)
+ 
+     deltax = player->x - ob->x;
+     deltay = ob->y - player->y;
++#ifdef EMBEDDED
++    iangle = CalcAngle (deltay, deltax);
++#else
+     angle = (float) atan2 ((float) deltay, (float) deltax);
+     if (angle<0)
+         angle = (float) (M_PI*2+angle);
+     iangle = (int) (angle/(M_PI*2)*ANGLES);
++#endif
+     if (ob->obclass == deathobj)
+     {
+         T_Shoot (ob);
+@@ -2316,10 +2320,14 @@ void T_SchabbThrow (objtype *ob)
+ 
+     deltax = player->x - ob->x;
+     deltay = ob->y - player->y;
++#ifdef EMBEDDED
++    iangle = CalcAngle (deltay, deltax);
++#else
+     angle = (float) atan2((float) deltay, (float) deltax);
+     if (angle<0)
+         angle = (float) (M_PI*2+angle);
+     iangle = (int) (angle/(M_PI*2)*ANGLES);
++#endif
+ 
+     newobj = GetNewActor();
+     newobj->state = &s_needle1;
+@@ -2357,10 +2365,14 @@ void T_GiftThrow (objtype *ob)
+ 
+     deltax = player->x - ob->x;
+     deltay = ob->y - player->y;
++#ifdef EMBEDDED
++    iangle = CalcAngle (deltay, deltax);
++#else
+     angle = (float) atan2((float) deltay, (float) deltax);
+     if (angle<0)
+         angle = (float) (M_PI*2+angle);
+     iangle = (int) (angle/(M_PI*2)*ANGLES);
++#endif
+ 
+     newobj = GetNewActor();
+     newobj->state = &s_rocket;
+@@ -2956,10 +2968,14 @@ void T_FakeFire (objtype *ob)
+ 
+     deltax = player->x - ob->x;
+     deltay = ob->y - player->y;
++#ifdef EMBEDDED
++    iangle = CalcAngle (deltay, deltax);
++#else
+     angle = (float) atan2((float) deltay, (float) deltax);
+     if (angle<0)
+         angle = (float)(M_PI*2+angle);
+     iangle = (int) (angle/(M_PI*2)*ANGLES);
++#endif
+ 
+     newobj = GetNewActor();
+     newobj->state = &s_fire1;
+@@ -3856,11 +3872,15 @@ void    A_StartDeathCam (objtype *ob)
+     dx = ob->x - player->x;
+     dy = player->y - ob->y;
+ 
++#ifdef EMBEDDED
++    player->angle = CalcAngle (dy, dx);
++#else
+     fangle = (float) atan2((float) dy, (float) dx);          // returns -pi to pi
+     if (fangle<0)
+         fangle = (float) (M_PI*2+fangle);
+ 
+     player->angle = (short) (fangle/(M_PI*2)*ANGLES);
++#endif
+ 
+     //
+     // try to position as close as possible without being in a wall
+diff --git a/wl_debug.c b/wl_debug.c
+index ae6c1b8..b6bf702 100644
+--- a/wl_debug.c
++++ b/wl_debug.c
+@@ -326,11 +326,13 @@ void ShapeTest (void)
+                 //
+                 // display sound info
+                 //
++#if !NO_SOUND
+                 US_Print ("\n\n Number of sounds: ");
+                 US_PrintUnsigned (NumDigi);
+ 
+ 				for (l = j = 0; j < NumDigi; j++)
+ 					l += DigiList[j].length;
++#endif
+ 
+                 US_Print ("\n Total bytes: ");
+                 US_PrintUnsigned (l);
+@@ -342,6 +344,7 @@ void ShapeTest (void)
+                 //
+                 // display sounds
+                 //
++#if !NO_SOUND
+                 for (j = 0; j < NumDigi; j++)
+                 {
+                     if (j == NumDigi - 1)
+@@ -362,6 +365,7 @@ void ShapeTest (void)
+                     US_Print ("\n Segment #");
+                     US_PrintSigned (i - PMSoundStart - DigiList[j].startpage);
+                 }
++#endif
+ 
+                 for (j = 0; j < pageLengths[i]; j += 32)
+                 {
+@@ -1059,7 +1063,7 @@ void OverheadRefresh (void)
+     VL_UnlockSurface (screenBuffer);
+     vbuf = NULL;
+ 
+-    VH_UpdateScreen (screenBuffer);
++    VW_UpdateScreenEx (1);
+ }
+ 
+ 
+diff --git a/wl_def.h b/wl_def.h
+index a45a551..153f44e 100644
+--- a/wl_def.h
++++ b/wl_def.h
+@@ -21,13 +21,24 @@
+ #	include <string.h>
+ #	include <stdarg.h>
+ #endif
++#ifdef EMBEDDED
++#include "wlsys_def.h"
++#else
+ #include <SDL.h>
++#endif
+ 
+ #if !defined O_BINARY
+ #	define O_BINARY 0
+ #endif
+ 
++#if 0
+ #pragma pack(1)
++#endif
++#ifdef __GNUC__
++#define PACKED __attribute__((packed))
++#else
++#define PACKED
++#endif
+ 
+ #if defined(_arch_dreamcast)
+ #define YESBUTTONNAME "A"
+@@ -1486,6 +1497,13 @@ void GP2X_ButtonUp (int button);
+ #define ISPOINTER(x) ((((uintptr_t)(x)) & ~0xffff) != 0)
+ 
+ #ifndef _WIN32
++#if 1
++static inline char *itoa(int value, char *string, int radix) {
++    sprintf(string,"%d",value);
++    return string;
++}
++#define ltoa itoa
++#else /* What the hell is this? */
+     static inline char *itoa (int value, char *string, int radix)
+     {
+         int len = strlen(string) + 1;
+@@ -1504,6 +1522,7 @@ void GP2X_ButtonUp (int button);
+ 	    return string;
+     }
+ #endif
++#endif
+ 
+ 
+ /*
+diff --git a/wl_draw.c b/wl_draw.c
+index 5dd58a5..0a1f874 100644
+--- a/wl_draw.c
++++ b/wl_draw.c
+@@ -43,8 +43,12 @@ int16_t *wallheight;
+ // math tables
+ //
+ short *pixelangle;
++#if NO_FLOAT
++#include "wolf3d_tables.h"
++#else
+ int32_t finetangent[FINEANGLES/4];
+ fixed sintable[ANGLES+ANGLES/4];
++#endif
+ fixed *costable = sintable+(ANGLES/4);
+ 
+ //
+@@ -649,11 +653,17 @@ int CalcRotate (objtype *ob)
+     // this isn't exactly correct, as it should vary by a trig value,
+     // but it is close enough with only eight rotations
+ 
++#ifdef EMBEDDED
++    viewangle = (centerx - ob->viewx) * CalcRotateMult;
++    if (viewangle < 0) viewangle += (1 << (16 + 3)) - 1;
++    viewangle = player->angle + (viewangle >> (16 + 3));
++#else
+ #ifdef FIXCALCROTATE
+     viewangle = (int)( player->angle + (centerx - ob->viewx) / (8 * viewwidth / 320.0) );
+ #else
+     viewangle = player->angle + (centerx - ob->viewx)/8;
+ #endif
++#endif
+ 
+ 
+     if (ob->obclass == rocketobj || ob->obclass == hrocketobj)
+@@ -1556,7 +1566,7 @@ void ThreeDRefresh (void)
+             US_Print(" fps");
+         }
+ #endif
+-        VW_UpdateScreen ();
++        VW_UpdateScreenEx (1);
+     }
+ 
+ #ifndef REMDEBUG
+diff --git a/wl_game.c b/wl_game.c
+index 6cab64e..f44b7ee 100644
+--- a/wl_game.c
++++ b/wl_game.c
+@@ -1,7 +1,9 @@
+ // WL_GAME.C
+ 
+ #include "wl_def.h"
++#if !NO_SOUND
+ #include <SDL_mixer.h>
++#endif
+ 
+ /*
+ =============================================================================
+@@ -162,6 +164,10 @@ SetSoundLoc(fixed gx,fixed gy)
+ =
+ ==========================
+ */
++#if NO_SOUND
++void PlaySoundLocGlobal(int s,fixed gx,fixed gy) {}
++void UpdateSoundLoc(void) {}
++#else
+ void PlaySoundLocGlobal(int s,fixed gx,fixed gy)
+ {
+     SetSoundLoc(gx, gy);
+@@ -196,6 +202,7 @@ void UpdateSoundLoc(void)
+         }
+     }
+ }
++#endif
+ 
+ /*
+ **      JAB End
+@@ -1218,11 +1225,15 @@ void Died (void)
+         dx = LastAttacker->x - player->x;
+         dy = player->y - LastAttacker->y;
+ 
++#ifdef EMBEDDED
++        iangle = CalcAngle (dy, dx);
++#else
+         fangle = (float) atan2((float) dy, (float) dx);     // returns -pi to pi
+         if (fangle<0)
+             fangle = (float) (M_PI*2+fangle);
+ 
+         iangle = (int) (fangle/(M_PI*2)*ANGLES);
++#endif
+     }
+     else
+     {
+diff --git a/wl_inter.c b/wl_inter.c
+index d25bc8b..e9301c1 100644
+--- a/wl_inter.c
++++ b/wl_inter.c
+@@ -418,7 +418,7 @@ LevelCompleted (void)
+     int x, i, min, sec, ratio, kr, sr, tr;
+     char tempstr[10];
+     int32_t bonus, timeleft = 0;
+-    times parTimes[] = {
++    static const times parTimes[] = {
+ #ifndef SPEAR
+         //
+         // Episode One Par Times
+@@ -530,6 +530,9 @@ LevelCompleted (void)
+ #endif
+     };
+ 
++#ifdef EMBEDDED
++    force_refresh_type = 2;
++#endif
+     ClearSplitVWB ();           // set up for double buffering in split screen
+     VWB_Bar (0, 0, 320, screenHeight / scaleFactor - STATUSLINES + 1, VIEWCOLOR);
+ 
+@@ -593,8 +596,23 @@ LevelCompleted (void)
+         if (sec > 99 * 60)      // 99 minutes max
+             sec = 99 * 60;
+ 
++#if NO_FLOAT
++        {
++            float f = parTimes[gamestate.episode * 10 + gamestate.mapon].time;
++            union { float f; uint32_t i; } u = { f };
++            uint32_t raw = u.i;
++            int exp = (raw >> 23) - 127, tmp = 0;
++            if (exp > -16) {
++                tmp = (raw >> 7 & 0xffff) | 0x10000;
++                tmp = tmp * 4200 >> (16 - exp);
++            }
++            if (gamestate.TimeCount < tmp)
++                timeleft = tmp / 70 - sec;
++        }
++#else
+         if (gamestate.TimeCount < parTimes[gamestate.episode * 10 + gamestate.mapon].time * 4200)
+             timeleft = (int32_t) ((parTimes[gamestate.episode * 10 + gamestate.mapon].time * 4200) / 70 - sec);
++#endif
+ 
+         min = sec / 60;
+         sec %= 60;
+@@ -897,6 +915,9 @@ done:   itoa (kr, tempstr, 10);
+ 
+     VW_FadeOut ();
+     DrawPlayBorder();
++#ifdef EMBEDDED
++    force_refresh_type = 0;
++#endif
+ }
+ 
+ 
+@@ -930,7 +951,7 @@ PreloadUpdate (unsigned current, unsigned total)
+             w - scaleFactor * 1, scaleFactor * 1, 0x32);
+ 
+     }
+-    VW_UpdateScreen ();
++    VW_UpdateScreenEx (1);
+ //      if (LastScan == sc_Escape)
+ //      {
+ //              IN_ClearKeysDown();
+@@ -955,7 +976,7 @@ PreloadGraphics (void)
+     WindowW = scaleFactor * 28 * 8;
+     WindowH = scaleFactor * 48;
+ 
+-    VW_UpdateScreen ();
++    VW_UpdateScreenEx (1);
+     VW_FadeIn ();
+ 
+ //      PM_Preload (PreloadUpdate);
+@@ -964,7 +985,7 @@ PreloadGraphics (void)
+     VW_FadeOut ();
+ 
+     DrawPlayBorder ();
+-    VW_UpdateScreen ();
++    VW_UpdateScreenEx (1);
+ }
+ 
+ 
+diff --git a/wl_main.c b/wl_main.c
+index 840c6de..535e5ce 100644
+--- a/wl_main.c
++++ b/wl_main.c
+@@ -8,7 +8,9 @@
+ 
+ #include "wl_def.h"
+ #include "wl_atmos.h"
++#ifndef EMBEDDED
+ #include <SDL_syswm.h>
++#endif
+ 
+ 
+ /*
+@@ -71,7 +73,11 @@ boolean loadedgame;
+ int     mouseadjustment;
+ 
+ char    configdir[256] = "";
++#if EMBEDDED == 2
++char    configname[13] = "fpconfig.";
++#else
+ char    configname[13] = "config.";
++#endif
+ 
+ //
+ // Command line parameter variables
+@@ -231,7 +237,11 @@ noconfig:
+         if (IN_JoyPresent())
+             joystickenabled = true;
+ 
++#ifdef EMBEDDED
++        viewsize = 20;
++#else
+         viewsize = 19;                          // start with a good size
++#endif
+         mouseadjustment=5;
+     }
+ 
+@@ -707,6 +717,7 @@ const float radtoint = (float)(FINEANGLES/2/PI);
+ 
+ void BuildTables (void)
+ {
++#if !NO_FLOAT
+     //
+     // calculate fine tangents
+     //
+@@ -739,6 +750,7 @@ void BuildTables (void)
+ #if defined(USE_STARSKY) || defined(USE_RAIN) || defined(USE_SNOW)
+     Init3DPoints();
+ #endif
++#endif
+ }
+ 
+ //===========================================================================
+@@ -756,6 +768,27 @@ void BuildTables (void)
+ 
+ void CalcProjection (int32_t focal)
+ {
++#ifdef EMBEDDED
++#if VIEWGLOBAL != 0x10000
++#error
++#endif
++    int i, intang, halfview;
++    int32_t facedist;
++
++    focallength = focal;
++    facedist = focal + MINDIST;
++    halfview = viewwidth/2;
++
++    scale = (long long)halfview*facedist>>15;
++    heightnumerator = (TILEGLOBAL*scale)>>6;
++
++    for (i=0;i<halfview;i++)
++    {
++        intang = ProjectionAngle((i<<16)/viewwidth, facedist);
++        pixelangle[halfview-1-i] = intang;
++        pixelangle[halfview+i] = -intang;
++    }
++#else
+     int     i;
+     int    intang;
+     float   angle;
+@@ -792,6 +825,7 @@ void CalcProjection (int32_t focal)
+         pixelangle[halfview-1-i] = intang;
+         pixelangle[halfview+i] = -intang;
+     }
++#endif
+ }
+ 
+ 
+@@ -1197,6 +1231,7 @@ static void InitGame()
+     boolean didjukebox=false;
+ #endif
+ 
++#ifndef EMBEDDED
+     // initialize SDL
+     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
+     {
+@@ -1204,7 +1239,9 @@ static void InitGame()
+         exit(1);
+     }
+     atexit(SDL_Quit);
++#endif
+ 
++#if !NO_JOYSTICK
+     int numJoysticks = SDL_NumJoysticks();
+     if(param_joystickindex && (param_joystickindex < -1 || param_joystickindex >= numJoysticks))
+     {
+@@ -1214,6 +1251,7 @@ static void InitGame()
+             printf("The joystick index must be between -1 and %i!\n", numJoysticks - 1);
+         exit(1);
+     }
++#endif
+ 
+ #if defined(GP2X_940)
+     GP2X_MemoryInit();
+@@ -1317,6 +1355,9 @@ static void InitGame()
+ boolean SetViewSize (unsigned width, unsigned height)
+ {
+     viewwidth = width&~15;                  // must be divisable by 16
++#ifdef EMBEDDED
++    CalcRotateMult = ((320 << 16) + (viewwidth >> 1)) / viewwidth;
++#endif
+     viewheight = height&~1;                 // must be even
+     centerx = viewwidth/2-1;
+     centery = viewheight / 2;
+@@ -1361,7 +1402,7 @@ void ShowViewSize (int width)
+     else
+     {
+         viewwidth = width*16*screenWidth/320;
+-        viewheight = (int) (width*16*HEIGHTRATIO*screenHeight/200);
++        viewheight = (int) (width*(int)(16*HEIGHTRATIO)*screenHeight/200);
+         DrawPlayBorder ();
+     }
+ 
+@@ -1378,7 +1419,7 @@ void NewViewSize (int width)
+     else if(viewsize == 20)
+         SetViewSize(screenWidth, screenHeight - scaleFactor * STATUSLINES);
+     else
+-        SetViewSize(width*16*screenWidth/320, (unsigned) (width*16*HEIGHTRATIO*screenHeight/200));
++        SetViewSize(width*16*screenWidth/320, (unsigned) (width*(int)(16*HEIGHTRATIO)*screenHeight/200));
+ }
+ 
+ 
+@@ -1628,6 +1669,7 @@ void CheckParameters(int argc, char *argv[])
+             else
+                 param_tedlevel = atoi(argv[i]);
+         }
++#if EMBEDDED != 2
+         else IFARG("--windowed")
+             fullscreen = false;
+         else IFARG("--windowed-mouse")
+@@ -1662,6 +1704,8 @@ void CheckParameters(int argc, char *argv[])
+                     snprintf (error,sizeof(error),"Screen height must be at least 200!");
+             }
+         }
++#endif
++#ifndef EMBEDDED
+         else IFARG("--bits")
+         {
+             if (++i >= argc)
+@@ -1674,6 +1718,7 @@ void CheckParameters(int argc, char *argv[])
+                     snprintf (error,sizeof(error),"Screen color depth must be 8, 16, 24, or 32!");
+             }
+         }
++#endif
+         else IFARG("--extravbls")
+         {
+             if (++i >= argc)
+@@ -1685,6 +1730,7 @@ void CheckParameters(int argc, char *argv[])
+                     snprintf (error,sizeof(error),"Extravbls must be positive!");
+             }
+         }
++#if !NO_JOYSTICK
+         else IFARG("--joystick")
+         {
+             if (++i >= argc)
+@@ -1699,6 +1745,8 @@ void CheckParameters(int argc, char *argv[])
+             else
+                 param_joystickhat = atoi(argv[i]);
+         }
++#endif
++#if !NO_SOUND
+         else IFARG("--samplerate")
+         {
+             if (++i >= argc)
+@@ -1718,6 +1766,7 @@ void CheckParameters(int argc, char *argv[])
+             else
+                 param_audiobuffer = atoi(argv[i]);
+         }
++#endif
+         else IFARG("--mission")
+         {
+             if (++i >= argc)
+diff --git a/wl_menu.c b/wl_menu.c
+index 0b72c63..ea363a5 100644
+--- a/wl_menu.c
++++ b/wl_menu.c
+@@ -15,6 +15,15 @@
+ #endif
+ 
+ #include "wl_def.h"
++#ifdef EMBEDDED
++#define stat stat_fix
++struct stat { int dummy; };
++static int stat(const char *fn, struct stat *buf) {
++    FILE *f = fopen(fn, "rb");
++    if (f) { (void)buf; fclose(f); }
++    return !f;
++}
++#endif
+ 
+ //
+ // PRIVATE PROTOTYPES
+@@ -377,6 +386,7 @@ US_ControlPanel (ScanCode scancode)
+     //
+     // F-KEYS FROM WITHIN GAME
+     //
++#ifndef EMBEDDED
+     switch (scancode)
+     {
+         case sc_F1:
+@@ -411,6 +421,7 @@ US_ControlPanel (ScanCode scancode)
+             CleanupControlPanel ();
+             return;
+     }
++#endif
+ 
+     DrawMainMenu ();
+     MenuFadeIn ();
+@@ -475,6 +486,9 @@ US_ControlPanel (ScanCode scancode)
+                 }
+                 break;
+ 
++#ifdef EMBEDDED
++            case -1:
++#endif
+             case backtodemo:
+                 StartGame = 1;
+                 if (!ingame)
+@@ -482,7 +496,9 @@ US_ControlPanel (ScanCode scancode)
+                 VL_FadeOut (0, 255, 0, 0, 0, 10);
+                 break;
+ 
++#ifndef EMBEDDED
+             case -1:
++#endif
+             case quit:
+                 CP_Quit (0);
+                 break;
+@@ -657,6 +673,7 @@ void BossKey (void)
+ int
+ CP_CheckQuick (ScanCode scancode)
+ {
++#ifndef EMBEDDED
+     switch (scancode)
+     {
+         //
+@@ -791,6 +808,7 @@ CP_CheckQuick (ScanCode scancode)
+             fontnumber = 0;
+             return 1;
+     }
++#endif
+ 
+     return 0;
+ }
+@@ -1525,7 +1543,9 @@ CP_SaveGame (int quick)
+             else
+                 snprintf (savepath,sizeof(savepath),"%s",name);
+ 
++#ifndef EMBEDDED
+             unlink (savepath);
++#endif
+             file = fopen (savepath, "wb");
+ 
+             snprintf (input,sizeof(input),"%s",SaveGameNames[which]);
+@@ -1595,7 +1615,9 @@ CP_SaveGame (int quick)
+                 else
+                     snprintf (savepath,sizeof(savepath),"%s",name);
+ 
++#ifndef EMBEDDED
+                 unlink (savepath);
++#endif
+                 file = fopen (savepath, "wb");
+                 fwrite (input, 32, 1, file);
+                 fseek (file, 32, SEEK_SET);
+@@ -1653,6 +1675,7 @@ CP_Control (int blank)
+         which = HandleMenu (&CtlItems, CtlMenu, NULL);
+         switch (which)
+         {
++#if !NO_MOUSE
+             case CTL_MOUSEENABLE:
+                 mouseenabled ^= 1;
+                 IN_CenterMouse ();
+@@ -1660,13 +1683,16 @@ CP_Control (int blank)
+                 CusItems.curpos = -1;
+                 ShootSnd ();
+                 break;
++#endif
+ 
++#if !NO_JOYSTICK
+             case CTL_JOYENABLE:
+                 joystickenabled ^= 1;
+                 DrawCtlScreen ();
+                 CusItems.curpos = -1;
+                 ShootSnd ();
+                 break;
++#endif
+ 
+             case CTL_MOUSESENS:
+             case CTL_CUSTOMIZE:
+@@ -1688,6 +1714,9 @@ CP_Control (int blank)
+ //
+ // DRAW MOUSE SENSITIVITY SCREEN
+ //
++#if NO_MOUSE
++int MouseSensitivity(int blank) { return 0; }
++#else
+ void
+ DrawMouseSens (void)
+ {
+@@ -1744,7 +1773,6 @@ MouseSensitivity (int blank)
+     ControlInfo ci;
+     int exit = 0, oldMA;
+ 
+-
+     oldMA = mouseadjustment;
+     DrawMouseSens ();
+     do
+@@ -1805,6 +1833,7 @@ MouseSensitivity (int blank)
+ 
+     return 0;
+ }
++#endif
+ 
+ 
+ ///////////////////////////
+@@ -2034,7 +2063,7 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
+         //
+         // CHANGE BUTTON VALUE?
+         //
+-        if ((type != KEYBOARDBTNS && type != KEYBOARDMOVE) && (ci.button0 | ci.button1 | ci.button2 | ci.button3) ||
++        if (((type != KEYBOARDBTNS && type != KEYBOARDMOVE) && (ci.button0 | ci.button1 | ci.button2 | ci.button3)) ||
+             ((type == KEYBOARDBTNS || type == KEYBOARDMOVE) && LastScan == sc_Enter))
+         {
+             lastFlashTime = GetTimeCount();
+@@ -2074,6 +2103,7 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
+                 //
+                 switch (type)
+                 {
++#if !NO_MOUSE
+                     case MOUSE:
+                         button = IN_MouseButtons();
+                         switch (button)
+@@ -2103,7 +2133,9 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
+                             SD_PlaySound (SHOOTDOORSND);
+                         }
+                         break;
++#endif
+ 
++#if !NO_JOYSTICK
+                     case JOYSTICK:
+                         if (ci.button0)
+                             result = 1;
+@@ -2130,6 +2162,7 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
+                             SD_PlaySound (SHOOTDOORSND);
+                         }
+                         break;
++#endif
+ 
+                     case KEYBOARDBTNS:
+                         if (LastScan && LastScan != sc_Escape)
+@@ -2155,7 +2188,7 @@ EnterCtrlData (int index, CustomCtrls * cust, void (*DrawRtn) (int), void (*Prin
+                 //
+                 // EXIT INPUT?
+                 //
+-                if (Keyboard[sc_Escape] || type != JOYSTICK && ci.button1)
++                if (Keyboard[sc_Escape] || (type != JOYSTICK && ci.button1))
+                 {
+                     picked = 1;
+                     SD_PlaySound (ESCPRESSEDSND);
+@@ -2623,7 +2656,10 @@ CP_ChangeView (int blank)
+     ControlInfo ci;
+ 
+     WindowX = WindowY = 0;
+-    WindowW = 320;
++#ifdef EMBEDDED
++    force_refresh_type = 1;
++#endif
++    WindowW = screenWidth / scaleFactor;
+     WindowH = 200;
+     newview = oldview = viewsize;
+     DrawChangeView (oldview);
+@@ -2668,10 +2704,7 @@ CP_ChangeView (int blank)
+         else if (ci.button1 || Keyboard[sc_Escape])
+         {
+             SD_PlaySound (ESCPRESSEDSND);
+-            MenuFadeOut ();
+-            if(screenHeight % 200 != 0)
+-                VL_ClearScreen(0);
+-            return 0;
++            goto end;
+         }
+     }
+     while (!exit);
+@@ -2679,12 +2712,18 @@ CP_ChangeView (int blank)
+     if (oldview != newview)
+     {
+         SD_PlaySound (SHOOTSND);
++#ifndef EMBEDDED
+         Message (STR_THINK "...");
++#endif
+         NewViewSize (newview);
+     }
+ 
+     ShootSnd ();
++end:
+     MenuFadeOut ();
++#ifdef EMBEDDED
++    force_refresh_type = 0;
++#endif
+     if(screenHeight % 200 != 0)
+         VL_ClearScreen(0);
+ 
+@@ -2700,7 +2739,7 @@ void
+ DrawChangeView (int view)
+ {
+     int rescaledHeight = screenHeight / scaleFactor;
+-    if(view != 21) VWB_Bar (0, rescaledHeight - 40, 320, 40, bordercol);
++    if(view != 21) VWB_Bar (0, rescaledHeight - 40, WindowW, 40, bordercol);
+ 
+ #ifdef JAPAN
+     VWB_DrawPic (0,0,S_CHANGEPIC);
+@@ -2737,7 +2776,7 @@ CP_Quit (int blank)
+ #ifdef SPANISH
+     if (Confirm (ENDGAMESTR))
+ #else
+-    if (Confirm (endStrings[US_RndT () & 0x7 + (US_RndT () & 1)]))
++    if (Confirm (endStrings[(US_RndT () & 0x7) + (US_RndT () & 1)]))
+ #endif
+ 
+ #endif
+@@ -3043,6 +3082,7 @@ HandleMenu (CP_iteminfo * item_i, CP_itemtype * items, void (*routine) (int w))
+         //
+         // SEE IF ANY KEYS ARE PRESSED FOR INITIAL CHAR FINDING
+         //
++#ifndef EMBEDDED
+         key = *textinput;
+ 
+         IN_ClearTextInput ();
+@@ -3081,6 +3121,7 @@ HandleMenu (CP_iteminfo * item_i, CP_itemtype * items, void (*routine) (int w))
+                     }
+             }
+         }
++#endif
+ 
+         //
+         // GET INPUT
+@@ -3161,7 +3202,7 @@ HandleMenu (CP_iteminfo * item_i, CP_itemtype * items, void (*routine) (int w))
+         if (ci.button0 || Keyboard[sc_Space] || Keyboard[sc_Enter])
+             exit = 1;
+ 
+-        if (ci.button1 && !Keyboard[sc_Alt] || Keyboard[sc_Escape])
++        if ((ci.button1 && !Keyboard[sc_Alt]) || Keyboard[sc_Escape])
+             exit = 2;
+ 
+     }
+@@ -3373,6 +3414,7 @@ ReadAnyControl (ControlInfo * ci)
+ 
+     IN_ReadControl (ci);
+ 
++#if !NO_MOUSE
+     if (mouseenabled && GrabInput)
+     {
+         int mousex, mousey, buttons;
+@@ -3424,7 +3466,9 @@ ReadAnyControl (ControlInfo * ci)
+             mouseactive = 1;
+         }
+     }
++#endif
+ 
++#if !NO_JOYSTICK
+     if (joystickenabled && !mouseactive)
+     {
+         int jx, jy, jb;
+@@ -3449,6 +3493,7 @@ ReadAnyControl (ControlInfo * ci)
+             ci->button3 = jb & 8;
+         }
+     }
++#endif
+ }
+ 
+ 
+@@ -3497,6 +3542,11 @@ Confirm (const char *string)
+         }
+         else SDL_Delay(5);
+ 
++#ifdef EMBEDDED
++        if (Keyboard[sc_Y] || Keyboard[sc_Enter]) { xit = 1; ShootSnd(); break; }
++        if (Keyboard[sc_N] || Keyboard[sc_Escape]) break;
++    } while (1);
++#else
+ #ifdef SPANISH
+     }
+     while (!Keyboard[sc_S] && !Keyboard[sc_N] && !Keyboard[sc_Escape]);
+@@ -3517,6 +3567,7 @@ Confirm (const char *string)
+         xit = 1;
+         ShootSnd ();
+     }
++#endif
+ #endif
+ 
+     IN_ClearKeysDown ();
+@@ -3537,7 +3588,7 @@ int
+ GetYorN (int x, int y, int pic)
+ {
+     int xit = 0;
+-    soundnames whichsnd[2] = { ESCPRESSEDSND, SHOOTSND };
++    int whichsnd[2] = { ESCPRESSEDSND, SHOOTSND };
+ 
+     VWB_DrawPic (x * 8, y * 8, pic);
+     VW_UpdateScreen ();
+@@ -3742,6 +3793,7 @@ CheckForEpisodes (void)
+     struct stat statbuf;
+ 
+     // On Linux like systems, the configdir defaults to $HOME/.wolf4sdl
++#ifndef EMBEDDED
+ #if !defined(_WIN32) && !defined(_arch_dreamcast)
+     if(configdir[0] == 0)
+     {
+@@ -3775,6 +3827,7 @@ CheckForEpisodes (void)
+             }
+         }
+     }
++#endif
+ 
+ //
+ // JAPANESE VERSION
+diff --git a/wl_play.c b/wl_play.c
+index 4bc2a13..c668baa 100644
+--- a/wl_play.c
++++ b/wl_play.c
+@@ -54,7 +54,12 @@ unsigned tics;
+ //
+ boolean mouseenabled, joystickenabled;
+ int dirscan[4] = { sc_UpArrow, sc_RightArrow, sc_DownArrow, sc_LeftArrow };
++#if EMBEDDED
++int buttonscan[NUMBUTTONS] = { sc_Control, sc_Alt, sc_LShift, sc_Enter, sc_1, sc_2, sc_3, sc_4,
++    '[', ']', 0, 0, 'q', 'e' };
++#else
+ int buttonscan[NUMBUTTONS] = { sc_Control, sc_Alt, sc_LShift, sc_Space, sc_1, sc_2, sc_3, sc_4 };
++#endif
+ int buttonmouse[4] = { bt_attack, bt_strafe, bt_use, bt_nobutton };
+ int buttonjoy[32] = {
+ #ifdef _arch_dreamcast
+@@ -255,6 +260,9 @@ void PollKeyboardButtons (void)
+     for (i = 0; i < NUMBUTTONS; i++)
+         if (Keyboard[buttonscan[i]])
+             buttonstate[i] = true;
++#ifdef EMBEDDED
++    buttonstate[bt_run] ^= RunInvert;
++#endif
+ }
+ 
+ 
+@@ -333,12 +341,14 @@ void PollKeyboardMove (void)
+ 
+ void PollMouseMove (void)
+ {
++#if !NO_MOUSE
+     int mousexmove, mouseymove;
+ 
+     SDL_GetRelativeMouseState(&mousexmove, &mouseymove);
+ 
+     controlx += mousexmove * 10 / (13 - mouseadjustment);
+     controly += mouseymove * 20 / (13 - mouseadjustment);
++#endif
+ }
+ 
+ 
+@@ -555,7 +565,11 @@ void CheckKeys (void)
+     //
+     // SECRET CHEAT CODE: TAB-G-F10
+     //
++#ifdef EMBEDDED
++    if (Keyboard[sc_G])
++#else
+     if (Keyboard[sc_Tab] && Keyboard[sc_G] && Keyboard[sc_F10])
++#endif
+     {
+         WindowH = 160;
+         if (godmode)
+@@ -581,7 +595,11 @@ void CheckKeys (void)
+     //
+     // SECRET CHEAT CODE: 'MLI'
+     //
++#ifdef EMBEDDED
++    if (Keyboard[sc_M])
++#else
+     if (Keyboard[sc_M] && Keyboard[sc_L] && Keyboard[sc_I])
++#endif
+     {
+         gamestate.health = 100;
+         gamestate.ammo = 99;
+@@ -611,6 +629,7 @@ void CheckKeys (void)
+     //
+     // OPEN UP DEBUG KEYS
+     //
++#ifndef EMBEDDED
+ #ifdef DEBUGKEYS
+     if (Keyboard[sc_BackSpace] && Keyboard[sc_LShift] && Keyboard[sc_Alt] && param_debugmode)
+     {
+@@ -683,6 +702,9 @@ void CheckKeys (void)
+     }
+ 
+     if ((scan >= sc_F1 && scan <= sc_F9) || scan == sc_Escape || buttonstate[bt_esc])
++#else
++    if (scan == sc_Escape || buttonstate[bt_esc])
++#endif
+     {
+         int lastoffs = StopMusic ();
+         ClearMemory ();
+diff --git a/wl_text.c b/wl_text.c
+index 38a6aa3..7e9bd3c 100644
+--- a/wl_text.c
++++ b/wl_text.c
+@@ -672,14 +672,18 @@ void ShowArticle (char *article)
+                 switch(LastScan)
+                 {
+                     case sc_UpArrow:
++#ifndef EMBEDDED
+                     case sc_PgUp:
++#endif
+                     case sc_LeftArrow:
+                         dir = dir_North;
+                         break;
+ 
+                     case sc_Enter:
+                     case sc_DownArrow:
++#ifndef EMBEDDED
+                     case sc_PgDn:
++#endif
+                     case sc_RightArrow:
+                         dir = dir_South;
+                         break;
+diff --git a/wl_utils.c b/wl_utils.c
+index 1e46362..d2e5f90 100644
+--- a/wl_utils.c
++++ b/wl_utils.c
+@@ -61,6 +61,7 @@ uint32_t ReadLong (void *ptr)
+ }
+ 
+ 
++#ifndef EMBEDDED
+ void Error (const char *string)
+ {
+     SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR,"Wolf4SDL",string,NULL);
+@@ -70,3 +71,4 @@ void Help (const char *string)
+ {
+     SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_INFORMATION,"Wolf4SDL",string,NULL);
+ }
++#endif

@@ -11,12 +11,12 @@ ifneq ($(words $(ZIPDIR)), 1)
 $(error ZIPDIR must not contain spaces in the name)
 endif
 
-BIN_NAMES = usb/fptest sdcard/fpbin/fpmain \
-	$(patsubst %,usb/%,fpdoom fpduke3d fpsw fpblood infones) \
-	$(patsubst %,sdcard/fpbin/%,fpdoom fpduke3d fpsw fpblood infones) \
-	$(patsubst %,sdcard/sdboot%,1 2 3)
-
-BINS = $(patsubst %,$(BINDIR)/%.bin,$(BIN_NAMES))
+FPBIN = $(BINDIR)/sdcard/fpbin
+APPS = fpdoom fpduke3d fpsw fpblood infones wolf3d wolf3d_sw
+BINS = \
+	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
+	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
+	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3)
 
 .PHONY: all clean
 all: $(BINS)
@@ -37,60 +37,75 @@ fpbuild/jfbuild:
 infones/InfoNES:
 	$(call getsrc,infones)
 
+wolf3d/Wolf4SDL:
+	$(call getsrc,wolf3d)
+
 define makebin
 	cd $(1) && $(MAKE) clean $(2)
 	cd $(1) && $(MAKE) all $(2)
-	mkdir -p $(BINDIR)/$(4)
-	mv $(1)/$(3).bin $(BINDIR)/$(4)/
+	mkdir -p $(dir $@)
+	mv $(1)/$(notdir $@) $@
 	cd $(1) && $(MAKE) clean $(2)
 endef
 
 # USB mode
 
 $(BINDIR)/usb/fptest.bin:
-	$(call makebin,fptest,LIBC_SDIO=0,fptest,usb)
+	$(call makebin,fptest,LIBC_SDIO=0)
 
 $(BINDIR)/usb/fpdoom.bin: doom_src
-	$(call makebin,fpdoom,LIBC_SDIO=0,fpdoom,usb)
+	$(call makebin,fpdoom,LIBC_SDIO=0)
 
 $(BINDIR)/usb/fpduke3d.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=duke3d,fpduke3d,usb)
+	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=duke3d)
 
 $(BINDIR)/usb/fpsw.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=sw,fpsw,usb)
+	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=sw)
 
 $(BINDIR)/usb/fpblood.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=blood,fpblood,usb)
+	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=blood)
 
 $(BINDIR)/usb/infones.bin: infones/InfoNES
-	$(call makebin,infones,LIBC_SDIO=0,infones,usb)
+	$(call makebin,infones,LIBC_SDIO=0)
+
+$(BINDIR)/usb/wolf3d.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,LIBC_SDIO=0)
+
+$(BINDIR)/usb/wolf3d_sw.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,LIBC_SDIO=0 NAME=wolf3d_sw)
 
 # SD card mode
 
-$(BINDIR)/sdcard/sdboot1.bin:
-	$(call makebin,sdboot,CHIP=1,sdboot1,sdcard)
+$(BINDIR)/sdboot1.bin:
+	$(call makebin,sdboot,CHIP=1)
 
-$(BINDIR)/sdcard/sdboot2.bin:
-	$(call makebin,sdboot,CHIP=2,sdboot2,sdcard)
+$(BINDIR)/sdboot2.bin:
+	$(call makebin,sdboot,CHIP=2)
 
-$(BINDIR)/sdcard/sdboot3.bin:
-	$(call makebin,sdboot,CHIP=3,sdboot3,sdcard)
+$(BINDIR)/sdboot3.bin:
+	$(call makebin,sdboot,CHIP=3)
 
-$(BINDIR)/sdcard/fpbin/fpmain.bin:
-	$(call makebin,fpmenu,LIBC_SDIO=3 NAME=fpmain,fpmain,sdcard/fpbin)
+$(FPBIN)/fpmain.bin:
+	$(call makebin,fpmenu,LIBC_SDIO=3 NAME=fpmain)
 
-$(BINDIR)/sdcard/fpbin/fpdoom.bin: doom_src
-	$(call makebin,fpdoom,LIBC_SDIO=3,fpdoom,sdcard/fpbin)
+$(FPBIN)/fpdoom.bin: doom_src
+	$(call makebin,fpdoom,LIBC_SDIO=3)
 
-$(BINDIR)/sdcard/fpbin/fpduke3d.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=duke3d,fpduke3d,sdcard/fpbin)
+$(FPBIN)/fpduke3d.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=duke3d)
 
-$(BINDIR)/sdcard/fpbin/fpsw.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=sw,fpsw,sdcard/fpbin)
+$(FPBIN)/fpsw.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=sw)
 
-$(BINDIR)/sdcard/fpbin/fpblood.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=blood,fpblood,sdcard/fpbin)
+$(FPBIN)/fpblood.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=blood)
 
-$(BINDIR)/sdcard/fpbin/infones.bin: infones/InfoNES
-	$(call makebin,infones,LIBC_SDIO=3,infones,sdcard/fpbin)
+$(FPBIN)/infones.bin: infones/InfoNES
+	$(call makebin,infones,LIBC_SDIO=3)
+
+$(FPBIN)/wolf3d.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,LIBC_SDIO=3)
+
+$(FPBIN)/wolf3d_sw.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,LIBC_SDIO=3 NAME=wolf3d_sw)
 

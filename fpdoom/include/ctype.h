@@ -17,6 +17,14 @@ static inline int isspace(int c) {
 	return c == ' ' || (unsigned)c - 9 < 5;
 }
 
+static inline int isupper(int c) {
+	return (unsigned)c - 'A' < 26;
+}
+
+static inline int islower(int c) {
+	return (unsigned)c - 'a' < 26;
+}
+
 static inline int ispunct(int c) {
 	return (unsigned)c - 0x21 < 0x5e && !isalnum(c);
 }
