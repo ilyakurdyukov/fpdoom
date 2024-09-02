@@ -457,7 +457,7 @@ index 88a5590..7baab83 100644
  
  			for (text = textinput; *text; text++)
 diff --git a/id_vh.c b/id_vh.c
-index 2f85e15..12d9097 100644
+index 2f85e15..e942caf 100644
 --- a/id_vh.c
 +++ b/id_vh.c
 @@ -73,11 +73,15 @@ void VW_MeasurePropString (const char *string, word *width, word *height)
@@ -476,7 +476,22 @@ index 2f85e15..12d9097 100644
  }
  
  void VWB_DrawTile8 (int x, int y, int tile)
-@@ -236,10 +240,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+@@ -215,6 +219,14 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+ {
+     unsigned x, y, p, frame, pixperframe;
+     int32_t  rndval;
++#ifdef EMBEDDED
++    unsigned stride = screenWidth;
++    if (screenHeight == 256) {
++        width = (width + (x1 & 1) + 1) >> 1;
++        height = (height + (y1 & 1) + 1) >> 1;
++        x1 >>= 1; y1 >>= 1; stride >>= 1;
++    }
++#endif
+ 
+     rndval = 1;
+     pixperframe = width * height / frames;
+@@ -236,10 +248,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
              return true;
          }
  
@@ -491,21 +506,30 @@ index 2f85e15..12d9097 100644
  
          for (p = 0; p < pixperframe; p++)
          {
-@@ -261,6 +268,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+@@ -261,6 +276,22 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
                  //
                  // copy one pixel
                  //
 +#ifdef EMBEDDED
-+                {
-+                    unsigned pos = (y1 + y) * screenWidth + x1 + x;
-+                    uint16_t *d = framebuf, *pal = d - 0x100;
++                uint16_t *d = framebuf;
++                unsigned pos = (y1 + y) * screenWidth + (x1 + x);
++                if (stride == 160) {
++                    unsigned a, b = 0x00400802;
++                    uint32_t *pal = (uint32_t*)d - 0x100;
++                    uint8_t *s = srcptr + pos * 2;
++                    a = pal[s[0]] + pal[s[1]]; s += screenWidth;
++                    a += pal[s[0]] + pal[s[1]];
++                    a += (b & a >> 2) + b; a &= 0xf81f07e0;
++                    d[(pos + x1 + x) >> 1] = a | a >> 16;
++                } else {
++                    uint16_t *pal = d - 0x100;
 +                    d[pos] = pal[srcptr[pos]];
 +                }
 +#else
                  if(screenBits == 8)
                  {
                      *(destptr + (y1 + y) * screen->pitch + x1 + x)
-@@ -273,6 +287,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+@@ -273,6 +304,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
                      memcpy(destptr + (y1 + y) * screen->pitch + (x1 + x) * screen->format->BytesPerPixel,
                          &fullcol, screen->format->BytesPerPixel);
                  }
@@ -513,7 +537,7 @@ index 2f85e15..12d9097 100644
              }
  
              if (rndval == 1)
-@@ -282,7 +297,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+@@ -282,7 +314,7 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
                  //
                  VL_UnlockSurface (screenBuffer);
                  VL_UnlockSurface (screen);
@@ -522,7 +546,7 @@ index 2f85e15..12d9097 100644
  
                  return false;
              }
-@@ -290,9 +305,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
+@@ -290,9 +322,13 @@ boolean FizzleFade (SDL_Surface *source, int x1, int y1,
  
          VL_UnlockSurface(screen);
  

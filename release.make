@@ -16,7 +16,8 @@ APPS = fpdoom fpduke3d fpsw fpblood infones wolf3d wolf3d_sw
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
-	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3)
+	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3) \
+	$(FPBIN)/config.txt
 
 .PHONY: all clean
 all: $(BINS)
@@ -87,6 +88,10 @@ $(BINDIR)/sdboot3.bin:
 
 $(FPBIN)/fpmain.bin:
 	$(call makebin,fpmenu,LIBC_SDIO=3 NAME=fpmain)
+
+$(FPBIN)/config.txt:
+	mkdir -p $(dir $@)
+	cp fpmenu/$(notdir $@) $@
 
 $(FPBIN)/fpdoom.bin: doom_src
 	$(call makebin,fpdoom,LIBC_SDIO=3)
