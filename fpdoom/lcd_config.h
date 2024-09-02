@@ -630,6 +630,64 @@ static const uint8_t cmd5310_init[] = {
 	LCM_CMD(0x29, 0), // Display ON
 	LCM_END
 };
+
+static const uint8_t cmd9328_init[] = {
+	LCM_DELAY(120),
+#define X(a, b) LCM_CMD(0x00, 0), LCM_CMD(a, b)
+	X(0x01, 2), 0x01,0x00, // Driver Output Control 1
+	X(0x02, 2), 0x07,0x00, // LCD Driving Control
+	//X(0x03, 2), 0x10,0x30, // Entry Mode
+	X(0x04, 2), 0x00,0x00, // Resize Control
+	X(0x08, 2), 0x02,0x07, // Display Control 2
+	X(0x09, 2), 0x00,0x00, // Display Control 3
+	X(0x0a, 2), 0x00,0x00, // Display Control 4
+	X(0x0c, 2), 0x00,0x00, // RGB Display Interface Control 1
+	X(0x0d, 2), 0x00,0x00, // Frame Maker Position
+	X(0x0f, 2), 0x00,0x00, // RGB Display Interface Control 2
+	X(0x10, 2), 0x00,0x00, // Power Control 1
+	X(0x11, 2), 0x00,0x07, // Power Control 2
+	X(0x12, 2), 0x00,0x00, // Power Control 3
+	X(0x13, 2), 0x00,0x00, // Power Control 4
+	X(0x07, 2), 0x00,0x01, // Display Control 1
+	X(0x10, 2), 0x12,0x90, // Power Control 1
+	X(0x11, 2), 0x02,0x27, // Power Control 2
+	X(0x12, 2), 0x00,0x9d, // Power Control 3
+	X(0x13, 2), 0x1a,0x00, // Power Control 4
+	X(0x29, 2), 0x00,0x1d, // Power Control 7
+	X(0x2b, 2), 0x00,0x0d, // Frame Rate and Color Control
+	//X(0x20, 2), 0x00,0x00, // Horizontal GRAM Address Set
+	//X(0x21, 2), 0x00,0x00, // Vertical GRAM Address Set
+	X(0x30, 2), 0x00,0x00, // Gamma Control 1
+	X(0x31, 2), 0x02,0x01, // Gamma Control 2
+	X(0x32, 2), 0x00,0x03, // Gamma Control 3
+	X(0x35, 2), 0x03,0x05, // Gamma Control 4
+	X(0x36, 2), 0x00,0x04, // Gamma Control 5
+	X(0x37, 2), 0x04,0x07, // Gamma Control 6
+	X(0x38, 2), 0x06,0x05, // Gamma Control 7
+	X(0x39, 2), 0x07,0x07, // Gamma Control 8
+	X(0x3c, 2), 0x05,0x03, // Gamma Control 9
+	X(0x3d, 2), 0x00,0x04, // Gamma Control 10
+	//X(0x50, 2), 0x00,0x00, // Horizontal Address Start Position
+	//X(0x51, 2), 0x00,0xef, // Horizontal Address End Position
+	//X(0x52, 2), 0x00,0x00, // Vertical Address Start Position
+	//X(0x53, 2), 0x01,0x3f, // Vertical Address End Position
+	X(0x60, 2), 0xa7,0x00, // Driver Output Control 2
+	X(0x61, 2), 0x00,0x01, // Base Image Display Control
+	X(0x6a, 2), 0x00,0x00, // Vertical Scroll Control
+	X(0x80, 2), 0x00,0x00, // Partial Image 1 Display Position
+	X(0x81, 2), 0x00,0x00, // Partial Image 1 Area (Start Line)
+	X(0x82, 2), 0x00,0x00, // Partial Image 1 Area (End Line)
+	X(0x83, 2), 0x00,0x00, // Partial Image 2 Display Position
+	X(0x84, 2), 0x00,0x00, // Partial Image 2 Area (Start Line)
+	X(0x85, 2), 0x00,0x00, // Partial Image 2 Area (End Line)
+	X(0x90, 2), 0x00,0x10, // Panel Interface Control 1
+	X(0x92, 2), 0x06,0x00, // Panel Interface Control 2
+	X(0x07, 2), 0x01,0x33, // Display Control 1
+	//X(0x22, 0), // Write Data to GRAM
+#undef X
+	LCM_END
+};
+
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -1119,6 +1177,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// NovaTek NT35310
 	{ 0x01015310, 0xffffffff, 0, 0, 1,  320, 480, 1, 0, 0,  { 5, 150, 150, 10, 20, 20 }, { 0 }, 0x00, cmd5310_init },
+
+/* Olmio A25 */
+
+	// Ilitek ILI9328
+	{ 0x289328, 0x00ffffff, 0, 0, 1,  240, 320, 1, 0, 0,  { 5, 150, 150, 10, 50, 50 }, { 0 }, 0xc0, cmd9328_init },
 #endif
 
 #if CHIP == 2 || CHIP == 3

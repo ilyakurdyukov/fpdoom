@@ -541,20 +541,6 @@ static unsigned lcd_getid2(void) {
 }
 
 #if 0
-static void lcd_set_rect(int x0, int y0, int x1, int y1) {
-	lcm_send_cmd(0x2a); // Column Address Set
-	lcm_send_data(x0 >> 8);
-	lcm_send_data(x0 & 0xff);
-	lcm_send_data(x1 >> 8);
-	lcm_send_data(x1 & 0xff);
-	lcm_send_cmd(0x2b); // Page Address Set
-	lcm_send_data(y0 >> 8);
-	lcm_send_data(y0 & 0xff);
-	lcm_send_data(y1 >> 8);
-	lcm_send_data(y1 & 0xff);
-	lcm_send_cmd(0x2c); // Memory Write
-}
-
 void lcm_send_rgb16(uint16_t *ptr, uint32_t size) {
 	uint32_t addr, tmp;
 	//lcm_set_mode(1);
@@ -666,22 +652,46 @@ static void lcd_init(void) {
 	sys_data.display.h1 = h;
 
 	lcm_exec(lcd->cmd_init);
-#if 1
-	cmd_init2[2] = mac_arg;
-	cmd_init2[3 + 2] = x2 >> 8;
-	cmd_init2[3 + 3] = x2;
-	cmd_init2[3 + 4] = w2 >> 8;
-	cmd_init2[3 + 5] = w2;
-	cmd_init2[3 + 6 + 2] = y2 >> 8;
-	cmd_init2[3 + 6 + 3] = y2;
-	cmd_init2[3 + 6 + 4] = h2 >> 8;
-	cmd_init2[3 + 6 + 5] = h2;
-	lcm_exec(cmd_init2);
-#else
-	lcm_send_cmd(0x36); // Memory Access Control
-	lcm_send_data(mac_arg);
-	lcd_set_rect(x2, y2, w2, h2);
-#endif
+	if (lcd->id == 0x289328) {
+		/* Why can't people use standardized commands? */
+		static uint8_t cmd_init2_ili9328[] = {
+#define X(a, b) LCM_CMD(0x00, 0), LCM_CMD(a, b)
+			// ORG, 0, I/D1, I/D0, AM, 0, 0, 0
+			X(0x03, 2), 0x10,0, // Entry Mode
+			X(0x50, 2), 0,0, // Horizontal Address Start Position
+			X(0x51, 2), 0,0, // Horizontal Address End Position
+			X(0x52, 2), 0,0, // Vertical Address Start Position
+			X(0x53, 2), 0,0, // Vertical Address End Position
+			X(0x20, 2), 0,0, // Horizontal GRAM Address Set
+			X(0x21, 2), 0,0, // Vertical GRAM Address Set
+			X(0x22, 0), // Write Data to GRAM
+#undef X
+			LCM_END
+		};
+		uint8_t *p = cmd_init2_ili9328;
+		p[5] = mac_arg >> 2; p += 6;
+		if (mac_arg & 0x20) {
+			unsigned t;
+			t = w2; w2 = h2; h2 = t;
+			t = x2; x2 = y2; x2 = t;
+		}
+		p[4] = x2 >> 8; p[5] = x2; p += 6;
+		p[4] = w2 >> 8; p[5] = w2; p += 6;
+		p[4] = y2 >> 8; p[5] = y2; p += 6;
+		p[4] = h2 >> 8; p[5] = h2; p += 6;
+		if (!(mac_arg & 0x40)) p[4] = w2 >> 8, p[5] = w2;
+		p += 6;
+		if (!(mac_arg & 0x80)) p[4] = h2 >> 8, p[5] = h2;
+		lcm_exec(cmd_init2_ili9328);
+	} else {
+		uint8_t *p = cmd_init2;
+		p[2] = mac_arg; p += 3;
+		p[2] = x2 >> 8; p[3] = x2;
+		p[4] = w2 >> 8; p[5] = w2; p += 6;
+		p[2] = y2 >> 8; p[3] = y2;
+		p[4] = h2 >> 8; p[5] = h2;
+		lcm_exec(cmd_init2);
+	}
 }
 
 static void lcdc_init(void) {
