@@ -26,6 +26,7 @@ unsigned NES_Hacks = 0;
 #define TIMER_MUL (((1000 << 12) + FRAMERATE - 1) / FRAMERATE)
 
 static unsigned timerlast, timertick, timertick_ms;
+static unsigned scaler_crop;
 
 static int LoadSRAM(void);
 static int SaveSRAM(void);
@@ -63,21 +64,31 @@ void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w1, h = disp->h1;
 	int scaler = sys_data.scaler - 1;
-	unsigned crop = 0;
+	unsigned crop = 0, wide = 0;
 	if (h > w) h = w;
 	if (scaler >= 99) crop = 8, scaler -= 100;
-	if ((unsigned)scaler >= 4) {
-		if (w >= 384 && h >= 320) { // for 320x480 screens
-			crop = 13; // 240 - 13 * 2 = 214
-			scaler = 2;
+	if (scaler >= 49) wide = 1, scaler -= 50;
+	if ((unsigned)scaler >= 6) {
+		if (h >= 320) { // for 320x480 screens
+			scaler = 2; wide = w >= 384;
 		} else scaler = h <= 128;
 	}
-	sys_data.scaler = scaler | crop << 3;
-	if (scaler >= 2) w = scaler > 2 ? 480 : 384, h = 320;
-	else {
+	if (scaler >= 2) {
+		h = 320;
+		if (scaler == 2) {
+			w = wide ? 384 : 342;
+			if (crop) h -= 21;
+		} else {
+			w = wide ? 480 : 384;
+			crop = 13; // 240 - 13 * 2 = 214
+		}
+	} else {
 		int sh = scaler == 1;
-		w = 256 >> sh; h = (240 - crop * 2) >> sh;
+		w = (wide ? 320 : 256) >> sh;
+		h = (240 - crop * 2) >> sh;
 	}
+	sys_data.scaler = scaler * 2 | wide;
+	scaler_crop = crop;
 	disp->w2 = w;
 	disp->h2 = h;
 }
@@ -89,11 +100,16 @@ static void framebuf_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size = w * h; uint8_t *p;
-	if ((sys_data.scaler & 7) >= 2) size += w;
+	if (sys_data.scaler >= 3 * 2) size += w;
 	p = malloc(size * 2 + 31);
 	framebuf_mem = p;
 	p += -(intptr_t)p & 31;
 	framebuf = (uint16_t*)p;
+	if (sys_data.scaler == 2 * 2) {
+		p -= 2;
+		do p += w * 2, *(uint16_t*)p = 0;
+		while (--h);
+	}
 }
 
 int main(int argc, char **argv) {
@@ -278,131 +294,18 @@ static void wait_frame(void) {
 	}
 }
 
-#ifdef USE_ASM
-void scr_update_1d1_asm(void *src, uint16_t *dst, unsigned h);
-void scr_update_1d2_asm(void *src, uint16_t *dst, unsigned h);
-void scr_update_3d2_asm(void *src, uint16_t *dst, unsigned h);
-void scr_update_4x3d2_asm(void *src, uint16_t *dst, unsigned h);
-#define scr_update_1d1 scr_update_1d1_asm
-#define scr_update_1d2 scr_update_1d2_asm
-#define scr_update_3d2 scr_update_3d2_asm
-#define scr_update_4x3d2 scr_update_4x3d2_asm
-#else
-void scr_update_1d1(void *src, uint16_t *dst, unsigned h) {
-	uint32_t *s = (uint32_t*)src;
-	uint32_t *d = (uint32_t*)dst;
-	unsigned n = h << 8;
-	do {
-		uint32_t a = *s++;
-		a = (a & 0x7fff7fff) + (a & 0x7fe07fe0);
-		*d++ = a;
-	} while ((n -= 2));
-}
-
-void scr_update_1d2(void *src, uint16_t *dst, unsigned h) {
-	uint32_t *s = (uint32_t*)src;
-	uint32_t a, b, c, w = 256;
-	do {
-		h -= w << 16;
-		do {
-			a = *s; b = s[128]; s++;
-			c = (a & 0x03e07c1f) + (b & 0x03e07c1f);
-			a = (a & 0x7c1f03e0) + (b & 0x7c1f03e0);
-			a = c + (a >> 16 | a << 16);
-			// rounding half to even
-			a += (0x200401 & a >> 2) + 0x200401;
-			a >>= 2; a &= 0x03e07c1f;
-			a |= a >> 16;
-			*dst++ = a + (a & ~0x1f);
-		} while ((int32_t)(h += 2 << 16) < 0);
-		s += 128;
-	} while ((h -= 2));
-}
-
-void scr_update_3d2(void *src, uint16_t *dst, unsigned h) {
-	uint32_t *s = (uint32_t*)src;
-	uint32_t a, b, w = 256;
-	do {
-		h -= w << 16;
-		do {
-			uint16_t *dst1 = dst + 0x180, *dst2 = dst + 0x180 * 2;
-			uint32_t r = 0x400801, m = 0x07c0f81f;
-			uint32_t aa, bb, ab, a0, a1, b0, b1;
-			a = *s; b = s[128]; s++;
-			a = (a & 0x7fff7fff) + (a & 0x7fe07fe0);
-			b = (b & 0x7fff7fff) + (b & 0x7fe07fe0);
-			a1 = (a >> 16 | a << 16) & m; a0 = a & m;
-			b1 = (b >> 16 | b << 16) & m; b0 = b & m;
-			aa = a0 + a1; bb = b0 + b1;
-			aa += r & aa >> 1; aa = aa >> 1 & m;
-			bb += r & bb >> 1; bb = bb >> 1 & m;
-			dst[0] = a;
-			dst[1] = aa | aa >> 16;
-			dst[2] = a >> 16;
-			dst2[0] = b;
-			dst2[1] = bb | bb >> 16;
-			dst2[2] = b >> 16;
-			aa = a0 + b0; bb = a1 + b1; ab = aa + bb;
-			aa += r & aa >> 1; aa = aa >> 1 & m;
-			bb += r & bb >> 1; bb = bb >> 1 & m;
-			aa |= bb >> 16 | bb << 16;
-			ab += (r & ab >> 2) + r; ab = ab >> 2 & m;
-			dst1[0] = aa;
-			dst1[1] = ab | ab >> 16;
-			dst1[2] = aa >> 16;
-			dst += 3;
-		} while ((int32_t)(h += 2 << 16) < 0);
-		s += 128; dst += 0x180 * 2;
-	} while ((h -= 2));
-}
-
-void scr_update_4x3d2(void *src, uint16_t *dst, unsigned h) {
-	uint32_t *s = (uint32_t*)src + 4;
-	uint32_t *d = (uint32_t*)dst;
-	do {
-		h -= 240 << 16;
-		do {
-			uint32_t *d1 = d + 240, *d2 = d + 240 * 2;
-			uint32_t r = 0x08410841, m = ~(r >> 1);
-			uint32_t a, b, c;
-			a = *s; b = s[128]; s++;
-			a = (a & 0x7fff7fff) + (a & 0x7fe07fe0);
-			b = (b & 0x7fff7fff) + (b & 0x7fe07fe0);
-			c = a ^ (a >> 16 | a << 16);
-			d[0] = a ^ c << 16;
-			d[1] = a ^ c >> 16;
-			c = b ^ (b >> 16 | b << 16);
-			d2[0] = b ^ c << 16;
-			d2[1] = b ^ c >> 16;
-			// This could be a meme: "we have SIMD at home"
-			c = ((a >> 1) & m) + ((b >> 1) & m);
-			// rounding half to even
-			c += ((c & (a | b)) | (a & b)) & r;
-			a = c ^ (c >> 16 | c << 16);
-			d1[0] = c ^ a << 16;
-			d1[1] = c ^ a >> 16;
-			d += 2;
-		} while ((int32_t)(h += 2 << 16) < 0);
-		s += 128 + 8; d += 480;
-	} while ((h -= 2));
-}
-#endif
-
 typedef void (*scr_update_t)(void *src, uint16_t *dst, unsigned h);
 
+extern const scr_update_t scr_update_fn[];
+
 void InfoNES_LoadFrame(void) {
-	static const scr_update_t fn[] = {
-		scr_update_1d1, scr_update_1d2,
-		scr_update_3d2, scr_update_4x3d2
-	};
-	unsigned h, scaler, crop;
+	unsigned h, crop;
 	WORD *src;
 	sys_wait_refresh();
-	scaler = sys_data.scaler;
-	crop = scaler >> 3;
+	crop = scaler_crop;
 	h = 240 - crop * 2;
 	src = WorkFrame + crop * 256;
-	fn[scaler & 7](src, framebuf, h);
+	scr_update_fn[sys_data.scaler](src, framebuf, h);
 	sys_start_refresh();
 	wait_frame();
 }

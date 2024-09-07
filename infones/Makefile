@@ -19,7 +19,7 @@ NAME = infones
 FPDOOM = ../fpdoom
 INFONES = InfoNES/src
 
-SRCS += InfoNES_System
+SRCS += InfoNES_System scr_update
 ifneq ($(USE_ASM), 0)
 SRCS += nesasm
 endif
