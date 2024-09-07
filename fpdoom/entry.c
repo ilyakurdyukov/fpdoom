@@ -322,7 +322,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			FILE *f = fopen(argv[1], "rb");
 			if (f) {
 				unsigned i, n, nrow;
-				uint8_t *p = sys_data.keytrn;
+				uint8_t *p = (uint8_t*)sys_data.keytrn;
 				printf("keymap loaded from file\n");
 				sys_data.keymap_addr = (short*)p;
 				memset(p, -1, 64 * 2);

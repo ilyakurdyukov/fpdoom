@@ -54,18 +54,20 @@ int ProjectionAngle(int32_t y, int32_t x) {
 	return angle >> 14;
 }
 #else
+#include <math.h>
+
 int CalcAngle(int32_t y, int32_t x) {
 	float angle = atan2f(y, x);
 	if (angle < 0) angle += (float)(M_PI * 2);
-	angle =* (float)(ANGLES / (M_PI * 2));
+	angle *= (float)(ANGLES / (M_PI * 2));
 	if (ROUNDANGLE) angle += 0.5f;
 	return angle;
 }
 
 int ProjectionAngle(int32_t y, int32_t x) {
-	int angle = atan2f(y, x);
+	float angle = atan2f(y, x);
 	angle *= (float)(FINEANGLES / (M_PI * 2));
-	if (ROUNDANGLE) angle = angle >= 0 ? 0.5f : -0.5f;
+	if (ROUNDANGLE) angle += angle >= 0 ? 0.5f : -0.5f;
 	return angle;
 }
 #endif

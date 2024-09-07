@@ -1774,6 +1774,61 @@ index 4bc2a13..c668baa 100644
      {
          int lastoffs = StopMusic ();
          ClearMemory ();
+diff --git a/wl_scale.c b/wl_scale.c
+index 0b1bf03..6745e5e 100644
+--- a/wl_scale.c
++++ b/wl_scale.c
+@@ -32,15 +32,22 @@
+ ===================
+ */
+ 
+-void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *curshades)
++#ifdef USE_ASM
++#define ScaleLine ScaleLineAsm
++void ScaleLine (int x, int toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *curshades);
++#else
++#define ReadShort(p) (int16_t)((p)[0] | (p)[1] << 8)
++void ScaleLine (int x, int toppix, fixed fracstep, byte *linesrc, byte *linecmds, byte *curshades)
+ {
+     byte    *src,*dest;
+     byte    col;
+-    int16_t start,end,top;
+-    int16_t startpix,endpix;
++    byte    *vbuf_x = vbuf + x;
++    int     pitch = bufferPitch;
++    int     start,end,top;
++    int     startpix,endpix;
+     fixed   frac;
+ 
+-    for (end = ReadShort(linecmds) >> 1; end; end = ReadShort(linecmds) >> 1)
++    while ((end = ReadShort(linecmds) >> 1))
+     {
+         top = ReadShort(linecmds + 2);
+         start = ReadShort(linecmds + 4) >> 1;
+@@ -75,12 +82,12 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
+ #endif
+                 col = *src;
+ 
+-            dest = vbuf + ylookup[startpix] + x;
++            dest = vbuf_x + ylookup[startpix];
+ 
+             while (startpix < endpix)
+             {
+                 *dest = col;
+-                dest += bufferPitch;
++                dest += pitch;
+                 startpix++;
+             }
+         }
+@@ -88,6 +95,8 @@ void ScaleLine (int16_t x, int16_t toppix, fixed fracstep, byte *linesrc, byte *
+         linecmds += 6;                          // next segment list
+     }
+ }
++#undef ReadShort
++#endif
+ 
+ 
+ /*
 diff --git a/wl_text.c b/wl_text.c
 index 38a6aa3..7e9bd3c 100644
 --- a/wl_text.c

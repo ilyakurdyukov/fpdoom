@@ -300,9 +300,9 @@ CODE32_FN R_DrawSpanLowAsm
 9:	pop	{r4-r7,pc}
 
 .macro palette16 name
-	lsr	r2, 2
-	lsr	r3, 3
-	lsr	r4, 3
+	lsr	r2, #2
+	lsr	r3, #3
+	lsr	r4, #3
 	orr	r3, r3, r2, lsl #5
 	orr	r3, r3, r4, lsl #11
 	strh	r3, [r1], #2
@@ -329,6 +329,37 @@ CODE32_FN pal_update16_asm
 	ldrb	r3, [lr, r3]
 	ldrb	r4, [lr, r4]
 	palette16
+	bhi	2b
+	pop	{r4,pc}
+
+.macro palette32 name
+	lsl	r3, #11
+	orr	r3, r3, r2, lsl #1
+	orr	r3, r3, r4, lsl #22
+	str	r3, [r1], #4
+	subs	r12, #1
+.endm
+
+CODE32_FN pal_update32_asm
+	push	{r4,lr}
+	mov	r12, #256
+	sub	r1, #256 * 4
+	movs	lr, r2
+	bne	2f
+1:	ldrb	r2, [r0, #1]
+	ldrb	r3, [r0, #2]
+	ldrb	r4, [r0], #3
+	palette32
+	bhi	1b
+	pop	{r4,pc}
+
+2:	ldrb	r2, [r0, #1]
+	ldrb	r3, [r0, #2]
+	ldrb	r4, [r0], #3
+	ldrb	r2, [lr, r2]
+	ldrb	r3, [lr, r3]
+	ldrb	r4, [lr, r4]
+	palette32
 	bhi	2b
 	pop	{r4,pc}
 

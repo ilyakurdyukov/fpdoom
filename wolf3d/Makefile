@@ -2,7 +2,7 @@
 CHIP = 0
 TWO_STAGE = 1
 LIBC_SDIO = 0
-USE_ASM = 0
+USE_ASM = 1
 NO_FLOAT = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 SRCS = asmcode usbio common libc syscomm
@@ -46,6 +46,9 @@ GAME_SRCS = \
 	wl_scale wl_shade wl_state wl_text wl_utils
 
 SRCS += extra scr_update wlsys_fp
+ifneq ($(USE_ASM), 0)
+SRCS += wolfasm
+endif
 
 GAME_OBJS = $(GAME_SRCS:%=$(OBJDIR)/game/%.o)
 

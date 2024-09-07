@@ -11,6 +11,12 @@
 void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
 
+#ifdef USEASM
+#define SEL(name) name##_asm
+#else
+#define SEL(name) name##_ref
+#endif
+
 #define PAL_UPDATE(load, process) \
 	for (i = 0; i < 256; i++) { \
 		r = load; g = load; b = load; process; \
@@ -54,9 +60,9 @@ void pal_update32_8d9_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 #undef X4
 #undef X
 
-	pal_update32_ref(pal, dest, gamma);
+	SEL(pal_update32)(pal, dest, gamma);
 	if (!gamma)
-		pal_update32_ref(pal, (uint32_t*)dest - 256, lut);
+		SEL(pal_update32)(pal, (uint32_t*)dest - 256, lut);
 	else
 		PAL_UPDATE(lut[gamma[*pal++]],
 				*d++ = r << 22 | b << 11 | g << 1)
@@ -149,8 +155,8 @@ typedef enum {false, true} boolean;
 extern boolean menuactive, viewactive;
 extern int screenblocks;
 
-void scr_update_3d2_crop_asm(uint8_t *src, void *dest);
-void scr_update_3d2_crop_ref(uint8_t *src, void *dest) {
+void scr_update_2d3_crop_asm(uint8_t *src, void *dest);
+void scr_update_2d3_crop_ref(uint8_t *src, void *dest) {
 	uint8_t *s = src;
 	uint16_t *d = (uint16_t*)dest;
 	uint32_t *c32 = (uint32_t*)dest - 256 * 2;
@@ -204,12 +210,6 @@ void scr_update_3d2_crop_ref(uint8_t *src, void *dest) {
 		scr_update_1d2_local_ref(s - 40, d, c32 + 256, 32);
 }
 
-#ifdef USEASM
-#define SEL(name) name##_asm
-#else
-#define SEL(name) name##_ref
-#endif
-
 uint8_t* framebuffer_init(void) {
 	static const uint8_t pal_size[] = { 2, 4, 4, 8 };
 	static const struct {
@@ -217,9 +217,9 @@ uint8_t* framebuffer_init(void) {
 		void (*scr_update)(uint8_t *src, void *dest);
 	} fn[] = {
 		{ SEL(pal_update16), SEL(scr_update_1d1) },
-		{ pal_update32_ref, SEL(scr_update_1d2) },
-		{ pal_update32_ref, SEL(scr_update_3d2) },
-		{ pal_update32_8d9_ref, scr_update_3d2_crop_ref },
+		{ SEL(pal_update32), SEL(scr_update_1d2) },
+		{ SEL(pal_update32), SEL(scr_update_3d2) },
+		{ pal_update32_8d9_ref, scr_update_2d3_crop_ref },
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
