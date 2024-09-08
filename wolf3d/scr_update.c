@@ -92,6 +92,26 @@ DEF(uint16_t*, scr_update_3d2, (uint16_t *d, const uint8_t *s, uint32_t *c32, un
 	}
 	return d;
 }
+
+DEF(uint16_t*, scr_update_5x4d4, (uint16_t *d, const uint8_t *s, uint16_t *c16, unsigned h)) {
+	unsigned x, y, a, b, c;
+	uint32_t r = 0x08210821, m = ~(r >> 1);
+	for (y = 0; y < h; y++, s += 80)
+	for (x = 0; x < 320; x += 4, s += 4) {
+		*d++ = c16[s[0]];
+		a = c16[s[1]];
+		b = c16[s[2]];
+		c = ((a >> 1) & m) + ((b >> 1) & m);
+		// rounding half to even
+		c += ((c & (a | b)) | (a & b)) & r;
+		*d++ = a;
+		*d++ = c;
+		*d++ = b;
+		*d++ = c16[s[3]];
+	}
+	return d;
+}
+
 #undef DEF
 
 #ifdef USE_ASM
@@ -101,15 +121,16 @@ DEF(uint16_t*, scr_update_3d2, (uint16_t *d, const uint8_t *s, uint32_t *c32, un
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
 #define scr_update_3d2 scr_update_3d2_asm
+#define scr_update_5x4d4 scr_update_5x4d4_asm
 #endif
 
 void wlsys_setpal(SDL_Color *pal) {
 	uint16_t *d = framebuf;
 	int scaler = sys_data.scaler;
 #if EMBEDDED == 1
-	if (scaler >= 3) scaler = 0;
+	if (scaler >= 4) scaler = 0;
 #endif
-	if (scaler == 0) {
+	if (scaler == 0 || scaler == 3) {
 		pal_update16(pal, d);
 	} else if (scaler == 1) {
 		pal_update32(pal, d);
@@ -125,7 +146,7 @@ static void wlsys_refresh0(const uint8_t *src, int type) {
 	unsigned w = 320, h = 240, skip, v;
 	if (type == 0) {
 		v = pal16[src[0]]; v |= v << 16;
-		v |= v << 16; skip = 20 * w;
+		skip = 20 * w;
 		d = scr_repeat(d, v, skip);
 		d = scr_update_1d1(d, src, pal16, w * 200);
 		scr_repeat(d, v, skip);
@@ -170,9 +191,28 @@ static void wlsys_refresh2(const uint8_t *src, int type) {
 	}
 }
 
+static void wlsys_refresh3(const uint8_t *src, int type) {
+	uint16_t *d = framebuf;
+	uint16_t *pal16 = (uint16_t*)d - 256;
+	unsigned w = 400, h = 240, skip, v;
+	if (type == 0) {
+		v = pal16[src[0]]; v |= v << 16;
+		skip = 20 * w;
+		d = scr_repeat(d, v, skip);
+		d = scr_update_5x4d4(d, src, pal16, 200);
+		scr_repeat(d, v, skip);
+	} else if (type == 2) {
+		d = scr_update_5x4d4(d, src, pal16, 240 - 39);
+		// need to keep 38..39 pixels
+		scr_update_1d1(d, src + (h - 39) * w, pal16, w * 39);
+	} else {
+		scr_update_1d1(d, src, pal16, w * h);
+	}
+}
+
 typedef void (*wlsys_refresh_t)(const uint8_t *src, int type);
 static const wlsys_refresh_t wlsys_refresh_fn[] = {
-	wlsys_refresh0, wlsys_refresh1, wlsys_refresh2 };
+	wlsys_refresh0, wlsys_refresh1, wlsys_refresh2, wlsys_refresh3 };
 
 int force_refresh_type;
 int last_refresh_type;
@@ -183,7 +223,7 @@ void wlsys_refresh(const uint8_t *src, int type) {
 	type &= 15; last_refresh_type = type;
 
 #if EMBEDDED == 1
-	if (sys_data.scaler >= 3) {
+	if (sys_data.scaler >= 4) {
 		uint16_t *pal16 = (uint16_t*)framebuf - 256;
 		scr_update_1d1(framebuf, src, pal16, screenWidth * screenHeight);
 	} else

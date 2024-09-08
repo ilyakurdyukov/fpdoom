@@ -1347,7 +1347,7 @@ index 840c6de..535e5ce 100644
          {
              if (++i >= argc)
 diff --git a/wl_menu.c b/wl_menu.c
-index 0b72c63..ea363a5 100644
+index 0b72c63..749e5ab 100644
 --- a/wl_menu.c
 +++ b/wl_menu.c
 @@ -15,6 +15,15 @@
@@ -1382,6 +1382,15 @@ index 0b72c63..ea363a5 100644
  
      DrawMainMenu ();
      MenuFadeIn ();
+@@ -423,7 +434,7 @@ US_ControlPanel (ScanCode scancode)
+     {
+         which = HandleMenu (&MainItems, &MainMenu[0], NULL);
+ 
+-#ifdef SPEAR
++#if defined(SPEAR) && !defined(EMBEDDED)
+ #ifndef SPEARDEMO
+         IN_ProcessEvents();
+ 
 @@ -475,6 +486,9 @@ US_ControlPanel (ScanCode scancode)
                  }
                  break;

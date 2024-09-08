@@ -10,16 +10,16 @@ uint16_t *framebuf;
 
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
-		320, 240,  160, 128,  480, 320,
+		320, 240,  160, 128,  480, 320,  400, 240,
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned scaler = sys_data.scaler - 1;
-	if (scaler >= 3) {
+	if (scaler >= 4) {
 		int w = disp->w1, h = disp->h1;
 		switch (w) {
-		case 480:
-			scaler = 2; break;
-		case 240: case 320: case 400:
+		case 400: scaler = 3; break;
+		case 480: scaler = 2; break;
+		case 240: case 320:
 			scaler = 0; break;
 		case 128: case 160:
 			scaler = 1; break;
@@ -41,7 +41,7 @@ uint8_t* wlsys_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size, size1, size2; uint8_t *p;
-	static const uint8_t pal_size[] = { 2, 4, 6 };
+	static const uint8_t pal_size[] = { 2, 4, 6, 2 };
 	int scaler = sys_data.scaler, sh = scaler == 1;
 
 	screenWidth = w << sh;

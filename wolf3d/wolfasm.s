@@ -304,3 +304,39 @@ CODE32_FN scr_update_3d2_asm
 	bhi	1b
 	pop	{r4-r11,pc}
 
+CODE32_FN scr_update_5x4d4_asm
+	push	{r4-r11,lr}
+	ldr	r9, =0x08210821
+	ldr	r12, =0x1fe
+	mvn	r8, r9, lsr #1
+1:	sub	r3, #320 << 16
+2:	ldr	r7, [r1], #4
+	and	r4, r12, r7, lsl #1
+	and	r5, r12, r7, lsr #7
+	and	r6, r12, r7, lsr #15
+	and	r7, r12, r7, lsr #23
+	ldrh	r4, [r2, r4]
+	ldrh	r5, [r2, r5]
+	ldrh	r6, [r2, r6]
+	ldrh	r7, [r2, r7]
+	strh	r4, [r0], #10
+	and	r10, r8, r5, lsr #1
+	strh	r5, [r0, #-8]
+	and	r4, r8, r6, lsr #1
+	add	r10, r4
+	orr	r11, r5, r6
+	and	r5, r6
+	and	r11, r10
+	orr	r5, r11
+	and	r5, r9
+	add	r5, r10
+	strh	r5, [r0, #-6]
+	strh	r6, [r0, #-4]
+	strh	r7, [r0, #-2]
+	adds	r3, #4 << 16
+	bmi	2b
+	add	r1, #80
+	subs	r3, #1
+	bhi	1b
+	pop	{r4-r11,pc}
+
