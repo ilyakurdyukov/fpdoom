@@ -688,6 +688,122 @@ static const uint8_t cmd9328_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd5420_init[] = {
+	LCM_DELAY(100),
+#define X(a, b) LCM_CMD(a >> 8, 0), LCM_CMD(a & 0xff, 2), b >> 8, b & 0xff,
+	X(0x606, 0x0000) // Pin Control
+	X(0x007, 0x0001) // Display Control 1
+	X(0x110, 0x0001) // Power Control 6
+	X(0x100, 0x17b0) // Power Control 1
+	X(0x101, 0x0147) // Power Control 2
+	X(0x102, 0x019d) // Power Control 3
+	X(0x103, 0x3600) // Power Control 4
+	X(0x281, 0x0005) // NVM read data 2
+	X(0x102, 0x01bd) // Power Control 3
+	X(0x000, 0x0000) // ???
+	X(0x001, 0x0100) // Driver Output Control Register
+	X(0x002, 0x0100) // LCD Driving Waveform Control
+	//X(0x003, 0x1030) // Entry Mode
+	X(0x006, 0x0000) // ???
+	X(0x008, 0x0808) // Display Control 2
+	X(0x009, 0x0001) // Display Control 3
+	X(0x00b, 0x0010) // Low Power Control
+	X(0x00c, 0x0000) // External Display Interface Control 1
+	X(0x00f, 0x0000) // External Display Interface Control 2
+	X(0x007, 0x0001) // Display Control 1
+	X(0x010, 0x0014) // Panel Interface Control 1
+	X(0x011, 0x0202) // Panel Interface Control 2
+	X(0x012, 0x0300) // Panel Interface Control 3
+	X(0x020, 0x021e) // Panel Interface Control 4
+	X(0x021, 0x0202) // Panel Interface Control 5
+	X(0x022, 0x0100) // Panel Interface Control 6
+	X(0x090, 0x8000) // Frame Marker Control
+	X(0x092, 0x0000) // ???
+	X(0x100, 0x17b0) // Power Control 1
+	X(0x101, 0x0147) // Power Control 2
+	X(0x102, 0x01a8) // Power Control 3
+	X(0x103, 0x2e00) // Power Control 4
+	X(0x107, 0x0000) // Power Control 5
+	X(0x110, 0x0001) // Power Control 6
+	//X(0x210, 0x0000) // Horizontal Address Start Position
+	//X(0x211, 0x00ef) // Horizontal Address End Position
+	//X(0x212, 0x0000) // Vertical Address Start Position
+	//X(0x213, 0x018f) // Vertical Address End Position
+	X(0x280, 0x0000) // NVM read data 1
+	X(0x281, 0x0000) // NVM read data 2
+	X(0x282, 0x0000) // NVM read data 3
+	X(0x300, 0x0101) // Gamma Control 1
+	X(0x301, 0x0b31) // Gamma Control 2
+	X(0x302, 0x1333) // Gamma Control 3
+	X(0x303, 0x3313) // Gamma Control 4
+	X(0x304, 0x310b) // Gamma Control 5
+	X(0x305, 0x0101) // Gamma Control 6
+	X(0x306, 0x030a) // Gamma Control 7
+	X(0x307, 0x0a03) // Gamma Control 8
+	X(0x308, 0x0006) // Gamma Control 9
+	X(0x309, 0x0004) // Gamma Control 10
+	X(0x30a, 0x0e05) // Gamma Control 11
+	X(0x30b, 0x0e01) // Gamma Control 12
+	X(0x30c, 0x010e) // Gamma Control 13
+	X(0x30d, 0x050e) // Gamma Control 14
+	X(0x30e, 0x0400) // Gamma Control 15
+	X(0x30f, 0x0600) // Gamma Control 16
+	X(0x400, 0x3500) // Image Number of Lines
+	X(0x401, 0x0001) // Image Display Control
+	X(0x404, 0x0000) // Image Vertical Scroll Control
+	X(0x500, 0x0000) // Partial Image 1 Display Position
+	X(0x501, 0x0000) // Partial Image 1 Area (Start Line)
+	X(0x502, 0x0000) // Partial Image 1 Area (End Line)
+	X(0x503, 0x0000) // Partial Image 2 Display Position
+	X(0x504, 0x0000) // Partial Image 2 Area (Start Line)
+	X(0x505, 0x0000) // Partial Image 2 Area (End Line)
+	X(0x600, 0x0000) // ???
+	X(0x606, 0x0000) // Pin Control
+	X(0x6f0, 0x0000) // NVM Access Control
+	X(0x7f0, 0x5420)
+	X(0x7f2, 0x00df)
+	X(0x7f3, 0x2890)
+	X(0x7f4, 0x0022)
+	X(0x7f5, 0x0001)
+	X(0x7f0, 0x0000)
+	X(0x007, 0x0173) // Display Control 1
+	//X(0x202) Write Data to GRAM
+#undef X
+	LCM_END
+};
+
+static const uint8_t cmd6D04_init[] = {
+	LCM_DELAY(120),
+	LCM_CMD(0xf0, 2), 0x5a,0x5a, // PASSWD1
+	LCM_DELAY(100),
+	LCM_CMD(0xf4, 14), // Power Control
+		0x09,0x00,0x00,0x00,0x21,0x47,0x01,
+		0x02,0x2a,0x16,0x06,0x2a,0x00,0x06,
+	LCM_CMD(0xf5, 10), // VCOM Control
+		0x00,0x26,0x52,0x00,0x00,0x00,0x00,0x00,0x0d,0x0d,
+	LCM_CMD(0xf6, 7), // Source Control
+		0x01,0x01,0x07,0x00,0x01,0x0c,0x03,
+	LCM_CMD(0xfc, 2), 0x5a,0x5a, // ???
+	LCM_CMD(0xf8, 2), 0x22,0x00, // Panel Control
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x55, // Pixel Format Set
+	LCM_CMD(0xf7, 4), 0x00,0x00,0x00,0x00, // Interface Control
+	LCM_CMD(0xf2, 17), // Display Control
+		0x28,0x59,0x7f,0x08,0x08,0x00,0x00,
+		0x19,0x48,0x04,0x07,0x01,0x00,0x00,
+		0x59,0x08,0x08,
+	LCM_CMD(0x26, 1), 0x04, // Gamma Set
+	//LCM_CMD(0x11, 0), // Sleep Out Mode
+	//LCM_DELAY(120),
+	//LCM_CMD(0x2a, 4), 0x00,0x00,0x00,0x1f, // Column Address Set
+	//LCM_CMD(0x2b, 4), 0x00,0x00,0x01,0x3f, // Page Address Set
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_DELAY(120),
+	LCM_END
+};
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -1182,6 +1298,16 @@ static const lcd_config_t lcd_config[] = {
 
 	// Ilitek ILI9328
 	{ 0x289328, 0x00ffffff, 0, 0, 1,  240, 320, 1, 0, 0,  { 5, 150, 150, 10, 50, 50 }, { 0 }, 0xc0, cmd9328_init },
+
+/* Texet TM-321 */
+
+	// Orise Tech SPFD5420A
+	{ 0x005420, 0xffffff, 0, 0, 1,  240, 400, 1, 0, 2,  { 10, 150, 100, 30, 50, 70 }, { 0 }, 0xc0, cmd5420_init },
+
+/* Texet TM-308 */
+
+	// Samsung S6D04H0A (0x6d04)
+	{ 0x61bc11, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 150, 60, 60, 100, 35, 35 }, { 0 }, 0x48, cmd6D04_init },
 #endif
 
 #if CHIP == 2 || CHIP == 3

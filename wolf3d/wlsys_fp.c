@@ -19,7 +19,7 @@ void lcd_appinit(void) {
 		switch (w) {
 		case 480:
 			scaler = 2; break;
-		case 240: case 320:
+		case 240: case 320: case 400:
 			scaler = 0; break;
 		case 128: case 160:
 			scaler = 1; break;

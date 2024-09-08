@@ -590,6 +590,10 @@ static void lcm_init(void) {
 	if (!id) id = lcd_getid2();
 	// workaround for NT35310
 	else if (id == 0x8000) id = lcd_cmdret(0xd4, 4);
+	else if (id == 0x040404) { // workaround for SPFD5420A
+		lcm_send_cmd(0x00);
+		id = lcd_cmdret(0x00, 2);
+	}
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
 	for (i = 0; i < n; i++)
@@ -652,10 +656,10 @@ static void lcd_init(void) {
 	sys_data.display.h1 = h;
 
 	lcm_exec(lcd->cmd_init);
-	if (lcd->id == 0x289328) {
+	if (lcd->id == 0x289328 || lcd->id == 0x5420) {
 		/* Why can't people use standardized commands? */
+#define X(a, b) LCM_CMD(a >> 8, 0), LCM_CMD(a & 0xff, b)
 		static uint8_t cmd_init2_ili9328[] = {
-#define X(a, b) LCM_CMD(0x00, 0), LCM_CMD(a, b)
 			// ORG, 0, I/D1, I/D0, AM, 0, 0, 0
 			X(0x03, 2), 0x10,0, // Entry Mode
 			X(0x50, 2), 0,0, // Horizontal Address Start Position
@@ -665,10 +669,23 @@ static void lcd_init(void) {
 			X(0x20, 2), 0,0, // Horizontal GRAM Address Set
 			X(0x21, 2), 0,0, // Vertical GRAM Address Set
 			X(0x22, 0), // Write Data to GRAM
-#undef X
 			LCM_END
 		};
-		uint8_t *p = cmd_init2_ili9328;
+		static uint8_t cmd_init2_spfd5420a[] = {
+			X(0x003, 2), 0x10,0, // Entry Mode
+			X(0x210, 2), 0,0, // Horizontal Address Start Position
+			X(0x211, 2), 0,0, // Horizontal Address End Position
+			X(0x212, 2), 0,0, // Vertical Address Start Position
+			X(0x213, 2), 0,0, // Vertical Address End Position
+			X(0x200, 2), 0,0, // Horizontal GRAM Address Set
+			X(0x201, 2), 0,0, // Vertical GRAM Address Set
+			X(0x202, 0), // Write Data to GRAM
+			LCM_END
+		};
+#undef X
+		uint8_t *p = cmd_init2_ili9328, *p0;
+		if (lcd->id == 0x5420) p = cmd_init2_spfd5420a;
+		p0 = p;
 		p[5] = mac_arg >> 2; p += 6;
 		if (mac_arg & 0x20) {
 			unsigned t;
@@ -682,7 +699,7 @@ static void lcd_init(void) {
 		if (!(mac_arg & 0x40)) p[4] = w2 >> 8, p[5] = w2;
 		p += 6;
 		if (!(mac_arg & 0x80)) p[4] = h2 >> 8, p[5] = h2;
-		lcm_exec(cmd_init2_ili9328);
+		lcm_exec(p0);
 	} else {
 		uint8_t *p = cmd_init2;
 		p[2] = mac_arg; p += 3;

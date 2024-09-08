@@ -88,10 +88,14 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 34 | Texet TM-302           | SC6531DA | ST7789  240x320 | 0          |
 | 35 | Strike A13             | SC6531DA | GC9106  128x160 | left soft  |
 | 36 | Olmio A25              | SC6531E  | ILI9328 240x320 | dial       |
+| 37 | Tokky FP50             | SC6531DA | GC9106  128x160 | *          |
+| 38 | Texet TM-D328          | SC6531E  | GC9306  240x320 | right      |
+| 39 | Texet TM-321           | SC6531E  | SPFD5420 240x400 | 1          |
+| 40 | Texet TM-308           | SC6531E  | S6D04H0 240x320 | 0          |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
-F+ F197, Texet TM-302, Strike A13, Olmio A25:
+F+ F197, Texet TM-302, Strike A13, Olmio A25, Tokky FP50:
 need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable

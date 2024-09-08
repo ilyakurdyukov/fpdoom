@@ -135,8 +135,10 @@ enum {
 	X(0x1d, LCTRL)
 	X(0x1e, A)
 	X(0x27, SEMICOLON)
-	X(0x28, APOSTROPHE)
+	X(0x28, QUOTE)
+	X(0x29, TILDE)
 	X(0x2c, Z)
+	X(0x2d, X)
 	X(0x33, COMMA)
 	X(0x34, DOT)
 	X(0x39, SPACE)
@@ -168,18 +170,23 @@ void keytrn_init(void) {
 		KEY(3, KEY_DOT) /* strafe right */
 		KEY(8, KEY_SPACE) /* use */
 		KEY(7, KEY_SEMICOLON) /* prev weapon */
-		KEY(9, KEY_APOSTROPHE) /* next weapon */
+		KEY(9, KEY_QUOTE) /* next weapon */
 		KEY(HASH, KEY_A) /* jump */
 		KEY(STAR, KEY_Z) /* crouch */
 		KEY(0, KEY_RBRACKET) /* next item */
 		KEY(VOLUP, KEY_EQUALS)
 		KEY(VOLDOWN, KEY_MINUS)
 		KEY(PLUS, KEY_TAB) /* map */
+#ifdef GAME_DUKE3D
+		KEY(CAMERA, KEY_TILDE) /* kick */
+#elif defined(GAME_BLOOD)
+		KEY(CAMERA, KEY_X) /* alt fire */
+#endif
 	};
 	static const uint8_t keys_power[] = {
 		KEY(UP, KEY_CAPSLOCK)
 		KEY(LEFT, KEY_SEMICOLON)
-		KEY(RIGHT, KEY_APOSTROPHE)
+		KEY(RIGHT, KEY_QUOTE)
 		KEY(DOWN, KEY_ESCAPE)
 		KEY(CENTER, KEY_ENTER)
 
