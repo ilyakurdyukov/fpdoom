@@ -11,19 +11,15 @@
 void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
 
-#ifdef USEASM
-#define SEL(name) name##_asm
-#else
-#define SEL(name) name##_ref
-#endif
+#define DEF(ret, name, args) \
+ret name##_asm args; ret name args
 
 #define PAL_UPDATE(load, process) \
 	for (i = 0; i < 256; i++) { \
 		r = load; g = load; b = load; process; \
 	}
 
-void pal_update16_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
-void pal_update16_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
+DEF(void, pal_update16, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
 	int i, r, g, b;
 	uint16_t *d = (uint16_t*)dest - 256;
 	if (!gamma)
@@ -34,8 +30,7 @@ void pal_update16_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 				*d++ = (r >> 3) << 11 | (g >> 2) << 5 | b >> 3)
 }
 
-void pal_update32_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
-void pal_update32_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
+DEF(void, pal_update32, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
 	int i, r, g, b;
 	uint32_t *d = (uint32_t*)dest - 256;
 	if (!gamma)
@@ -46,8 +41,11 @@ void pal_update32_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 				*d++ = r << 22 | b << 11 | g << 1)
 }
 
-void pal_update32_8d9_asm(uint8_t *pal, void *dest, const uint8_t *gamma);
-void pal_update32_8d9_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
+#ifdef USE_ASM
+#define pal_update32 pal_update32_asm
+#endif
+
+DEF(void, pal_update32_8d9, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
 	int i, r, g, b;
 	uint32_t *d = (uint32_t*)dest - 256 * 2;
 #define X(i) ((i) * 8 + 4) / 9
@@ -60,9 +58,9 @@ void pal_update32_8d9_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 #undef X4
 #undef X
 
-	SEL(pal_update32)(pal, dest, gamma);
+	pal_update32(pal, dest, gamma);
 	if (!gamma)
-		SEL(pal_update32)(pal, (uint32_t*)dest - 256, lut);
+		pal_update32(pal, (uint32_t*)dest - 256, lut);
 	else
 		PAL_UPDATE(lut[gamma[*pal++]],
 				*d++ = r << 22 | b << 11 | g << 1)
@@ -70,8 +68,7 @@ void pal_update32_8d9_ref(uint8_t *pal, void *dest, const uint8_t *gamma) {
 
 #undef PAL_UPDATE
 
-void scr_update_1d1_asm(uint8_t *src, void *dest);
-void scr_update_1d1_ref(uint8_t *src, void *dest) {
+DEF(void, scr_update_1d1, (uint8_t *src, void *dest)) {
 	uint8_t *s = src;
 	uint16_t *d = (uint16_t*)dest;
 	uint16_t *c16 = (uint16_t*)dest - 256;
@@ -85,7 +82,7 @@ void scr_update_1d1_ref(uint8_t *src, void *dest) {
 // rrrrr000 000bbbbb 00000ggg ggg00000
 // rounding half to even
 
-static void scr_update_1d2_local_ref(uint8_t *s, uint16_t *d, uint32_t *c32, int h) {
+DEF(void, scr_update_1d2_custom, (uint8_t *s, uint16_t *d, uint32_t *c32, int h)) {
 	int x, y, w = SCREENWIDTH;
 	unsigned a, b = 0x00400802;
 	for (y = 0; y < h; y += 2, s += w)
@@ -98,17 +95,19 @@ static void scr_update_1d2_local_ref(uint8_t *s, uint16_t *d, uint32_t *c32, int
 	}
 }
 
-void scr_update_1d2_asm(uint8_t *src, void *dest);
-void scr_update_1d2_ref(uint8_t *src, void *dest) {
+#ifdef USE_ASM
+#define scr_update_1d2_custom scr_update_1d2_custom_asm
+#endif
+
+DEF(void, scr_update_1d2, (uint8_t *src, void *dest)) {
 	uint8_t *s = src;
 	uint16_t *d = (uint16_t*)dest;
 	uint32_t *c32 = (uint32_t*)dest - 256;
 	int h = SCREENHEIGHT;
-	scr_update_1d2_local_ref(s, d, c32, h);
+	scr_update_1d2_custom(s, d, c32, h);
 }
 
-void scr_update_3d2_asm(uint8_t *src, void *dest);
-void scr_update_3d2_ref(uint8_t *src, void *dest) {
+DEF(void, scr_update_3d2, (uint8_t *src, void *dest)) {
 	uint8_t *s = src;
 	uint16_t *d = (uint16_t*)dest;
 	uint32_t *c32 = (uint32_t*)dest - 256;
@@ -146,17 +145,77 @@ void scr_update_3d2_ref(uint8_t *src, void *dest) {
 		X1(a2, w2 * 2)
 		X2(a2, a3, w2 * 2 + 1)
 		X1(a3, w2 * 2 + 2)
-#undef X1
-#undef X2
 	}
 }
+
+// pixel aspect ratio 25:24
+DEF(void, scr_update_25x24d20, (uint8_t *src, void *dest)) {
+	uint8_t *s = src;
+	uint16_t *d = (uint16_t*)dest;
+	uint32_t *c32 = (uint32_t*)dest - 256;
+	int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
+	int w2 = SCREENWIDTH * 5 / 4;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
+	do {
+		for (y = 0; y < 3; y++)
+		for (x = 0; x < w; x += 4, s += 4, d += 5) {
+			a0 = c32[s[0]];
+			X1(a0, 0)
+			a0 = c32[s[1]];
+			a1 = c32[s[2]];
+			X1(a0, 1)
+			X2(a0, a1, 2)
+			X1(a1, 3)
+			a0 = c32[s[3]];
+			X1(a0, 4)
+		}
+
+		for (x = 0; x < w; x += 4, s += 4, d += 5) {
+			a0 = c32[s[0]];
+			a2 = c32[s[w]];
+			X1(a0, 0)
+			X2(a0, a2, w2)
+			X1(a2, w2 * 2)
+
+			a0 = c32[s[1]];
+			a1 = c32[s[2]];
+			a2 = c32[s[w + 1]];
+			a3 = c32[s[w + 2]];
+
+			X1(a0, 1)
+			X2(a0, a1, 2)
+			X1(a1, 3)
+
+			X2(a0, a2, w2 + 1)
+			a = a0 + a1 + a2 + a3;
+			a += ((b & a >> 1) + b) >> 1;
+			a &= m;
+			d[w2 + 2] = a | a >> 16;
+			X2(a1, a3, w2 + 3)
+
+			X1(a2, w2 * 2 + 1)
+			X2(a2, a3, w2 * 2 + 2)
+			X1(a3, w2 * 2 + 3)
+
+			a0 = c32[s[3]];
+			a2 = c32[s[w + 3]];
+			X1(a0, 4)
+			X2(a0, a2, w2 + 4)
+			X1(a2, w2 * 2 + 4)
+		}
+		s += w; d += w2 * 2;
+	} while ((h -= 5));
+}
+
+#undef X1
+#undef X2
 
 typedef enum {false, true} boolean;
 extern boolean menuactive, viewactive;
 extern int screenblocks;
 
-void scr_update_2d3_crop_asm(uint8_t *src, void *dest);
-void scr_update_2d3_crop_ref(uint8_t *src, void *dest) {
+DEF(void, scr_update_2d3_crop, (uint8_t *src, void *dest)) {
 	uint8_t *s = src;
 	uint16_t *d = (uint16_t*)dest;
 	uint32_t *c32 = (uint32_t*)dest - 256 * 2;
@@ -171,7 +230,7 @@ void scr_update_2d3_crop_ref(uint8_t *src, void *dest) {
 		for (i = 0; i < n; i++) p[i] = 0;
 		p = (uint32_t*)(d + 114 * w / 2);
 		for (i = 0; i < n; i++) p[i] = 0;
-		scr_update_1d2_local_ref(s, d + 14 * w / 2, c32 + 256, 200);
+		scr_update_1d2_custom(s, d + 14 * w / 2, c32 + 256, 200);
 		return;
 	}
 
@@ -207,19 +266,29 @@ void scr_update_2d3_crop_ref(uint8_t *src, void *dest) {
 #undef X
 	}
 	if (screenblocks < 11)
-		scr_update_1d2_local_ref(s - 40, d, c32 + 256, 32);
+		scr_update_1d2_custom(s - 40, d, c32 + 256, 32);
 }
 
+#undef DEF
+#ifdef USE_ASM
+#define pal_update16 pal_update16_asm
+#define scr_update_1d1 scr_update_1d1_asm
+#define scr_update_1d2 scr_update_1d2_asm
+#define scr_update_3d2 scr_update_3d2_asm
+#define scr_update_25x24d20 scr_update_25x24d20_asm
+#endif
+
 uint8_t* framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 4, 8 };
+	static const uint8_t pal_size[] = { 2, 4, 4, 8, 4 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
 	} fn[] = {
-		{ SEL(pal_update16), SEL(scr_update_1d1) },
-		{ SEL(pal_update32), SEL(scr_update_1d2) },
-		{ SEL(pal_update32), SEL(scr_update_3d2) },
-		{ pal_update32_8d9_ref, scr_update_2d3_crop_ref },
+		{ pal_update16, scr_update_1d1 },
+		{ pal_update32, scr_update_1d2 },
+		{ pal_update32, scr_update_3d2 },
+		{ pal_update32_8d9, scr_update_2d3_crop },
+		{ pal_update32, scr_update_25x24d20 },
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
@@ -238,16 +307,16 @@ uint8_t* framebuffer_init(void) {
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
 		320, 200,  160, 100,  480, 300,
-		160, 128
+		160, 128,  400, 240
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
-	if (mode > 3) {
+	if (mode >= 5) {
 		int w = disp->w1, h = disp->h1;
 		switch (w) {
-		case 480:
-			mode = 2; break;
-		case 240: case 320: case 400:
+		case 400: mode = 4; break;
+		case 480: mode = 2; break;
+		case 240: case 320:
 			mode = 0; break;
 		case 128: case 160:
 			mode = 1; break;

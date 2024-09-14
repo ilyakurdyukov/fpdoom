@@ -209,6 +209,7 @@ CODE32_FN scr_update_1d2_asm
 
 CODE32_FN scr_update_3d2_asm
 	push	{r4-r11,lr}
+	sub	r2, #256 * 4
 	mov	r12, #480
 	ldr	lr, =0x00400802
 	ldr	r10, =0xf81f07e0
@@ -304,39 +305,136 @@ CODE32_FN scr_update_3d2_asm
 	bhi	1b
 	pop	{r4-r11,pc}
 
-CODE32_FN scr_update_5x4d4_asm
+.macro SCALE15X_121 r6, r7
+	and	r11, r10, \r6, lsl #2
+	add	r12, \r6, \r7
+	and	r5, r12, lr, lsl #1
+	add	r5, r5, r12, lsl #1
+	and	r12, r10, \r7, lsl #2
+	and	r5, r10
+	orr	r11, r11, r11, lsr #16
+	orr	r5, r5, r5, lsr #16
+	orr	r12, r12, r12, lsr #16
+.endm
+
+CODE32_FN scr_update_25x24d20_asm
 	push	{r4-r11,lr}
-	ldr	r9, =0x08210821
-	ldr	r12, =0x1fe
-	mvn	r8, r9, lsr #1
-1:	sub	r3, #320 << 16
-2:	ldr	r7, [r1], #4
-	and	r4, r12, r7, lsl #1
-	and	r5, r12, r7, lsr #7
-	and	r6, r12, r7, lsr #15
-	and	r7, r12, r7, lsr #23
-	ldrh	r4, [r2, r4]
-	ldrh	r5, [r2, r5]
-	ldrh	r6, [r2, r6]
-	ldrh	r7, [r2, r7]
-	strh	r4, [r0], #10
-	and	r10, r8, r5, lsr #1
-	strh	r5, [r0, #-8]
-	and	r4, r8, r6, lsr #1
-	add	r10, r4
-	orr	r11, r5, r6
-	and	r5, r6
-	and	r11, r10
-	orr	r5, r11
-	and	r5, r9
-	add	r5, r10
+	sub	r2, #256 * 4
+	ldr	lr, =0x00400802
+	ldr	r10, =0xf81f07e0
+1:
+	add	r3, #(3 - 1) << 12
+4:	sub	r3, #320 << 16
+3:	ldr	r9, [r1], #4
+	mov	r4, #0x3fc
+	and	r6, r4, r9, lsl #2
+	and	r7, r4, r9, lsr #6
+	and	r8, r4, r9, lsr #14
+	and	r9, r4, r9, lsr #22
+	ldr	r6, [r2, r6]
+	ldr	r7, [r2, r7]
+	ldr	r8, [r2, r8]
+	ldr	r9, [r2, r9]
+
+	SCALE15X_121 r7, r8
+
+	and	r8, r10, r6, lsl #2
+	and	r9, r10, r9, lsl #2
+	orr	r8, r8, r8, lsr #16
+	orr	r9, r9, r9, lsr #16
+	strh	r8, [r0], #10
+	strh	r11, [r0, #-8]
 	strh	r5, [r0, #-6]
-	strh	r6, [r0, #-4]
-	strh	r7, [r0, #-2]
+	strh	r12, [r0, #-4]
+	strh	r9, [r0, #-2]
+
+	adds	r3, #4 << 16
+	bmi	3b
+	add	r1, #400 - 320
+	subs	r3, #1 << 12
+	bhi	4b
+	add	r3, #1 << 12
+	subs	r3, #3
+	bls	9f
+
+	sub	r3, #320 << 16
+2:	ldr	r8, [r1, #400]
+	ldr	r6, [r1], #4
+	mov	r4, #0x3fc
+
+	// left
+	and	r7, r4, r6, lsl #2
+	and	r9, r4, r8, lsl #2
+	ldr	r7, [r2, r7]
+	ldr	r9, [r2, r9]
+	SCALE15X_121 r7, r9
+	add	r7, r0, #400 * 2
+	add	r9, r0, #400 * 4
+	strh	r11, [r0], #10
+	strh	r5, [r7]
+	strh	r12, [r9]
+
+	// right
+	and	r7, r4, r6, lsr #22
+	and	r9, r4, r8, lsr #22
+	ldr	r7, [r2, r7]
+	ldr	r9, [r2, r9]
+	SCALE15X_121 r7, r9
+	add	r7, r0, #400 * 2
+	add	r9, r0, #400 * 4
+	strh	r11, [r0, #-2]
+	strh	r5, [r7, #-2]
+	strh	r12, [r9, #-2]
+
+	and	r9, r4, r8, lsr #14
+	and	r7, r4, r6, lsr #14
+	and	r6, r4, r6, lsr #6
+	and	r8, r4, r8, lsr #6
+	ldr	r6, [r2, r6]
+	ldr	r7, [r2, r7]
+	ldr	r8, [r2, r8]
+	ldr	r9, [r2, r9]
+
+	// top
+	SCALE15X_121 r6, r7
+	strh	r11, [r0, #-8]
+	strh	r5, [r0, #-6]
+	strh	r12, [r0, #-4]
+	add	r0, #400 * 2
+
+	// center
+	add	r6, r8
+	add	r7, r9
+	add	r5, r6, r7
+	and	r12, lr, r5, lsr #2
+	add	r5, lr
+	add	r5, r12
+	and	r11, r6, lr, lsl #1
+	and	r12, r7, lr, lsl #1
+	add	r6, r11, r6, lsl #1
+	add	r7, r12, r7, lsl #1
+	and	r6, r10
+	and	r5, r10
+	and	r7, r10
+	orr	r6, r6, r6, lsr #16
+	orr	r5, r5, r5, lsr #16
+	orr	r7, r7, r7, lsr #16
+	strh	r6, [r0, #-8]
+	strh	r5, [r0, #-6]
+	strh	r7, [r0, #-4]
+	add	r0, #400 * 2
+
+	// bottom
+	SCALE15X_121 r8, r9
+	strh	r11, [r0, #-8]
+	strh	r5, [r0, #-6]
+	strh	r12, [r0, #-4]
+	sub	r0, #400 * 4
 	adds	r3, #4 << 16
 	bmi	2b
-	add	r1, #80
-	subs	r3, #1
+	add	r1, #400 * 2 - 320
+	add	r0, #400 * 4
+	subs	r3, #2
 	bhi	1b
-	pop	{r4-r11,pc}
+9:	pop	{r4-r11,pc}
 

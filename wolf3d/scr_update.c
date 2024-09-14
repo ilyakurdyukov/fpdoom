@@ -53,7 +53,8 @@ DEF(uint16_t*, scr_update_1d2, (uint16_t *d, const uint8_t *s, uint32_t *c32, un
 	return d;
 }
 
-DEF(uint16_t*, scr_update_3d2, (uint16_t *d, const uint8_t *s, uint32_t *c32, unsigned h)) {
+DEF(uint16_t*, scr_update_3d2, (uint16_t *d, const uint8_t *s, uint16_t *c16, unsigned h)) {
+	uint32_t *c32 = (uint32_t*)c16 - 256;
 	unsigned x, y, w = 320, w2 = 480;
 	uint32_t a, a0, a1, a2, a3;
 	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
@@ -87,33 +88,72 @@ DEF(uint16_t*, scr_update_3d2, (uint16_t *d, const uint8_t *s, uint32_t *c32, un
 		X1(a2, w2 * 2)
 		X2(a2, a3, w2 * 2 + 1)
 		X1(a3, w2 * 2 + 2)
+	}
+	return d;
+}
+
+// pixel aspect ratio 25:24
+DEF(uint16_t*, scr_update_25x24d20, (uint16_t *d, const uint8_t *s, uint16_t *c16, unsigned h)) {
+	uint32_t *c32 = (uint32_t*)c16 - 256;
+	unsigned x, y, w = 320, w2 = 400;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
+	do {
+		for (y = 0; y < 3; y++, s += w2 - w)
+		for (x = 0; x < w; x += 4, s += 4, d += 5) {
+			a0 = c32[s[0]];
+			X1(a0, 0)
+			a0 = c32[s[1]];
+			a1 = c32[s[2]];
+			X1(a0, 1)
+			X2(a0, a1, 2)
+			X1(a1, 3)
+			a0 = c32[s[3]];
+			X1(a0, 4)
+		}
+		if (!(h -= 3)) break;
+
+		for (x = 0; x < w; x += 4, s += 4, d += 5) {
+			a0 = c32[s[0]];
+			a2 = c32[s[w2]];
+			X1(a0, 0)
+			X2(a0, a2, w2)
+			X1(a2, w2 * 2)
+
+			a0 = c32[s[1]];
+			a1 = c32[s[2]];
+			a2 = c32[s[w2 + 1]];
+			a3 = c32[s[w2 + 2]];
+
+			X1(a0, 1)
+			X2(a0, a1, 2)
+			X1(a1, 3)
+
+			X2(a0, a2, w2 + 1)
+			a = a0 + a1 + a2 + a3;
+			a += ((b & a >> 1) + b) >> 1;
+			a &= m;
+			d[w2 + 2] = a | a >> 16;
+			X2(a1, a3, w2 + 3)
+
+			X1(a2, w2 * 2 + 1)
+			X2(a2, a3, w2 * 2 + 2)
+			X1(a3, w2 * 2 + 3)
+
+			a0 = c32[s[3]];
+			a2 = c32[s[w2 + 3]];
+			X1(a0, 4)
+			X2(a0, a2, w2 + 4)
+			X1(a2, w2 * 2 + 4)
+		}
+		s += w2 * 2 - w; d += w2 * 2;
+	} while ((h -= 2));
+	return d;
+}
 #undef X1
 #undef X2
-	}
-	return d;
-}
-
-DEF(uint16_t*, scr_update_5x4d4, (uint16_t *d, const uint8_t *s, uint16_t *c16, unsigned h)) {
-	unsigned x, y, a, b, c;
-	uint32_t r = 0x08210821, m = ~(r >> 1);
-	for (y = 0; y < h; y++, s += 80)
-	for (x = 0; x < 320; x += 4, s += 4) {
-		*d++ = c16[s[0]];
-		a = c16[s[1]];
-		b = c16[s[2]];
-		c = ((a >> 1) & m) + ((b >> 1) & m);
-		// rounding half to even
-		c += ((c & (a | b)) | (a & b)) & r;
-		*d++ = a;
-		*d++ = c;
-		*d++ = b;
-		*d++ = c16[s[3]];
-	}
-	return d;
-}
 
 #undef DEF
-
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
 #define pal_update32 pal_update32_asm
@@ -121,7 +161,7 @@ DEF(uint16_t*, scr_update_5x4d4, (uint16_t *d, const uint8_t *s, uint16_t *c16, 
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
 #define scr_update_3d2 scr_update_3d2_asm
-#define scr_update_5x4d4 scr_update_5x4d4_asm
+#define scr_update_25x24d20 scr_update_25x24d20_asm
 #endif
 
 void wlsys_setpal(SDL_Color *pal) {
@@ -130,11 +170,11 @@ void wlsys_setpal(SDL_Color *pal) {
 #if EMBEDDED == 1
 	if (scaler >= 4) scaler = 0;
 #endif
-	if (scaler == 0 || scaler == 3) {
+	if (scaler == 0) {
 		pal_update16(pal, d);
 	} else if (scaler == 1) {
 		pal_update32(pal, d);
-	} else if (scaler == 2) {
+	} else if (scaler >= 2) {
 		pal_update16(pal, d);
 		pal_update32(pal, d - 256);
 	}
@@ -174,16 +214,15 @@ static void wlsys_refresh1(const uint8_t *src, int type) {
 static void wlsys_refresh2(const uint8_t *src, int type) {
 	uint16_t *d = framebuf;
 	uint16_t *pal16 = (uint16_t*)d - 256;
-	uint32_t *pal32 = (uint32_t*)pal16 - 256;
 	unsigned w = 480, h = 320, skip, v;
 	if (type == 0) {
 		v = pal16[src[0]]; v |= v << 16;
 		skip = 10 * w;
 		d = scr_repeat(d, v, skip);
-		d = scr_update_3d2(d, src, pal32, 200);
+		d = scr_update_3d2(d, src, pal16, 200);
 		scr_repeat(d, v, skip);
 	} else if (type == 2) {
-		d = scr_update_3d2(d, src, pal32, 188);
+		d = scr_update_3d2(d, src, pal16, 188);
 		// need to keep 38..39 pixels
 		scr_update_1d1(d, src + (h - 38) * w, pal16, w * 38);
 	} else {
@@ -196,14 +235,9 @@ static void wlsys_refresh3(const uint8_t *src, int type) {
 	uint16_t *pal16 = (uint16_t*)d - 256;
 	unsigned w = 400, h = 240, skip, v;
 	if (type == 0) {
-		v = pal16[src[0]]; v |= v << 16;
-		skip = 20 * w;
-		d = scr_repeat(d, v, skip);
-		d = scr_update_5x4d4(d, src, pal16, 200);
-		scr_repeat(d, v, skip);
+		scr_update_25x24d20(d, src, pal16, 200);
 	} else if (type == 2) {
-		d = scr_update_5x4d4(d, src, pal16, 240 - 39);
-		// need to keep 38..39 pixels
+		d = scr_update_25x24d20(d, src, pal16, 168);
 		scr_update_1d1(d, src + (h - 39) * w, pal16, w * 39);
 	} else {
 		scr_update_1d1(d, src, pal16, w * h);

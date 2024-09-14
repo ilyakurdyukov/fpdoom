@@ -41,7 +41,7 @@ uint8_t* wlsys_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size, size1, size2; uint8_t *p;
-	static const uint8_t pal_size[] = { 2, 4, 6, 2 };
+	static const uint8_t pal_size[] = { 2, 4, 6, 6 };
 	int scaler = sys_data.scaler, sh = scaler == 1;
 
 	screenWidth = w << sh;
