@@ -50,52 +50,55 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 
 ### List of tested models
 
-|  # | Name                   |   Chip   |      LCD        | Boot Key   |
-|----|------------------------|----------|-----------------|------------|
-|  1 | F+ F256                | SC6531E  | GC9306  240x320 | *          |
-|  2 | Digma Linx B241        | SC6531E  | ST7789  240x320 | center     |
-|  3 | F+ Ezzy 4              | SC6531E  | GC9106  128x160 | 1          |
-|  4 | Joy's S21              | SC6531DA | GC9108  128x160 | 0          |
-|  5 | Vertex M115            | SC6531DA | ST7735S 128x128 | up         |
-|  6 | Vertex С323            | SC6531DA | GC9106  128x160 | 0          |
-|  7 | Nobby 170B             | SC6531E  | GC9106  128x160 | #          |
-|  8 | SW DZ09                | SC6531DA | GC9307  240x240 | none       |
-|  9 | Nokia TA-1174          | SC6531E  | ST7735  128x160 | 7          |
-| 10 | BQ 3586                | SC6531H  | R61529  320x480 | #          |
-| 11 | Samsung B310E          | SC6530C  | ST7735  128x160 | center     |
-| 12 | Fontel FP200           | SC6531DA | GC9106  128x160 | left soft  |
-| 13 | Vertex D514            | SC6531E  | ???     240x320 | center     |
-| 14 | Fly TS114              | SC6531E  | GC9306  240x320 | right soft |
-| 15 | Energizer E12          | SC6531E  | GC9106  128x160 | 1          |
-| 16 | Itel it5626            | SC6531DA | GC9307  240x320 | left soft  |
-| 17 | Sunwind C2401          | SC6531E  | ST7789  240x320 | *          |
-| 18 | DEXP SD2810            | SC6531E  | NV3029G 240x320 | 2          |
-| 19 | Nokia TA-1400          | SC6531F  | ???     240x320 | right soft |
-| 20 | YX Q5 Kids Camera      | SC6531DA | NV3023  128x160 | shutter    |
-| 21 | Nomi i184              | SC6531DA | GC9102  128x160 | *          |
-| 22 | Sigma IO67             | SC6531DA | GC9305  240x320 | dial       |
-| 23 | Samsung GT-E1272       | SC6531E  | ST???   128x160 | 2          |
-| 24 | Samsung GT-E1272       | SC6530   | ST7735  128x160 | center     |
-| 25 | F+ F197                | SC6531E  | NV3023  128x160 | 1          |
-| 26 | Alcatel 2003D          | SC6531E  | ST7789  240x320 | dial       |
-| 27 | Alcatel 2019G          | SC6531E  | GC9308  320x240 | dial       |
-| 28 | Texet TM-122           | SC6531DA | GC9106  128x160 | 0          |
-| 29 | Texet TM-130           | SC6531DA | GC9106  128x160 | 0          |
-| 30 | Olmio E29              | SC6531E  | GC9300  240x320 | left soft  |
-| 31 | Texet TM-B307          | SC6531E  | ST7789  240x320 | 2          |
-| 32 | Olmio E35              | SC6531E  | ILI9481 320x480 | 0          |
-| 33 | Texet TM-D324          | SC6531E  | NT35310 320x480 | 0          |
-| 34 | Texet TM-302           | SC6531DA | ST7789  240x320 | 0          |
-| 35 | Strike A13             | SC6531DA | GC9106  128x160 | left soft  |
-| 36 | Olmio A25              | SC6531E  | ILI9328 240x320 | dial       |
-| 37 | Tokky FP50             | SC6531DA | GC9106  128x160 | *          |
-| 38 | Texet TM-D328          | SC6531E  | GC9306  240x320 | right      |
-| 39 | Texet TM-321           | SC6531E  | SPFD5420 240x400 | 1          |
-| 40 | Texet TM-308           | SC6531E  | S6D04H0 240x320 | 0          |
+|  # | Name                    |   Chip   |       LCD         | Boot Key   |
+|----|-------------------------|----------|-------------------|------------|
+|  1 | F+ F256                 | SC6531E  | 240x320 GC9306    | *          |
+|  2 | Digma Linx B241         | SC6531E  | 240x320 ST7789    | center     |
+|  3 | F+ Ezzy 4               | SC6531E  | 128x160 GC9106    | 1          |
+|  4 | Joy's S21               | SC6531   | 128x160 GC9108    | 0          |
+|  5 | Vertex M115             | SC6531   | 128x128 ST7735S   | up         |
+|  6 | Vertex С323             | SC6531   | 128x160 GC9106    | 0          |
+|  7 | Nobby 170B              | SC6531E  | 128x160 GC9106    | #          |
+|  8 | SW DZ09                 | SC6531   | 240x240 GC9307    | none       |
+|  9 | Nokia TA-1174           | SC6531E  | 128x160 ST7735    | 7          |
+| 10 | BQ 3586                 | SC6531E  | 320x480 R61529    | #          |
+| 11 | Samsung B310E           | SC6530C  | 128x160 ST7735    | center     |
+| 12 | Fontel FP200            | SC6531   | 128x160 GC9106    | left soft  |
+| 13 | Vertex D514             | SC6531E  | 240x320 ???       | center     |
+| 14 | Fly TS114               | SC6531E  | 240x320 GC9306    | right soft |
+| 15 | Energizer E12           | SC6531E  | 128x160 GC9106    | 1          |
+| 16 | Itel it5626             | SC6531   | 240x320 GC9307    | left soft  |
+| 17 | Sunwind C2401           | SC6531E  | 240x320 ST7789    | *          |
+| 18 | DEXP SD2810             | SC6531E  | 240x320 NV3029G   | 2          |
+| 19 | Nokia TA-1400           | SC6531E  | 240x320 ???       | right soft |
+| 20 | YX Q5 Kids Camera       | SC6531   | 128x160 NV3023    | shutter    |
+| 21 | Nomi i184               | SC6531   | 128x160 GC9102    | *          |
+| 22 | Sigma IO67              | SC6531   | 240x320 GC9305    | dial       |
+| 23 | Samsung GT-E1272        | SC6531E  | 128x160 ST7735P   | 2          |
+| 24 | Samsung GT-E1272        | SC6530   | 128x160 ST7735    | center     |
+| 25 | F+ F197                 | SC6531E  | 128x160 NV3023    | 1          |
+| 26 | Alcatel 2003D           | SC6531E  | 240x320 ST7789    | dial       |
+| 27 | Alcatel 2019G           | SC6531E  | 320x240 GC9308    | dial       |
+| 28 | Texet TM-122            | SC6531   | 128x160 GC9106    | 0          |
+| 29 | Texet TM-130            | SC6531   | 128x160 GC9106    | 0          |
+| 30 | Olmio E29               | SC6531E  | 240x320 GC9300    | left soft  |
+| 31 | Texet TM-B307           | SC6531E  | 240x320 ST7789    | 2          |
+| 32 | Olmio E35               | SC6531E  | 320x480 ILI9481   | 0          |
+| 33 | Texet TM-D324           | SC6531E  | 320x480 NT35310   | 0          |
+| 34 | Texet TM-302            | SC6531   | 240x320 ST7789    | 0          |
+| 35 | Strike A13              | SC6531   | 128x160 GC9106    | left soft  |
+| 36 | Olmio A25               | SC6531E  | 240x320 ILI9328   | dial       |
+| 37 | Tokky FP50              | SC6531   | 128x160 GC9106    | *          |
+| 38 | Texet TM-D328           | SC6531E  | 240x320 GC9306    | right      |
+| 39 | Texet TM-321            | SC6531E  | 240x400 SPFD5420A | 1          |
+| 40 | Texet TM-308            | SC6531E  | 240x320 S6D04H0A  | 0          |
+| 41 | Texet TM-B316           | SC6531E  | 128x160 ST7735P   | 9          |
+| 42 | Texet TM-B323           | SC6531E  | 176x220 ILI9225G  | 9          |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
-F+ F197, Texet TM-302, Strike A13, Olmio A25, Tokky FP50:
+F+ F197, Texet TM-302, Strike A13, Olmio A25, Tokky FP50,
+Texet TM-B316, Texet TM-B323:
 need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
@@ -107,6 +110,8 @@ need keymap file
 * Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
+* Texet TM-B316: use `--lcd 0x8083760f --mac 0x60`
+* Texet TM-B323: use `--rotate 3,0`, only games on the Build engine work with this resolution, others need `--scaler 1` option
 
 ### Game controls
 
@@ -136,5 +141,5 @@ need keymap file
 ### Tweaks
 
 * Use `--scaler 3` option to `libc_server` on 128x160 screens to scale down by 1.5x instead of 2x, this will use the entire screen area but decrease the horizontal viewing angle (-25% total).
-* Use `--charger 2` option to `libc_server` so that the battery can be removed for the SC6531DA after the game is loaded, the game will continue to run on USB power.
+* Use `--charger 2` option to `libc_server` so that the battery can be removed for the SC6531 after the game is loaded, the game will continue to run on USB power.
 

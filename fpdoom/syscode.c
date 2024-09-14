@@ -341,10 +341,9 @@ enum {
 #if !SYSCODE_AUTO
 typedef struct {
 	uint32_t id, id_mask;
-	uint16_t cs, extra02; uint32_t extra04;
-	// dimensions
-	uint16_t width, height, dim08, dim0c, dim10;
-	struct { uint16_t /* ns */
+	uint16_t width, height;
+	uint16_t mac_arg;
+	struct { uint8_t /* ns */
 		rcss, /* read CS setup */
 		rlpw, /* read low pulse width */
 		rhpw, /* read high pulse width */
@@ -353,7 +352,6 @@ typedef struct {
 		whpw; /* write high pulse width */
 	} mcu_timing;
 	struct { uint32_t freq; } spi;
-	uint16_t mac_arg;
 	const uint8_t *cmd_init;
 } lcd_config_t;
 
@@ -589,8 +587,9 @@ static void lcm_init(void) {
 	if (!id) id = lcd_getid();
 	if (!id) id = lcd_getid2();
 	// workaround for NT35310
-	else if (id == 0x8000) id = lcd_cmdret(0xd4, 4);
-	else if (id == 0x040404) { // workaround for SPFD5420A
+	if (id == 0x8000) id = lcd_cmdret(0xd4, 4);
+	// workaround for ILI9225G and SPFD5420A
+	else if (!id || id == 0x040404) {
 		lcm_send_cmd(0x00);
 		id = lcd_cmdret(0x00, 2);
 	}
@@ -656,7 +655,7 @@ static void lcd_init(void) {
 	sys_data.display.h1 = h;
 
 	lcm_exec(lcd->cmd_init);
-	if (lcd->id == 0x289328 || lcd->id == 0x5420) {
+	if (lcd->id == 0x289328 || lcd->id == 0x5420 || lcd->id == 0x9226) {
 		/* Why can't people use standardized commands? */
 #define X(a, b) LCM_CMD(a >> 8, 0), LCM_CMD(a & 0xff, b)
 		static uint8_t cmd_init2_ili9328[] = {
@@ -685,7 +684,14 @@ static void lcd_init(void) {
 #undef X
 		uint8_t *p = cmd_init2_ili9328, *p0;
 		if (lcd->id == 0x5420) p = cmd_init2_spfd5420a;
+		if (lcd->id == 0x9226) { // ILI9225G
+			p[6 * 1 + 3] = 0x37;
+			p[6 * 2 + 3] = 0x36;
+			p[6 * 3 + 3] = 0x39;
+			p[6 * 4 + 3] = 0x38;
+		}
 		p0 = p;
+		mac_arg &= 0xff;
 		p[5] = mac_arg >> 2; p += 6;
 		if (mac_arg & 0x20) {
 			unsigned t;

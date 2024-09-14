@@ -447,6 +447,34 @@ static const uint8_t cmd83760F_init[] = {
 	LCM_END
 };
 
+// differs from the previous one in color inversion
+static const uint8_t cmd83760F_texet_init[] = {
+	//LCM_DELAY(120),
+	LCM_CMD(0x11, 0),
+	LCM_DELAY(120),
+	LCM_CMD(0xb1, 3), 0x05,0x3a,0x3a,
+	LCM_CMD(0xb2, 3), 0x05,0x3a,0x3a,
+	LCM_CMD(0xb3, 6), 0x05,0x3a,0x3a,0x05,0x3a,0x3a,
+	LCM_CMD(0xb4, 1), 0x03,
+	LCM_CMD(0xc0, 3), 0xc0,0x0e,0x84,
+	LCM_CMD(0xc1, 1), 0xc4,
+	LCM_CMD(0xc2, 2), 0x0d,0x00,
+	LCM_CMD(0xc3, 2), 0x8d,0x2a,
+	LCM_CMD(0xc4, 2), 0x8d,0xee,
+	LCM_CMD(0xc5, 1), 0x02,
+	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x17,0x1f,0x04,0x07,0x14,0x11,0x0e,0x17,
+		0x1d,0x25,0x36,0x3f,0x10,0x15,0x02,0x00,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x15,0x1c,0x05,0x04,0x11,0x0f,0x0c,0x15,
+		0x1b,0x22,0x2f,0x3f,0x10,0x12,0x00,0x00,
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_DELAY(120)
+	LCM_END
+};
+
 static const uint8_t cmd333025_f197_init[] = {
 	//LCM_DELAY(120),
 	LCM_CMD(0xff, 1), 0xa5,
@@ -804,6 +832,52 @@ static const uint8_t cmd6D04_init[] = {
 	//LCM_DELAY(120),
 	LCM_END
 };
+
+static const uint8_t cmd9226_init[] = {
+	LCM_DELAY(40),
+#define X(a, b) LCM_CMD(a >> 8, 0), LCM_CMD(a & 0xff, 2), b >> 8, b & 0xff,
+	X(0xd0, 0x0003)
+	X(0xeb, 0x0b00)
+	X(0xec, 0x004f)
+	X(0xc7, 0x030f)
+	X(0x01, 0x011c) // Driver Output Control
+	X(0x02, 0x0100) // LCD Driving Waveform Control
+	//X(0x03, 0x1030) // Entry Mode
+	X(0x08, 0x0808) // Display Control 2
+	X(0x0f, 0x0901) // Oscillator Control
+	LCM_DELAY(10),
+	X(0x10, 0x0000) // Power Control 1
+	X(0x11, 0x1b41) // Power Control 2
+	LCM_DELAY(120),
+	X(0x12, 0x200e) // Power Control 3
+	X(0x13, 0x0052) // Power Control 4
+	X(0x14, 0x5a66) // Power Control 5
+	X(0x30, 0x0000) // Gate Scan Control
+	X(0x31, 0x00db) // Vertical Scroll Control 1
+	X(0x32, 0x0000) // Vertical Scroll Control 2
+	X(0x33, 0x0000) // Vertical Scroll Control 3
+	X(0x34, 0x00db) // Partial Screen Driving Position
+	X(0x35, 0x0000)
+	//X(0x36, 0x00af) // Horizontal Address End Position
+	//X(0x37, 0x0000) // Horizontal Address Start Position
+	//X(0x38, 0x00db) // Vertical Address End Position
+	//X(0x39, 0x0000) // Vertical Address Start Position
+	X(0x50, 0x0000) // Gamma Control 1
+	X(0x51, 0x010c) // Gamma Control 2
+	X(0x52, 0x0a01) // Gamma Control 3
+	X(0x53, 0x0401) // Gamma Control 4
+	X(0x54, 0x020a) // Gamma Control 5
+	X(0x55, 0x0b00) // Gamma Control 6
+	X(0x56, 0x0000) // Gamma Control 7
+	X(0x57, 0x0104) // Gamma Control 8
+	X(0x58, 0x0e05) // Gamma Control 9
+	X(0x59, 0x050e) // Gamma Control 10
+	//X(0x20, 0x0000) // RAM Address Set 1
+	//X(0x21, 0x0000) // RAM Address Set 2
+	X(0x07, 0x1017) // Display Control 1
+#undef X
+	LCM_END
+};
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -887,7 +961,7 @@ static const uint8_t cmd9108_init[] = {
 };
 
 // 240x240
-static const uint8_t cmd9307_init240[] = {
+static const uint8_t cmd9307_square_init[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
 	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
@@ -1217,97 +1291,112 @@ static const uint8_t cmd8552_init[] = {
 };
 #endif
 
+#define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
+	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
+#define X(...) LCD_CONFIG(__VA_ARGS__)
+#define NO_TIMINGS 0,0,0,0,0,0
+
 static const lcd_config_t lcd_config[] = {
 #if CHIP == 1
 /* F+ F256 */
 
 	// Sitronix ST7789
-	{ 0x858552, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 60,  80,  90, 60, 80, 80 }, { 0 },  0x00, cmd8585_init },
+	X(0x858552, 240,320, 0x00, 60,80,90,60,80,80, 0, cmd8585)
 	// GlaxyCore GC9305 (untested)
-	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 39000000 },  0x48, cmd9305_init },
+	X(0x009305, 240,320, 0x48, 30,150,150,40,50,50, 39000000, cmd9305)
 	// GlaxyCore GC9306
-	{ 0x009306, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 39000000 },  0x48, cmd9306_init },
+	X(0x009306, 240,320, 0x48, 30,150,150,40,40,40, 39000000, cmd9306)
 	// GlaxyCore GC9300
-	{ 0x009300, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 40, 40 }, { 0 },  0x48, cmd9300_init },
+	X(0x009300, 240,320, 0x48, 30,150,150,40,40,40, 0, cmd9300)
 
 /* F+ Ezzy 4 */
 
 // It looks like the timings for GlaxyCore in the firmware were mistakenly copied from Sitronix LCDs.
 
 	// GlaxyCore GC9102 (untested)
-	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 0 },  0xd0, cmd9102_init },
+	X(0x009102, 128,160, 0xd0, 60,80,90,60,80,80, 0, cmd9102)
 	// GlaxyCore GC9106
-	{ 0x009106, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 60, 80, 90, 60, 80, 80 }, { 39000000 },  0xd0, cmd9106_init },
+	X(0x009106, 128,160, 0xd0, 60,80,90,60,80,80, 39000000, cmd9106)
 
 /* Nokia TA-1174 */
 
 	// Sitronix ST7735
-	{ 0x1c80f3, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd1C80F3_init },
+	X(0x1c80f3, 128,160, 0xd8, NO_TIMINGS, 13000000, cmd1C80F3)
 	// Sitronix ST7735 (from another factory)
-	{ 0x7c80f3, 0xffffff, 1, 2, 5,  128, 160, 0, 0, 2,  { 0 }, { 13000000 }, 0xd8, cmd1C80F3_init },
+	X(0x7c80f3, 128,160, 0xd8, NO_TIMINGS, 13000000, cmd1C80F3)
 
 /* BQ 3586 Tank Max */
 
 	// RenesasSP R61529
-	{ 0x01221529, 0xffffffff, 0, 0, 1,  320, 480, 1, 0, 2,  { 170, 170, 250, 8, 15, 15 }, { 0 }, 0x00, cmd1529_init },
+	X(0x01221529, 320,480, 0x00, 170,170,250,8,15,15, 0, cmd1529)
 
 /* DEXP SD2810 */
 
 	// NewVision NV3029G
-	{ 0x003033, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 10, 150, 100, 15, 35, 35 }, { 0 }, 0x08, cmd3033_init },
+	X(0x003033, 240,320, 0x08, 10,150,100,15,35,35, 0, cmd3033)
 
 /* Nokia TA-1400 */
 
 	// ??? (untested)
-	{ 0x80f6, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd80F6_init },
+	X(0x80f6, 240, 320, 0x00, NO_TIMINGS, 52000000, cmd80F6)
 	// Sitronix ST7789 (untested)
-	{ 0x8552, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd8552_init },
+	X(0x8552, 240,320, 0x00, NO_TIMINGS, 52000000, cmd8552)
 	// GlaxyCore GC9304 (untested)
-	{ 0x9304, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x48, cmd9304_init },
+	X(0x9304, 240,320, 0x48, NO_TIMINGS, 52000000, cmd9304)
 	// ??? (untested)
-	{ 0x90fa, 0xffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd90FA_init },
+	X(0x90fa, 240,320, 0x00, NO_TIMINGS, 52000000, cmd90FA)
 	// ???
-	{ 0x9290f6, 0xffffff, 1, 2, 5,  240, 320, 0, 0, 2,  { 0 }, { 52000000 }, 0x00, cmd9290F6_init },
+	X(0x9290f6, 240,320, 0x00, NO_TIMINGS, 52000000, cmd9290F6)
 
 /* Samsung GT-E1272 (SC6531E) */
 
-	// Sitronix ???
-	{ 0x83760f, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 0,  { 5, 150, 150, 10, 50, 50 }, { 0 }, 0xd0, cmd83760F_init },
+	// Sitronix ST7735P
+	X(0x83760f, 128,160, 0xd0, 5,150,150,10,50,50, 0, cmd83760F)
 
 /* F+ F197 */
 
 	// NewVision NV3023
-	{ 0x333025, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0x00, cmd333025_f197_init },
+	X(0x333025, 128,160, 0x00, 15,120,75,15,35,35, 0, cmd333025_f197)
 
 /* Alcatel 2019G */
 
 	// GlaxyCore GC9308
-	{ 0x009308, 0xffffff, 1, 2, 5,  320, 240, 0, 0, 2,  { 0 }, { 52000000 },  0x90, cmd9308_init },
+	X(0x009308, 320,240, 0x90, NO_TIMINGS, 52000000, cmd9308)
 
 /* Olmio E35 */
 
 	// Ilitek ILI9481
-	{ 0x02049481, 0xffffffff, 0, 0, 1,  320, 480, 1, 0, 0,  { 5, 150, 150, 10, 50, 50 }, { 0 }, 0x0a, cmd9481_init },
+	X(0x02049481, 320,480, 0x0a, 5,150,150,10,50,50, 0, cmd9481)
 
 /* Texet TM-D324 */
 
 	// NovaTek NT35310
-	{ 0x01015310, 0xffffffff, 0, 0, 1,  320, 480, 1, 0, 0,  { 5, 150, 150, 10, 20, 20 }, { 0 }, 0x00, cmd5310_init },
+	X(0x01015310, 320,480, 0x00, 5,150,150,10,20,20, 0, cmd5310)
 
 /* Olmio A25 */
 
 	// Ilitek ILI9328
-	{ 0x289328, 0x00ffffff, 0, 0, 1,  240, 320, 1, 0, 0,  { 5, 150, 150, 10, 50, 50 }, { 0 }, 0xc0, cmd9328_init },
+	X(0x289328, 240,320, 0xc0, 5,150,150,10,50,50, 0, cmd9328)
 
 /* Texet TM-321 */
 
 	// Orise Tech SPFD5420A
-	{ 0x005420, 0xffffff, 0, 0, 1,  240, 400, 1, 0, 2,  { 10, 150, 100, 30, 50, 70 }, { 0 }, 0xc0, cmd5420_init },
+	X(0x005420, 240,400, 0xc0, 10,150,100,30,50,70, 0, cmd5420)
 
 /* Texet TM-308 */
 
 	// Samsung S6D04H0A (0x6d04)
-	{ 0x61bc11, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 150, 60, 60, 100, 35, 35 }, { 0 }, 0x48, cmd6D04_init },
+	X(0x61bc11, 240,320, 0x48, 150,60,60,100,35,35, 0, cmd6D04)
+
+/* Texet TM-B316 */
+
+	// Sitronix ST7735P
+	X(0x8083760f, 128,160, 0xc0, 20,255,255,30,100,100, 0, cmd83760F_texet)
+
+/* Texet TM-B323 */
+
+	// Ilitek ILI9225G
+	X(0x009226, 176,220, 0xc0, 5,150,150,10,50,50, 0, cmd9226)
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -1318,61 +1407,62 @@ static const lcd_config_t lcd_config[] = {
 /* Texet TM-122, TM-130 */
 
 	// GlaxyCore GC9106
-	{ 0x80009106, 0xffffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_texet_init },
+	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_texet)
 
 /* Joy's S21 */
 
 	// GlaxyCore GC9106
-	{ 0x009106, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9106_init },
+	X(0x009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106)
 	// GlaxyCore GC9108
-	{ 0x009108, 0xffffff, 0, 0, 0,  128, 160, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 },  0xd0, cmd9108_init },
+	X(0x009108, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9108)
 
 /* Vector M115 */
 
 	// Sitronix ST7735S CTC
-	{ 0x7c89f0, 0xffffff, 0, 0, 1,  128 + 2, 128 + 3, 1, 0, 2,  { 15, 120, 75, 15, 35, 35 }, { 0 }, 0xc8, cmd7C89F0_init },
+	X(0x7c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0)
 
 /* DZ09 */
 
 	// GlaxyCore GC9307
-	{ 0x80009307, 0xffffffff, 2, 17, 5,  240, 240, 0, 0, 2,  { 0 }, { 48000000 }, 0x48, cmd9307_init240 },
+	X(0x80009307, 240,240, 0x48, NO_TIMINGS, 48000000, cmd9307_square)
 
 /* Itel it5626 */
 
 	// GlaxyCore GC9307
-	{ 0x009307, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 30, 150, 150, 40, 50, 50 }, { 0 }, 0x48, cmd9307_init },
+	X(0x009307, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9307)
 
 /* Samsung B310E */
 
 	// Sitronix ST7735 DTC (untested)
-	{ 0x5cc0f1, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 5, 15, 40 }, { 0 }, 0xc8, cmd5CC0F1_init },
+	X(0x5cc0f1, 128,160, 0xc8, 15,45,90,5,15,40, 0, cmd5CC0F1)
 	// Sitronix ST7735 TNM
-	{ 0x5ca1f1, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 5, 15, 40 }, { 0 }, 0x00, cmd5CA1F1_init },
+	X(0x5ca1f1, 128,160, 0x00, 15,45,90,5,15,40, 0, cmd5CA1F1)
 
 /* Children's Camera (YX_Q5) */
 
 	// NewVision NV3023
-	{ 0x333025, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 45, 120, 120, 30, 80, 80 }, { 0 }, 0x08, cmd333025_init },
+	X(0x333025, 128,160, 0x08, 45,120,120,30,80,80, 0, cmd333025)
 
 /* Nomi i184 */
 
 	// GlaxyCore GC9102
-	{ 0x009102, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 30, 120, 120, 40, 50, 50 }, { 0 },  0xd0, cmd9102_nomi_init },
+	X(0x009102, 128,160, 0xd0, 30,120,120,40,50,50, 0, cmd9102_nomi)
 
 /* Sigma mobile X-treme IO67 */
 
 	// GlaxyCore GC9305
-	{ 0x009305, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 50, 120, 75, 40, 50, 50 }, { 0 },  0x48, cmd9305_sigma_init },
+	X(0x009305, 240,320, 0x48, 50,120,75,40,50,50, 0, cmd9305_sigma)
 
 /* Samsung GT-E1272 (SC6530) */
 
 	// Sitronix ST7735 BYD
-	{ 0x5cb1f0, 0xffffff, 0, 0, 1,  128, 160, 1, 0, 2,  { 15, 45, 90, 10, 30, 60 }, { 0 }, 0xc8, cmd5CB1F0_init },
+	X(0x5cb1f0, 128,160, 0xc8, 15,45,90,10,30,60, 0, cmd5CB1F0)
 
 /* Texet TM-302 */
 
 	// Sitronix ST7789
-	{ 0x858552, 0xffffff, 0, 0, 1,  240, 320, 1, 0, 2,  { 15, 120, 75, 40, 50, 50 }, { 0 }, 0x00, cmd8552_init },
+	X(0x858552, 240,320, 0x00, 15,120,75,40,50,50, 0, cmd8552)
 #endif
 };
-
+#undef X
+#undef NO_TIMINGS
