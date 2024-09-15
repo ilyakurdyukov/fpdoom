@@ -878,6 +878,39 @@ static const uint8_t cmd9226_init[] = {
 #undef X
 	LCM_END
 };
+
+static const uint8_t cmd7C89F0_init[] = {
+	//LCM_DELAY(120),
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	// Frame Rate Control 1-3
+	LCM_CMD(0xb1, 3), 0x05,0x3c,0x3c,
+	LCM_CMD(0xb2, 3), 0x05,0x3c,0x3c,
+	LCM_CMD(0xb3, 6), 0x05,0x3c,0x3c,0x05,0x3c,0x3c,
+	LCM_CMD(0xb4, 2), 0x03,0x02, // Display Inversion Control
+	// Power Control 1-5
+	LCM_CMD(0xc0, 3), 0xa4,0x04,0x84,
+	LCM_CMD(0xc1, 1), 0xc4,
+	LCM_CMD(0xc2, 2), 0x0d,0x00,
+	LCM_CMD(0xc3, 2), 0x8d,0x2a,
+	LCM_CMD(0xc4, 2), 0x8d,0xee,
+	LCM_CMD(0xc5, 1), 0x04, // VCOM Control 1
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x05,0x19,0x14,0x17,
+		0x3d,0x38,0x2e,0x2f, 0x2d,0x29,0x31,0x3b, 0x00,0x03,0x00,0x10,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x04,0x15,0x0e,0x10,
+		0x31,0x2d,0x29,0x2d, 0x2b,0x28,0x2e,0x39, 0x00,0x01,0x02,0x10,
+	//LCM_CMD(0x2a, 4), 0x00,0x00,0x00,0x7f,
+	//LCM_CMD(0x2b, 4), 0x00,0x00,0x00,0x9f,
+	LCM_CMD(0x35, 1), 0x00, // Tearing Effect Line ON
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x21, 0), // Display Inversion ON
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_CMD(0x2c, 0),
+	LCM_END
+};
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -1027,7 +1060,7 @@ static const uint8_t cmd9307_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd7C89F0_init[] = {
+static const uint8_t cmd7C89F0_square_init[] = {
 	//LCM_DELAY(120),
 	LCM_CMD(0x11, 0), // Sleep Out Mode
 	LCM_DELAY(120),
@@ -1035,7 +1068,7 @@ static const uint8_t cmd7C89F0_init[] = {
 	LCM_CMD(0xb1, 3), 0x01,0x08,0x05,
 	LCM_CMD(0xb2, 3), 0x01,0x08,0x05,
 	LCM_CMD(0xb3, 6), 0x01,0x08,0x05,0x05,0x08,0x05,
-	LCM_CMD(0xb4, 1), 0x03,	// Display Inversion Control
+	LCM_CMD(0xb4, 1), 0x03, // Display Inversion Control
 	// Power Control 1-5
 	LCM_CMD(0xc0, 3), 0x28,0x08,0x04,
 	LCM_CMD(0xc1, 1), 0xc0,
@@ -1397,6 +1430,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// Ilitek ILI9225G
 	X(0x009226, 176,220, 0xc0, 5,150,150,10,50,50, 0, cmd9226)
+
+/* Olmio A15 */
+
+	// Sitronix ST7735S BOE
+	X(0x7c89f0, 128,160, 0xd0, 150,150,150,150,150,150, 0, cmd7C89F0)
 #endif
 
 #if CHIP == 2 || CHIP == 3
@@ -1419,7 +1457,7 @@ static const lcd_config_t lcd_config[] = {
 /* Vector M115 */
 
 	// Sitronix ST7735S CTC
-	X(0x7c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0)
+	X(0x7c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0_square)
 
 /* DZ09 */
 
