@@ -168,7 +168,7 @@ $(OBJDIR)/game/%.o: $(GAMESRC)/%.c | $(OBJDIR)
 	$(call compile_fn,$(GAME_CFLAGS))
 
 $(OBJDIR)/sys/%.o: %.c | $(OBJDIR)
-	$(call compile_fn,$(GAME_CFLAGS) -I$(ENGINEROOT)/src -I$(FPDOOM))
+	$(call compile_fn,$(GAME_CFLAGS) -I$(FPDOOM))
 
 $(OBJDIR)/sys/%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,)

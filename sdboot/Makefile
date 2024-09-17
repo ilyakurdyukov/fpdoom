@@ -104,6 +104,9 @@ $(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
 $(OBJDIR)/$(NAME).elf: $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o $@
 
+jump4m.bin: $(OBJDIR)/sys/jump4m.o
+	$(OBJCOPY) -O binary $< $@
+
 %.bin: $(OBJDIR)/%.elf
 	$(OBJCOPY) -O binary -j .text $< $@
 

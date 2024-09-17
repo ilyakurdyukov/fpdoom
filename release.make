@@ -17,6 +17,7 @@ BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
 	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3) \
+	$(BINDIR)/jump4m.bin \
 	$(FPBIN)/config.txt
 
 .PHONY: all clean
@@ -85,6 +86,9 @@ $(BINDIR)/sdboot2.bin:
 
 $(BINDIR)/sdboot3.bin:
 	$(call makebin,sdboot,CHIP=3)
+
+$(BINDIR)/jump4m.bin:
+	$(call makebin,sdboot,NAME=jump4m)
 
 $(FPBIN)/fpmain.bin:
 	$(call makebin,fpmenu,LIBC_SDIO=3 NAME=fpmain)
