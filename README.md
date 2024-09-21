@@ -96,6 +96,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 42 | Texet TM-B323           | SC6531E  | 176x220 ILI9225G  | 9          |
 | 43 | Texet TM-B213           | SC6531E  | 240x320 GC9300    | left soft  |
 | 44 | Olmio A15               | SC6531E  | 128x160 ST7735S   | left soft  |
+| 45 | Texet TM-B208           | SC6531E  | 128x160 GC9106    | left soft  |
 
 * Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
 Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
@@ -114,6 +115,7 @@ need keymap file
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 * Texet TM-B316: use `--lcd 0x8083760f --mac 0x60`
 * Texet TM-B323: use `--rotate 3,0`, only games on the Build engine work with this resolution, others need `--scaler 1` option
+* Texet TM-B208: use `--rotate 3,0 --keyflags 1`
 
 ### Game controls
 

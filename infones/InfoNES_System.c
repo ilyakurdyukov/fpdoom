@@ -26,7 +26,6 @@ unsigned NES_Hacks = 0;
 #define TIMER_MUL (((1000 << 12) + FRAMERATE - 1) / FRAMERATE)
 
 static unsigned timerlast, timertick, timertick_ms;
-static unsigned scaler_crop;
 
 static int LoadSRAM(void);
 static int SaveSRAM(void);
@@ -88,7 +87,7 @@ void lcd_appinit(void) {
 		h = (240 - crop * 2) >> sh;
 	}
 	sys_data.scaler = scaler * 2 | wide;
-	scaler_crop = crop;
+	sys_data.user[0] = crop;
 	disp->w2 = w;
 	disp->h2 = h;
 }
@@ -302,7 +301,7 @@ void InfoNES_LoadFrame(void) {
 	unsigned h, crop;
 	WORD *src;
 	sys_wait_refresh();
-	crop = scaler_crop;
+	crop = sys_data.user[0];
 	h = 240 - crop * 2;
 	src = WorkFrame + crop * 256;
 	scr_update_fn[sys_data.scaler](src, framebuf, h);
@@ -391,19 +390,6 @@ static unsigned key_flags = 0;
 void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem) {
 	int type, key;
 	(void)pdwPad2;
-	if (key_flags) {
-		unsigned i, time = sys_timer_ms();
-		for (i = 0; i < 2; i++) {
-			if (key_flags >> i & 1)
-			if (time - key_timer[i] > 1000) {
-				key_flags &= ~(1 << i);
-				if (i) {
-					*pdwSystem |= PAD_SYS_QUIT;
-					app_quit = 1;
-				} else InfoNES_Reset();
-			}
-		}
-	}
 	for (;;) {
 		type = sys_event(&key);
 		switch (type) {
@@ -428,6 +414,19 @@ void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem) {
 		}
 	}
 end:
+	if (key_flags) {
+		unsigned i, time = sys_timer_ms();
+		for (i = 0; i < 2; i++) {
+			if (key_flags >> i & 1)
+			if (time - key_timer[i] > 1000) {
+				key_flags &= ~(1 << i);
+				if (i) {
+					*pdwSystem |= PAD_SYS_QUIT;
+					app_quit = 1;
+				} else InfoNES_Reset();
+			}
+		}
+	}
 	return;
 }
 

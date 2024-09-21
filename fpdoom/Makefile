@@ -34,6 +34,7 @@ SRCS1 = start1 entry $(SRCS)
 SRCS2 = start2 entry2 $(SRCS) $(DOOM_SRCS)
 OBJS1 = $(SRCS1:%=$(OBJDIR)/%.o)
 OBJS2 = $(SRCS2:%=$(OBJDIR)/%.o)
+OBJS = $(OBJS1) $(OBJS2)
 endif
 
 LDSCRIPT = sc6531e_fdl.ld

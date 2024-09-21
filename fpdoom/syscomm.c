@@ -159,6 +159,8 @@ int sys_getkeymap(uint8_t *dest) {
 		dest[j * 8 + i] = a;
 		if (a == KEYPAD_CENTER) flags = 1;
 	}
+	if (sys_data.keyflags)
+		flags = sys_data.keyflags;
 	return flags;
 }
 

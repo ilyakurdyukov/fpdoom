@@ -21,6 +21,7 @@ SRCS1 = start entry $(SRCS)
 SRCS2 = start3 readbin asmcode common
 OBJS1 = $(SRCS1:%=$(OBJDIR)/sys/%.o)
 OBJS2 = $(SRCS2:%=$(OBJDIR)/sys/%.o)
+OBJS = $(OBJS1) $(OBJS2)
 
 LDSCRIPT = $(FPDOOM)/sc6531e_fdl.ld
 

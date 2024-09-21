@@ -7,6 +7,10 @@ void setvlinebpl(int dabpl);
 
 #include "syscode.h"
 
+uint8_t* framebuffer_init(void);
+void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
+void (*app_scr_update)(uint8_t *src, void *dest);
+
 static uint8_t *frame, *frame_ptr;
 static void shutdownvideo(void);
 
@@ -412,9 +416,6 @@ end:
 	sampletimer();
 	return ret;
 }
-
-void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
-void (*app_scr_update)(uint8_t *src, void *dest);
 
 #define PAL_UPDATE(load, process) \
 	for (i = 0; i < 256; i++, pal++) { \

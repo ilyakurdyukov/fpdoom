@@ -836,7 +836,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..4cf0921 100644
+index 9b311b3..11dd961 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -855,19 +855,22 @@ index 9b311b3..4cf0921 100644
  #include <signal.h>
  
  #include "doomstat.h"
-@@ -59,6 +61,11 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+@@ -59,6 +61,14 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
  
  #define POINTER_WARP_COUNTDOWN	1
  
 +#ifdef EMBEDDED
 +#include "../syscode.h"
++uint8_t* framebuffer_init(void);
++extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
++extern void (*app_scr_update)(uint8_t *src, void *dest);
 +
 +byte*	imagedata=NULL;
 +#else
  Display*	X_display=0;
  Window		X_mainWindow;
  Colormap	X_cmap;
-@@ -82,6 +89,7 @@ int		X_shmeventtype;
+@@ -82,6 +92,7 @@ int		X_shmeventtype;
  // Needs an invisible mouse cursor at least.
  boolean		grabMouse;
  int		doPointerWarp = POINTER_WARP_COUNTDOWN;
@@ -875,7 +878,7 @@ index 9b311b3..4cf0921 100644
  
  // Blocky mode,
  // replace each 320x200 pixel with multiply*multiply pixels.
-@@ -89,6 +97,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+@@ -89,6 +100,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
  // to use ....
  static int	multiply=1;
  
@@ -965,7 +968,7 @@ index 9b311b3..4cf0921 100644
  
  //
  //  Translates the key currently in X_event
-@@ -272,7 +363,7 @@ void I_GetEvent(void)
+@@ -272,7 +366,7 @@ void I_GetEvent(void)
  	break;
  	
        default:
@@ -974,7 +977,7 @@ index 9b311b3..4cf0921 100644
  	break;
      }
  
-@@ -336,6 +427,7 @@ void I_StartTic (void)
+@@ -336,6 +430,7 @@ void I_StartTic (void)
      mousemoved = false;
  
  }
@@ -982,7 +985,7 @@ index 9b311b3..4cf0921 100644
  
  
  //
-@@ -373,6 +465,11 @@ void I_FinishUpdate (void)
+@@ -373,6 +468,11 @@ void I_FinishUpdate (void)
      
      }
  
@@ -994,7 +997,7 @@ index 9b311b3..4cf0921 100644
      // scales the screen size before blitting it
      if (multiply == 2)
      {
-@@ -518,6 +615,7 @@ void I_FinishUpdate (void)
+@@ -518,6 +618,7 @@ void I_FinishUpdate (void)
  
      }
  
@@ -1002,7 +1005,7 @@ index 9b311b3..4cf0921 100644
  }
  
  
-@@ -533,6 +631,12 @@ void I_ReadScreen (byte* scr)
+@@ -533,6 +634,12 @@ void I_ReadScreen (byte* scr)
  //
  // Palette stuff.
  //
@@ -1015,7 +1018,7 @@ index 9b311b3..4cf0921 100644
  static XColor	colors[256];
  
  void UploadNewPalette(Colormap cmap, byte *palette)
-@@ -688,6 +792,7 @@ void grabsharedmemory(int size)
+@@ -688,6 +795,7 @@ void grabsharedmemory(int size)
    fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
  	  (int) (image->data));
  }
@@ -1023,7 +1026,7 @@ index 9b311b3..4cf0921 100644
  
  void I_InitGraphics(void)
  {
-@@ -699,6 +804,7 @@ void I_InitGraphics(void)
+@@ -699,6 +807,7 @@ void I_InitGraphics(void)
      int			x=0;
      int			y=0;
      
@@ -1031,7 +1034,7 @@ index 9b311b3..4cf0921 100644
      // warning: char format, different type arg
      char		xsign=' ';
      char		ysign=' ';
-@@ -708,6 +814,7 @@ void I_InitGraphics(void)
+@@ -708,6 +817,7 @@ void I_InitGraphics(void)
      XSetWindowAttributes attribs;
      XGCValues		xgcvalues;
      int			valuemask;
@@ -1039,7 +1042,7 @@ index 9b311b3..4cf0921 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +823,11 @@ void I_InitGraphics(void)
+@@ -716,6 +826,11 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
@@ -1051,7 +1054,7 @@ index 9b311b3..4cf0921 100644
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1024,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1027,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1063,7 +1066,7 @@ index 9b311b3..4cf0921 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1160,6 @@ Expand4
+@@ -1046,5 +1163,6 @@ Expand4
  	xline += step;
      } while (y--);
  }

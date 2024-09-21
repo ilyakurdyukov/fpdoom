@@ -60,6 +60,7 @@ SRCS1 = start1 entry $(SRCS)
 SRCS2 = start2 entry2 $(SRCS)
 OBJS1 = $(SRCS1:%=$(OBJDIR)/sys/%.o)
 OBJS2 = $(SRCS2:%=$(OBJDIR)/sys/%.o) $(GAME_OBJS)
+OBJS = $(OBJS1) $(OBJS2)
 endif
 
 LDSCRIPT = $(FPDOOM)/sc6531e_fdl.ld

@@ -309,6 +309,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
 			sys_data.charge = atoi(argv[1]);
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--keyflags")) {
+			sys_data.keyflags = ~atoi(argv[1]);
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keyrows")) {
 			unsigned a = atoi(argv[1]);
 			if (a - 2 <= 6) sys_data.keyrows = a;

@@ -88,7 +88,7 @@ extern struct sys_data {
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	uint8_t brightness, init_done;
 	uint16_t keytrn[2][64];
-	uint8_t keyrows, keycols;
+	uint8_t keyrows, keycols, keyflags;
 	uint8_t scaler;
 	/* rotate = key << 4 | screen */
 	uint8_t rotate, lcd_cs;
@@ -99,16 +99,13 @@ extern struct sys_data {
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;
+	uint8_t user[4];
 } sys_data;
 
 // appinit
 
 void keytrn_init(void);
 void lcd_appinit(void);
-
-uint8_t* framebuffer_init(void);
-extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
-extern void (*app_scr_update)(uint8_t *src, void *dest);
 
 #define KEYPAD_ENUM(M) \
 	M(0x01, DIAL) \
