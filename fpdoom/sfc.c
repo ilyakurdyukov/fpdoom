@@ -247,24 +247,41 @@ void sfc_spiread(int cs) {
 	//sfc->clk = 2;
 }
 
+static const char *sfc_vendor_list =
+#define X(id, name) id name "\0"
+X("\x01", "Spansion")
+X("\x20", "XMC")
+X("\x25", "Silicon Kaiser")
+X("\x2c", "Micron")
+X("\x5e", "Zbit")
+X("\x68", "BoyaMicro")
+X("\x8c", "ESMT")
+X("\xbf", "SST")
+X("\xc2", "Macronix")
+X("\xc8", "GigaDevice")
+X("\xe0", "Winbond?")
+X("\xef", "Winbond")
+X("\xf8", "Fidelix")
+#undef X
+;
+
 const char* sfc_getvendor(uint32_t id) {
-	const char *name = NULL;
-	switch (id >> 16) {
-	case 0x01: name = "Spansion"; break;
-	case 0x20: name = "XMC"; break;
-	case 0x2c: name = "Micron"; break;
-	case 0x8c: name = "ESMT"; break;
-	case 0xbf: name = "SST"; break;
-	case 0xc2: name = "Macronix"; break;
-	case 0xc8: name = "GigaDevice"; break;
-	case 0xef: name = "Winbond"; break;
-	case 0xf8: name = "Fidelix/Dosilicon"; break;
+	const uint8_t *p = (uint8_t*)sfc_vendor_list;
+	unsigned id1 = id >> 16 & 0xff, a;
+	if ((id - 0xf84300) >> 8 == 0)
+		return "Dosilicon";
+	while ((a = *p++)) {
+		if (a == id1) return (char*)p;
+		p += strlen((char*)p) + 1;
 	}
-	return name;
+	return NULL;
 }
 
-static const char *sfc_flash_list = 
+static const char *sfc_flash_list =
 #define X(id, name) id name "\0"
+
+// Most devices contain Winbond or GigaDevice chips,
+// references to the others are found in the firmware.
 
 /* Spansion */
 X("\x01\x02\x13", "S25FL008A")
@@ -275,10 +292,29 @@ X("\x01\x20\x18", "S25FL128P") /* has an extended id */
 
 /* XMC */
 X("\x20\x38\x17", "XM25QU64A")
+X("\x20\x50\x16", "XM25QH32B")
+X("\x20\x50\x18", "XM25QH128B")
+
+/* Silicon Kaiser */
+X("\x25\x70\x15", "SK25LE016")
+X("\x25\x70\x16", "SK25LE032")
+X("\x25\x70\x17", "SK25LE064")
+X("\x25\x70\x18", "SK25LE0128")
+X("\x25\x70\x19", "SK25LE0256")
 
 /* Micron */
+X("\x2c\xcb\x16", "N25W032")
 X("\x2c\xcb\x17", "N25W064")
 X("\x2c\xcb\x18", "N25W128")
+
+/* Zbit */
+X("\x5e\x40\x16", "ZB25VQ32")
+X("\x5e\x40\x17", "ZB25VQ64")
+X("\x5e\x50\x16", "ZB25LQ32")
+
+/* BoyaMicro */
+X("\x68\x40\x16", "BY25Q32B")
+X("\x68\x40\x17", "BY25Q64B")
 
 /* ESMT */
 X("\x8c\x25\x37", "F25D64QA")
@@ -304,13 +340,13 @@ X("\xc2\x25\x38", "MX25U12835E")
 X("\xc2\x26\x18", "MX25L12855E")
 
 /* GigaDevice */
-X("\xc8\x40\x16", "25Q32B")
-X("\xc8\x40\x17", "25Q64B")
-X("\xc8\x60\x15", "25LQ16")
-X("\xc8\x60\x16", "25LQ32B")
-X("\xc8\x60\x17", "25LQ64B")
-X("\xc8\x60\x18", "25LQ128")
-X("\xc8\x60\x19", "25LQ256")
+X("\xc8\x40\x16", "GD25Q32B")
+X("\xc8\x40\x17", "GD25Q64B")
+X("\xc8\x60\x15", "GD25LQ16")
+X("\xc8\x60\x16", "GD25LQ32B")
+X("\xc8\x60\x17", "GD25LQ64B")
+X("\xc8\x60\x18", "GD25LQ128")
+X("\xc8\x60\x19", "GD25LQ256")
 
 /* Winbond */
 X("\xef\x30\x15", "W25X16")
@@ -342,6 +378,7 @@ const char* sfc_getname(uint32_t id) {
 	const uint8_t *p = (uint8_t*)sfc_flash_list;
 	unsigned id1 = id >> 16 & 0xff, a;
 	unsigned id2 = id >> 8 & 0xff, id3 = id & 0xff;
+	if (id1 == 0xe0) id1 = 0xef;
 	while ((a = *p)) {
 		if (a == id1 && p[1] == id2 && p[2] == id3)
 			return (char*)p + 3;
