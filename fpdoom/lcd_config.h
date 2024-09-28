@@ -1322,6 +1322,37 @@ static const uint8_t cmd8552_init[] = {
 	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
 	LCM_END
 };
+
+static const uint8_t cmd9341_init[] = {
+	//LCM_DELAY(150),
+	LCM_CMD(0xcf, 3), 0x00,0xd9,0x30, // Power control B
+	LCM_CMD(0xed, 4), 0x64,0x03,0x12,0x81, // Power on sequence control
+	LCM_CMD(0xe8, 3), 0x85,0x10,0x78, // Driver timing control A
+	LCM_CMD(0xcb, 5), 0x39,0x2c,0x00,0x34,0x02, // Power control A
+	LCM_CMD(0xf7, 1), 0x20, // Pump ratio control
+	LCM_CMD(0xea, 2), 0x00,0x00, // Driver timing control B
+	LCM_CMD(0xc0, 1), 0x1b, // Power Control 1
+	LCM_CMD(0xc1, 1), 0x12, // Power Control 2
+	LCM_CMD(0xc5, 2), 0x32,0x3c, // VCOM Control 1
+	LCM_CMD(0xc7, 1), 0x96, // VCOM Control 2
+	//LCM_CMD(0x36, 1), 0x08, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x55, // Pixel Format Set
+	LCM_CMD(0xb1, 2), 0x00,0x1b, // Frame Rate Control (Normal)
+	LCM_CMD(0xb6, 2), 0x0a,0xa2, // Display Function Control
+	LCM_CMD(0xf6, 2), 0x01,0x30, // Interface Control
+	LCM_CMD(0xf2, 1), 0x00, // Enable 3 Gamma Control
+	LCM_CMD(0x26, 1), 0x01, // Gamma Set
+	// Positive Gamma Correction
+	LCM_CMD(0xe0, 15), 0x0f,0x1d,0x19,0x0e,0x10,
+		0x07,0x4c,0x63,0x3f,0x03, 0x0d,0x00,0x26,0x24,0x04,
+	// Negative Gamma Correction
+	LCM_CMD(0xe1, 15), 0x00,0x1c,0x1f,0x02,0x0f,
+		0x03,0x35,0x25,0x47,0x04, 0x0c,0x0b,0x29,0x2f,0x05,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
 #endif
 
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
@@ -1500,6 +1531,11 @@ static const lcd_config_t lcd_config[] = {
 
 	// Sitronix ST7789
 	X(0x858552, 240,320, 0x00, 15,120,75,40,50,50, 0, cmd8552)
+
+/* Olmio X04 */
+
+	// Ilitek ILI9341
+	X(0x009341, 240,320, 0x08, 15,120,75,15,35,35, 0, cmd9341)
 #endif
 };
 #undef X

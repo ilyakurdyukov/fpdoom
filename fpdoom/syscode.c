@@ -593,6 +593,7 @@ static void lcm_init(void) {
 		lcm_send_cmd(0x00);
 		id = lcd_cmdret(0x00, 2);
 	}
+	if (!id) id = lcd_cmdret(0xd3, 4) & 0xffffff; // ILI9341
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
 	for (i = 0; i < n; i++)
