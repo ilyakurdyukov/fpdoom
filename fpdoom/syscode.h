@@ -32,6 +32,8 @@ typedef volatile struct {
 /* from assembly code */ 
 void enable_mmu(uint32_t *table, uint32_t domain);
 
+int sys_lzma_decode(const uint8_t *src, unsigned src_size,
+		uint8_t *dst, unsigned dst_size);
 void scan_firmware(intptr_t fw_addr);
 unsigned sys_timer_ms(void);
 void sys_wait_ms(uint32_t delay);
@@ -56,6 +58,7 @@ void sys_wdg_reset(unsigned val);
 
 void clean_icache(void);
 void clean_dcache(void);
+void clean_invalidate_dcache(void);
 void clean_invalidate_dcache_range(void *start, void *end);
 
 enum {

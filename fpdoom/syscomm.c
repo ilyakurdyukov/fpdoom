@@ -53,34 +53,162 @@ static int check_keymap(const void *buf) {
 	return n;
 }
 
+#define LZMA_BASE ((lzma_base_t*)0x20e00000)
+
+typedef volatile struct {
+	uint32_t ctrl, ctrl_sts, int_mask, src_addr;
+	uint32_t dst_addr, src_len, dst_len, buf_addr;
+	uint32_t buf_len, buf_start, proc_pos, trans_len;
+	uint32_t unzip_size;
+} lzma_base_t;
+
+int sys_lzma_decode(const uint8_t *src, unsigned src_size,
+		uint8_t *dst, unsigned dst_size) {
+	lzma_base_t *lzma = LZMA_BASE;
+	uint32_t err;
+
+	if (_chip == 1) {
+		// LZMA enable
+		MEM4(0x20501080) = 0x10000;
+
+		// LZMA reset
+		MEM4(0x20501040) = 0x2000;
+		DELAY(100)
+		MEM4(0x20502040) = 0x2000;
+
+		// 26M_TUNED, 26M, 104M, 208M
+		MEM4(0x8d200088) |= 3; // clk 208M
+	} else {
+		// LZMA enable
+		MEM4(0x20500060) = 0x10000;
+
+		// LZMA reset
+		MEM4(0x20500020) = 0x2000;
+		DELAY(100)
+		MEM4(0x20500030) = 0x2000;
+
+		{
+			uint32_t m = 1;
+			if (_chip != 2) m <<= 30;
+			// 26M, 208M, 104M, unknown
+			MEM4(0x8b000040) =
+					(MEM4(0x8b000040) & ~(m << 1)) | m;
+		}
+	}
+
+	//memset(dst, 0, dst_size);
+	lzma->src_addr = (uint32_t)src;
+	lzma->src_len = src_size;
+	lzma->dst_addr = (uint32_t)dst;
+	lzma->dst_len = dst_size;
+
+	// int clear
+	lzma->int_mask |= 0x1f << 8;
+	//clean_invalidate_dcache_range(dst, dst + dst_size);
+	clean_invalidate_dcache();
+	lzma->ctrl = lzma->ctrl_sts | 1; // start
+	do err = lzma->int_mask;
+	while (!(err & 1 << 24));
+
+	err = err >> 24 & 0x1f;
+	if (dst_size != lzma->unzip_size) err |= 0x20;
+
+	// LZMA disable
+	{
+		uint32_t addr = 0x20502080;
+		if (_chip != 1) addr = 0x20500070;
+		MEM4(addr) = 0x10000;
+	}
+	return err;
+}
+
+static short* scan_drps(uint32_t *drps) {
+	uint32_t *colb; uint8_t *dst = NULL;
+	unsigned colb_offs, src_offs, src_size, dst_size;
+	short *keymap = NULL;
+	DBG_LOG("scan_drps(%p)\n", (void*)drps);
+	do {
+		uint32_t *p, *end; int ret;
+		if (drps[0] != 0x53505244) break;
+		if (drps[3] != 1) break; // count
+		colb_offs = drps[2];
+		colb = (uint32_t*)((uint8_t*)drps + colb_offs);
+		if (colb[0] != 0x424c4f43) break;
+		if (colb[1] != 0x494d4147) break;
+		src_offs = colb[2];
+		src_size = colb[3];
+		dst_size = colb[4];
+		dst = malloc(dst_size);
+		ret = sys_lzma_decode((uint8_t*)drps + src_offs, src_size, dst, dst_size);
+		if (ret != 1) break;
+		end = (uint32_t*)(dst + dst_size - 128 - 12);
+		for (p = (uint32_t*)dst; p < end; p++) {
+			// keymap filter
+			if (p[0] == 0x4d && p[1] == 0x400 && p[2] == 0xa) {
+				ret = check_keymap(p + 3);
+				if (ret) {
+					if (keymap) {
+						DBG_LOG("!!! found two keymaps (kern + 0x%x, kern + 0x%x)\n",
+								 (uint8_t*)keymap - dst, (uint8_t*)p - dst);
+						keymap = NULL; break;
+					}
+					keymap = (short*)(p + 3);
+					p = (uint32_t*)(keymap + ret * 2) - 4;
+					continue;
+				}
+			}
+		}
+		if (keymap) {
+			short *buf = (short*)sys_data.keytrn;
+			int n = sys_data.keyrows * sys_data.keycols;
+			memcpy(buf, keymap, n * 2);
+			DBG_LOG("keymap = kern + 0x%x\n", (uint8_t*)keymap - dst);
+			keymap = buf;
+		}
+	} while (0);
+	free(dst);
+	return keymap;
+}
+
+#define DRPS_LIM 0x11000
+
 void scan_firmware(intptr_t fw_addr) {
-	int i, j; short *keymap = NULL;
+	short *keymap = NULL; int flags = 1;
 	uint32_t *pinmap = NULL;
 	uint32_t time0 = sys_timer_ms();
-	int flags = 3;
+	uint32_t *trapgami = (uint32_t*)(fw_addr + DRPS_LIM);
+	uint32_t *p, *end = (uint32_t*)(fw_addr + 0x200000);
 
-	for (i = 0x20; i < FIRMWARE_SIZE - 0x1000; i += 4) {
-		uint32_t *p = (uint32_t*)(fw_addr + i);
+	for (p = (uint32_t*)fw_addr; p < end; p++) {
 		// "DRPS", "CAPN" : start of compressed data
 		if (p[0] == 0x53505244 && p[4] == 0x4e504143) break;
 
+		// "TRAPGAMI": offsets to "DRPS" sections
+		if (p < trapgami) do {
+			if (p[0] != 0x50415254) break;
+			if (p[1] != 0x494d4147) break;
+			// p[2] == ~0 if there's no image
+			if (p[2] & 0xff000003) break;
+			trapgami = p;
+		} while (0);
+
 		// keymap filter
-		if (flags & 1)
-		if (p[-3] == 0x4d && p[-2] == 0x400 && p[-1] == 0xa) {
-			int ret = check_keymap(p);
+		if (p[0] == 0x4d && p[1] == 0x400 && p[2] == 0xa) {
+			int ret = check_keymap(p + 3);
 			if (ret) {
 				if (keymap) {
 					DBG_LOG("!!! found two keymaps (%p, %p)\n", (void*)keymap, (void*)p);
 					flags &= ~1; keymap = NULL;
-				} else {
-					keymap = (short*)p;
-					i += ret * 2 - 4;
+				} else if (flags & 1) {
+					keymap = (short*)(p + 3);
+					p = (uint32_t*)(keymap + ret * 2) - 4;
 					continue;
 				}
 			}
 		}
 
 		do {
+			int j;
 			if (*p >> 12 != 0x8c000000 >> 12) break;
 			for (j = 2; ; j += 2) {
 				uint32_t a = p[j];
@@ -89,7 +217,7 @@ void scan_firmware(intptr_t fw_addr) {
 					if (pinmap)
 						ERR_EXIT("found two pinmaps (%p, %p)\n", (void*)pinmap, (void*)p);
 					pinmap = (uint32_t*)p;
-					i = (uintptr_t)(p + j) - fw_addr;
+					p += j;
 					break;
 				}
 				if (a >> 12 == 0x8c000000 >> 12) continue;
@@ -98,11 +226,15 @@ void scan_firmware(intptr_t fw_addr) {
 			}
 		} while (0);
 	}
-	DBG_LOG("scan_firmware: %dms\n", sys_timer_ms() - time0);
+	// TODO: enable QPI mode for SPI flash for faster scanning
 	if (flags & 1) {
 		if (keymap) DBG_LOG("keymap = %p\n", (void*)keymap);
-		else DBG_LOG("!!! keymap not found\n");
+		else if (!sys_data.keymap_addr &&
+				(intptr_t)trapgami - fw_addr < DRPS_LIM)
+			keymap = scan_drps((uint32_t*)(fw_addr + trapgami[2]));
+		if (!keymap) DBG_LOG("!!! keymap not found\n");
 	}
+	DBG_LOG("scan_firmware: %dms\n", sys_timer_ms() - time0);
 	if (pinmap) DBG_LOG("pinmap = %p\n", (void*)pinmap);
 	else ERR_EXIT("pinmap not found\n");
 	if (!sys_data.keymap_addr)

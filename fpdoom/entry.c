@@ -181,7 +181,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		for (i = 0; i < (ram_size >> 20); i++)
 			tab[ram_addr >> 20 | i] |= 3 << 2;
 		// for faster search
-		for (i = 0; i < (FIRMWARE_SIZE >> 20); i++)
+		for (i = 0; i < 16; i++)
 			tab[fw_addr >> 20 | i] |= 3 << 2;
 		enable_mmu((uint32_t*)tab, -1);
 	}

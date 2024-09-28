@@ -233,6 +233,58 @@ static void test_sfc(void) {
 #endif
 }
 
+static void test_lzma(int flags) {
+	uint32_t *drps, *colb; uint8_t *dst;
+	unsigned colb_offs, src_offs, src_size, dst_size;
+	unsigned t0, t1, ret;
+	uint32_t *trapgami = NULL;
+	intptr_t fw_addr = (_chip == 1 ? 1 : 3) << 28;
+	uint32_t *p, *end = (uint32_t*)(fw_addr + 0x11000);
+
+	for (p = (uint32_t*)fw_addr; p < end; p++) {
+		// "TRAPGAMI": offsets to "DRPS" sections
+		do {
+			if (p[0] != 0x50415254) break;
+			if (p[1] != 0x494d4147) break;
+			// p[2] == ~0 if there's no image
+			if (p[2] & 0xff000003) break;
+			trapgami = p;
+			goto found;
+		} while (0);
+	}
+	return;
+
+found:
+	printf("trapgami = 0x%x, drps = 0x%x\n",
+			(intptr_t)trapgami - fw_addr, trapgami[2]);
+	drps = (uint32_t*)(fw_addr + trapgami[2]);
+	do {
+		if (drps[0] != 0x53505244) break;
+		if (drps[3] != 1) break; // count
+		colb_offs = drps[2];
+		colb = (uint32_t*)((uint8_t*)drps + colb_offs);
+		if (colb[0] != 0x424c4f43) break;
+		if (colb[1] != 0x494d4147) break;
+		src_offs = colb[2];
+		src_size = colb[3];
+		dst_size = colb[4];
+
+		dst = malloc(dst_size);
+		t0 = sys_timer_ms();
+		ret = sys_lzma_decode((uint8_t*)drps + src_offs, src_size, dst, dst_size);
+		t1 = sys_timer_ms();
+		printf("lzma_decode: %ums, ret = 0x%x\n", t1 - t0, ret);
+		if ((flags & 1) && ret == 1) {
+			FILE *f = fopen("kern.bin", "wb");
+			if (f) {
+				fwrite(dst, 1, dst_size, f);
+				fclose(f);
+			}
+		}
+		free(dst);
+	} while (0);
+}
+
 int main(int argc, char **argv) {
 	int i;
 
@@ -265,6 +317,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (1) test_sfc();
+
+	if (1) test_lzma(0);
 
 	if (1) {
 		usbio_bench(0, 1024, 1 << 20);

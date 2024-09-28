@@ -50,6 +50,14 @@ CODE32_FN clean_dcache
 	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
 	bx	lr
 
+CODE32_FN clean_invalidate_dcache
+	// clean and invalidate entire dcache
+1:	mrc	p15, #0, apsr_nzcv, c7, c14, #3
+	bne	1b
+	mov	r0, #0
+	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
+	bx	lr
+
 CODE32_FN clean_invalidate_dcache_range
 	bic	r0, #0x1f
 	// clean and invalidate dcache entry (MVA)
