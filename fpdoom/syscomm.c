@@ -13,24 +13,26 @@ uint32_t *pinmap_addr;
 
 static int check_keymap(const void *buf) {
 	const uint16_t *s = (const uint16_t*)buf;
-	uint32_t a, tmp, t0 = 0, t1 = 0;
+	uint32_t a, tmp, t0 = 0, t1 = ~0;
 	unsigned i, n, nrow, ncol;
-	n = 40; // _chip == 1 ? 40 : 64;
+	n = _chip == 1 ? 48 : 64;
 	for (i = 0; i < n; i++) {
 		a = s[i];
-		if (a == 0xffff) { t0++; t1 += (i & 7) >= 6; continue; }
+		if (a == 0xffff) { t0++; continue; }
 		if (a - 0x69 < 5) continue;
+		if (a - 0x70 < 3) continue;
 		if (a - 1 >= 0x39) break;
 	}
-	t1 -= (i >> 3) * 2;
+	for (n = 7; n < i; n += 8)
+		t1 &= *(int32_t*)&s[n - 1];
 	if (_chip == 1) {
 		ncol = 8; nrow = 5;
 		if (i < 40) {
 			if (i < 35) return 0;
 			ncol = 7;
-		} else if (!t1) ncol = 5, nrow = 8;
+		} else if (!~t1) ncol = i >> 3, nrow = 8;
 	} else {
-		if (i < 40 || t1) return 0;
+		if (i < 40 || ~t1) return 0;
 		ncol = i >> 3;
 		nrow = 8;
 	}
@@ -43,10 +45,13 @@ static int check_keymap(const void *buf) {
 		tmp = 1u << (a & 31);
 		if (a & 32) t1 |= tmp; else t0 |= tmp;
 	}
-	t0 |= ~(1 << 8); // LSOFT
-	tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
-	t1 |= ~tmp;
-	if (~(t1 & t0)) return 0;
+	// exception: Children's Camera
+	if (t0 != 0x20f2 || t1) {
+		t0 |= ~(1 << 8); // LSOFT
+		tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
+		t1 |= ~tmp;
+		if (~(t1 & t0)) return 0;
+	}
 	// DBG_LOG("keyrows = %u, keycols = %u\n", nrow, ncol);
 	if (!sys_data.keyrows) sys_data.keyrows = nrow;
 	if (!sys_data.keycols) sys_data.keycols = ncol;
@@ -153,7 +158,7 @@ static short* scan_drps(uint32_t *drps) {
 						keymap = NULL; break;
 					}
 					keymap = (short*)(p + 3);
-					p = (uint32_t*)(keymap + ret * 2) - 4;
+					p = (uint32_t*)(keymap + ret) - 1;
 					continue;
 				}
 			}
@@ -201,7 +206,7 @@ void scan_firmware(intptr_t fw_addr) {
 					flags &= ~1; keymap = NULL;
 				} else if (flags & 1) {
 					keymap = (short*)(p + 3);
-					p = (uint32_t*)(keymap + ret * 2) - 4;
+					p = (uint32_t*)(keymap + ret) - 1;
 					continue;
 				}
 			}

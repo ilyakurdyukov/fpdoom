@@ -585,7 +585,6 @@ static void lcm_init(void) {
 	lcm_config_addr(cs);
 	id = sys_data.lcd_id;
 	if (!id) id = lcd_getid();
-	if (!id) id = lcd_getid2();
 	// workaround for NT35310
 	if (id == 0x8000) id = lcd_cmdret(0xd4, 4);
 	// workaround for ILI9225G and SPFD5420A
@@ -594,6 +593,7 @@ static void lcm_init(void) {
 		id = lcd_cmdret(0x00, 2);
 	}
 	if (!id) id = lcd_cmdret(0xd3, 4) & 0xffffff; // ILI9341
+	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 
 	for (i = 0; i < n; i++)

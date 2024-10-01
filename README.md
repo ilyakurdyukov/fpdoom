@@ -45,7 +45,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 
 1. Message `!!! unknown LCD`, and before that `LCD: id = 0x000000` - SPI mode is used to connect the LCD. I can't handle it yet.
 2. Message `!!! unknown LCD`, but some number shown in `LCD: id = 0x`. I can add support for this LCD if you send me a firmware dump from your phone.
-3. Message `!!! keymap not found`, means the firmware scan algorithm can't find the keymap, so you can't use the keypad, only watch replays. I can extract the keymap if you send me a firmware dump. I can also add code that asks you to press the requested keys to create the keymap if this becomes a common problem.
+3. Message `!!! keymap not found`, means the firmware scan algorithm can't find the keymap, so you can't use the keypad, only watch replays. I can extract the keymap if you send me a firmware dump.
 4. Message `Error: W_InitFiles: no files found`, means that no `.wad` files were found. On Linux files must be named in lower case.
 
 ### List of tested models
@@ -99,11 +99,6 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 45 | Texet TM-B208           | SC6531E  | 128x160 GC9106    | left soft  |
 | 46 | Olmio X04               | SC6531   | 240x320 ILI9341   | 0          |
 
-* Vertex M115, Nokia TA-1174, BQ 3586, Energizer E12,
-Sunwind C2401, DEXP SD2810, YX Q5 Kids Camera, Nomi i184, Sigma IO67,
-F+ F197, Texet TM-302, Strike A13, Olmio A25, Tokky FP50,
-Texet TM-B316, Texet TM-B323, Olmio A15, Olmio X04:
-need keymap file
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * Nokia TA-1174: use `--spi 1 --spi_mode 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
@@ -114,9 +109,9 @@ need keymap file
 * Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
-* Texet TM-B316: use `--lcd 0x8083760f --mac 0x60`
-* Texet TM-B323: use `--rotate 3,0`, only games on the Build engine work with this resolution, others need `--scaler 1` option
-* Texet TM-B208: use `--rotate 3,0 --keyflags 1`
+* Texet TM-B316: use `--lcd 0x8083760f --rotate 1,0`
+* Texet TM-B323, Texet TM-B208: use `--rotate 3,0 --keyflags 1`
+* Texet TM-B323: only games on the Build engine work with this resolution, others need `--scaler 1` option
 
 ### Game controls
 
