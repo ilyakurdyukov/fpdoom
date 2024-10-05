@@ -40,39 +40,12 @@ DEF(void, pal_update32, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
 		PAL_UPDATE(gamma[*pal++],
 				*d++ = r << 22 | b << 11 | g << 1)
 }
-
-#ifdef USE_ASM
-#define pal_update32 pal_update32_asm
-#endif
-
-DEF(void, pal_update32_8d9, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
-	int i, r, g, b;
-	uint32_t *d = (uint32_t*)dest - 256 * 2;
-#define X(i) ((i) * 8 + 4) / 9
-#define X4(i) X(i), X(i + 1), X(i + 2), X(i + 3)
-#define X16(i) X4(i), X4(i + 4), X4(i + 8), X4(i + 12)
-#define X64(i) X16(i), X16(i + 16), X16(i + 32), X16(i + 48)
-	static const uint8_t lut[256] = { X64(0), X64(64), X64(128), X64(192) };
-#undef X64
-#undef X16
-#undef X4
-#undef X
-
-	pal_update32(pal, dest, gamma);
-	if (!gamma)
-		pal_update32(pal, (uint32_t*)dest - 256, lut);
-	else
-		PAL_UPDATE(lut[gamma[*pal++]],
-				*d++ = r << 22 | b << 11 | g << 1)
-}
-
 #undef PAL_UPDATE
 
-DEF(void, scr_update_1d1, (uint8_t *src, void *dest)) {
-	uint8_t *s = src;
+DEF(void, scr_update_1d1, (uint8_t *s, void *dest)) {
 	uint16_t *d = (uint16_t*)dest;
 	uint16_t *c16 = (uint16_t*)dest - 256;
-	int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
+	int x, y, w = 320, h = 240;
 	for (y = 0; y < h; y++)
 	for (x = 0; x < w; x++)
 		*d++ = c16[*s++];
@@ -82,8 +55,10 @@ DEF(void, scr_update_1d1, (uint8_t *src, void *dest)) {
 // rrrrr000 000bbbbb 00000ggg ggg00000
 // rounding half to even
 
-DEF(void, scr_update_1d2_custom, (uint8_t *s, uint16_t *d, uint32_t *c32, int h)) {
-	int x, y, w = SCREENWIDTH;
+DEF(void, scr_update_1d2, (uint8_t *s, void *dest)) {
+	uint16_t *d = (uint16_t*)dest;
+	uint32_t *c32 = (uint32_t*)dest - 256;
+	int x, y, w = 320, h = 256;
 	unsigned a, b = 0x00400802;
 	for (y = 0; y < h; y += 2, s += w)
 	for (x = 0; x < w; x += 2, s += 2) {
@@ -95,33 +70,6 @@ DEF(void, scr_update_1d2_custom, (uint8_t *s, uint16_t *d, uint32_t *c32, int h)
 	}
 }
 
-#ifdef USE_ASM
-#define scr_update_1d2_custom scr_update_1d2_custom_asm
-#endif
-
-DEF(void, scr_update_1d2, (uint8_t *src, void *dest)) {
-	uint8_t *s = src;
-	uint16_t *d = (uint16_t*)dest;
-	uint32_t *c32 = (uint32_t*)dest - 256;
-	int h = SCREENHEIGHT;
-	scr_update_1d2_custom(s, d, c32, h);
-}
-
-DEF(void, scr_update_3d2, (uint8_t *src, void *dest)) {
-	uint8_t *s = src;
-	uint16_t *d = (uint16_t*)dest;
-	uint32_t *c32 = (uint32_t*)dest - 256;
-	int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-	int w2 = SCREENWIDTH * 3 / 2;
-	uint32_t a, a0, a1, a2, a3;
-	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
-	for (y = 0; y < h; y += 2, s += w, d += w2 * 2)
-	for (x = 0; x < w; x += 2, s += 2, d += 3) {
-		a0 = c32[s[0]];
-		a1 = c32[s[1]];
-		a2 = c32[s[w]];
-		a3 = c32[s[w + 1]];
-
 #define X1(a0, o) \
 	a = a0 << 2 & m; \
 	d[o] = a | a >> 16;
@@ -130,6 +78,28 @@ DEF(void, scr_update_3d2, (uint8_t *src, void *dest)) {
 	a = a0 + a1; \
 	a = (b & a) + (a << 1); a &= m; \
 	d[o] = a | a >> 16;
+
+DEF(void, scr_update_3d2, (uint8_t *s, void *dest)) {
+	uint16_t *d = (uint16_t*)dest;
+	uint32_t *c32 = (uint32_t*)dest - 256;
+	unsigned x, y, w = 320, w2 = 480, h = 212;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
+
+	for (x = 0; x < w; x += 2, s += 2, d += 3) {
+		a0 = c32[s[0]];
+		a1 = c32[s[1]];
+		X1(a0, 0)
+		X2(a0, a1, 1)
+		X1(a1, 2)
+	}
+
+	for (y = 0; y < h; y += 2, s += w, d += w2 * 2)
+	for (x = 0; x < w; x += 2, s += 2, d += 3) {
+		a0 = c32[s[0]];
+		a1 = c32[s[1]];
+		a2 = c32[s[w]];
+		a3 = c32[s[w + 1]];
 
 		X1(a0, 0)
 		X2(a0, a1, 1)
@@ -146,15 +116,21 @@ DEF(void, scr_update_3d2, (uint8_t *src, void *dest)) {
 		X2(a2, a3, w2 * 2 + 1)
 		X1(a3, w2 * 2 + 2)
 	}
+
+	for (x = 0; x < w; x += 2, s += 2, d += 3) {
+		a0 = c32[s[0]];
+		a1 = c32[s[1]];
+		X1(a0, 0)
+		X2(a0, a1, 1)
+		X1(a1, 2)
+	}
 }
 
 // pixel aspect ratio 25:24
-DEF(void, scr_update_25x24d20, (uint8_t *src, void *dest)) {
-	uint8_t *s = src;
+DEF(void, scr_update_25x24d20, (uint8_t *s, void *dest)) {
 	uint16_t *d = (uint16_t*)dest;
 	uint32_t *c32 = (uint32_t*)dest - 256;
-	int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-	int w2 = SCREENWIDTH * 5 / 4;
+	unsigned x, y, w = 320, w2 = 400, h = 200;
 	uint32_t a, a0, a1, a2, a3;
 	uint32_t b = 0x00400802 << 1, m = 0xf81f07e0;
 	do {
@@ -207,71 +183,74 @@ DEF(void, scr_update_25x24d20, (uint8_t *src, void *dest)) {
 		s += w; d += w2 * 2;
 	} while ((h -= 5));
 }
-
 #undef X1
 #undef X2
 
-typedef enum {false, true} boolean;
-extern boolean menuactive, viewactive;
-extern int screenblocks;
+// 0123456789abcdef 16 * 2.75 / 4
+// 2333233323332333
+// 0011 1222 3334 4555 6667 7788 999a aabb bccd ddee efff
+#define X2(a0, a1, i) a = a0 + a1; \
+	a = (b & a) + (a << 1); X1(a, i)
+#define X3(a0, a1, a2, i) a = a0 + (a1 << 1) + a2; \
+	a += ((b & a >> 1) + b) >> 1; X1(a, i)
+#define X4 \
+	X0(a0, 0) X0(a1, 1) X0(a2, 2) \
+	X2(a0, a1, 0) /* 0011 */ \
+	X3(a1, a2, a2, 1) /* 1222 */ \
+	X0(a3, 3) X0(a0, 4) X0(a1, 5) \
+	X3(a3, a3, a0, 2) /* 3334 */ \
+	X3(a0, a1, a1, 3) /* 4555 */ \
+	X0(a2, 6) X0(a3, 7) X0(a0, 8) \
+	X3(a2, a2, a3, 4) /* 6667 */ \
+	X2(a3, a0, 5) /* 7788 */ \
+	X0(a1, 9) X0(a2, 10) X0(a3, 11) \
+	X3(a1, a1, a2, 6) /* 999a */ \
+	X2(a2, a3, 7) /* aabb */ \
+	X0(a0, 12) X0(a1, 13) \
+	X3(a3, a0, a1, 8) /* bccd */ \
+	X0(a2, 14) X0(a3, 15) \
+	X2(a1, a2, 9) /* ddee */ \
+	X3(a2, a3, a3, 10) /* efff */
 
-DEF(void, scr_update_2d3_crop, (uint8_t *src, void *dest)) {
-	uint8_t *s = src;
+DEF(void, scr_update_11d16, (uint8_t *s, void *dest)) {
 	uint16_t *d = (uint16_t*)dest;
-	uint32_t *c32 = (uint32_t*)dest - 256 * 2;
-	int x, y, w = SCREENWIDTH, h = SCREENHEIGHT;
-	uint32_t a, a0, a1, a2, a3, a4, a5;
-	uint32_t b = 0x00400802, m = 0xf81f07e0;
-
-	// fallback to 1d2
-	if (menuactive || !viewactive) {
-		uint32_t i, n = 14 * w / 4;
-		uint32_t *p = (uint32_t*)d;
-		for (i = 0; i < n; i++) p[i] = 0;
-		p = (uint32_t*)(d + 114 * w / 2);
-		for (i = 0; i < n; i++) p[i] = 0;
-		scr_update_1d2_custom(s, d + 14 * w / 2, c32 + 256, 200);
-		return;
-	}
-
-	y = (h - 32) / 3;
-	if (screenblocks >= 11)
-			s += w * 4, y = 128 / 2;
-
-	for (s += 40; y; y--, s += w * 2 + 80, d += w / 2)
-	for (x = w / 4; x; x--, s += 3, d += 2) {
-		a0 = c32[s[0]] << 1;
-		a  = c32[s[1]];
-		a1 = c32[s[2]] << 1;
-		a0 += a; a1 += a;
-
-		a2 = c32[s[w]];
-		a  = c32[s[w + 1]];
-		a3 = c32[s[w + 2]];
-		a = (a & ~b) >> 1;
-		a0 += a2 += a;
-		a1 += a3 += a;
-
-		a4 = c32[s[w * 2]] << 1;
-		a  = c32[s[w * 2 + 1]];
-		a5 = c32[s[w * 2 + 2]] << 1;
-		a2 += a4 + a;
-		a3 += a5 + a;
-
-#define X(a, i) \
-	a += (b & a >> 2) + b; a &= m; \
-	d[i] = a | a >> 16;
-		X(a0, 0) X(a1, 1) X(a2, w / 2)
-		X(a3, w / 2 + 1)
-#undef X
-	}
-	if (screenblocks < 11)
-		scr_update_1d2_custom(s - 40, d, c32 + 256, 32);
+	uint32_t *c32 = (uint32_t*)dest - 256;
+	unsigned k, w = 320, w2 = 220, h = 256;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t b = 0x00400802 << 1, m1 = 0x3fc7f9fe, m2 = 0xf81f07e0;
+	uint32_t buf[11 * 16], *t;
+	do {
+		h -= 20 << 10;
+		do {
+			uint8_t *s2 = s;
+			for (t = buf, k = 0; k < 16; k++, s2 += w, t += 11) {
+#define X0(a, i) a = c32[s2[i]];
+#define X1(a, i) t[i] = a >> 2 & m1;
+				X4
+#undef X0
+#undef X1
+			}
+			s += 16;
+			for (t = buf, k = 0; k < 11; k++, d++, t++) {
+				uint16_t *d2 = d;
+#define X0(a, i) a = t[i * 11];
+#define X1(a, i) a &= m2; *d2 = a | a >> 16; d2 += w2;
+				X4
+#undef X0
+#undef X1
+			}
+		} while ((int)(h += 1 << 10) < 0);
+		s += w * 15; d += w2 * 10;
+	} while ((h -= 16));
 }
+#undef X2
+#undef X3
+#undef X4
 
 #undef DEF
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
+#define pal_update32 pal_update32_asm
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
 #define scr_update_3d2 scr_update_3d2_asm
@@ -279,7 +258,7 @@ DEF(void, scr_update_2d3_crop, (uint8_t *src, void *dest)) {
 #endif
 
 uint8_t* framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 4, 8, 4 };
+	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -287,7 +266,7 @@ uint8_t* framebuffer_init(void) {
 		{ pal_update16, scr_update_1d1 },
 		{ pal_update32, scr_update_1d2 },
 		{ pal_update32, scr_update_3d2 },
-		{ pal_update32_8d9, scr_update_2d3_crop },
+		{ pal_update32, scr_update_11d16 },
 		{ pal_update32, scr_update_25x24d20 },
 	};
 	int mode = sys_data.scaler;
@@ -295,7 +274,7 @@ uint8_t* framebuffer_init(void) {
 	uint8_t *dest;
 
 	size = sys_data.display.w2 * sys_data.display.h2;
-	dest = malloc(size * 2 + size2 + 31);
+	dest = malloc(size * 2 + size2 + 28);
 	dest = (void*)(dest + (-(intptr_t)dest & 31));
 	dest += size2;
 
@@ -304,10 +283,22 @@ uint8_t* framebuffer_init(void) {
 	return dest;
 }
 
+/* replaces "i_main.c" */
+extern int myargc;
+extern char** myargv;
+void D_DoomMain(void);
+extern int screenheight;
+
+int main(int argc, char **argv) {
+	myargc = argc; myargv = argv;
+	screenheight = *(int32_t*)sys_data.user;
+	D_DoomMain();
+}
+
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
-		320, 200,  160, 100,  480, 300,
-		160, 128,  400, 240
+		320, 240, 240,  160, 128, 256,  480, 320, 214,
+		220, 176, 256,  400, 240, 200
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
@@ -320,12 +311,15 @@ void lcd_appinit(void) {
 			mode = 0; break;
 		case 128: case 160:
 			mode = 1; break;
+		case 176: case 220:
+			mode = 3; break;
 		default:
 			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
 			exit(1);
 		}
 	}
 	sys_data.scaler = mode;
-	disp->w2 = dim[mode * 2];
-	disp->h2 = dim[mode * 2 + 1];
+	disp->w2 = dim[mode * 3];
+	disp->h2 = dim[mode * 3 + 1];
+	*(int32_t*)sys_data.user = dim[mode * 3 + 2];
 }

@@ -364,10 +364,10 @@ CODE32_FN pal_update32_asm
 	pop	{r4,pc}
 
 .macro UPDATE_COPY4 r6, r7, r8, r9
-	and	\r6, r3, \r9, lsl #1
-	and	\r7, r3, \r9, lsr #7
-	and	\r8, r3, \r9, lsr #15
-	and	\r9, r3, \r9, lsr #23
+	and	\r6, lr, \r9, lsl #1
+	and	\r7, lr, \r9, lsr #7
+	and	\r8, lr, \r9, lsr #15
+	and	\r9, lr, \r9, lsr #23
 	ldrh	\r6, [r2, \r6]
 	ldrh	\r7, [r2, \r7]
 	ldrh	\r8, [r2, \r8]
@@ -377,38 +377,33 @@ CODE32_FN pal_update32_asm
 .endm
 
 CODE32_FN scr_update_1d1_asm
-	push	{r4-r11,lr}
+	push	{r6-r10,lr}
 	sub	r2, r1, #256 * 2
-	mov	r5, #SCREENHEIGHT
-	ldr	r3, =0x1fe
-1:	mov	r4, #SCREENWIDTH
-2:	ldmia	r0!, {r9,r11}
+	mov	r3, #240
+	ldr	lr, =0x1fe
+1:	sub	r3, #320 << 16
+2:	ldmia	r0!, {r9,r12}
 	UPDATE_COPY4 r6, r7, r8, r9
-	UPDATE_COPY4 r8, r9, r10, r11
+	UPDATE_COPY4 r8, r9, r10, r12
 	stmia	r1!, {r6-r9}
-	subs	r4, #8
-	bhi	2b
-	subs	r5, #1
+	adds	r3, #8 << 16
+	bmi	2b
+	subs	r3, #1
 	bhi	1b
-	pop	{r4-r11,pc}
+	pop	{r6-r10,pc}
 
 CODE32_FN scr_update_1d2_asm
+	push	{r4-r10,lr}
 	sub	r2, r1, #256 * 4
-	mov	r3, #SCREENHEIGHT
-
-	.type scr_update_1d2_custom_asm, %function
-	.global scr_update_1d2_custom_asm
-scr_update_1d2_custom_asm:
-	push	{r4-r11,lr}
-	mov	r12, #SCREENWIDTH
+	mov	r3, #256
 	ldr	lr, =0x00400802
 	ldr	r5, =0xf81f07e0
 	mov	r4, #0x3fc
-1:	sub	r3, r3, r12, lsl #16
-2:	ldr	r11, [r0, r12]
+1:	sub	r3, #320 << 16
+2:	ldr	r12, [r0, #320]
 	ldr	r10, [r0], #4
-	and	r8, r4, r11, lsl #2
-	and	r9, r4, r11, lsr #6
+	and	r8, r4, r12, lsl #2
+	and	r9, r4, r12, lsr #6
 	and	r6, r4, r10, lsl #2
 	and	r7, r4, r10, lsr #6
 	ldr	r6, [r2, r6]
@@ -422,10 +417,10 @@ scr_update_1d2_custom_asm:
 	add	r6, lr
 	add	r6, r7
 	and	r6, r5
-	and	r8, r4, r11, lsr #14
-	and	r9, r4, r11, lsr #22
-	orr	r11, r6, r6, lsl #16
-	lsr	r11, #16
+	and	r8, r4, r12, lsr #14
+	and	r9, r4, r12, lsr #22
+	orr	r12, r6, r6, lsl #16
+	lsr	r12, #16
 	and	r6, r4, r10, lsr #14
 	and	r7, r4, r10, lsr #22
 	ldr	r6, [r2, r6]
@@ -440,18 +435,18 @@ scr_update_1d2_custom_asm:
 	add	r6, r7
 	and	r6, r5
 	orr	r6, r6, r6, lsr #16
-	orr	r6, r11, r6, lsl #16
+	orr	r6, r12, r6, lsl #16
 	str	r6, [r1], #4
 	adds	r3, #4 << 16
 	bmi	2b
-	add	r0, r12
+	add	r0, #320
 	subs	r3, #2
 	bhi	1b
-	pop	{r4-r11,pc}
+	pop	{r4-r10,pc}
 
 .macro READ2X2
 	mov	r4, #0x3fc
-	ldrh	r8, [r0, r12]
+	ldrh	r8, [r0, lr]
 	ldrh	r6, [r0], #2
 	and	r9, r4, r8, lsr #6
 	and	r7, r4, r6, lsr #6
@@ -465,7 +460,7 @@ scr_update_1d2_custom_asm:
 
 .macro SCALE15X_12 r6, r7, lsl, lsr
 	add	r11, \r6, \r7
-	and	r4, r11, lr, lsl #1
+	and	r4, r11, r12, lsl #1
 	add	r4, r4, r11, lsl #1
 	and	r11, r10, \r6, lsl #2
 	orr	r11, r11, r11, \lsl #16
@@ -478,11 +473,12 @@ scr_update_1d2_custom_asm:
 CODE32_FN scr_update_3d2_asm
 	push	{r4-r11,lr}
 	sub	r2, r1, #256 * 4
-	mov	r12, #SCREENWIDTH
-	mov	r3, #SCREENHEIGHT
-	ldr	lr, =0x00400802
+	mov	r3, #212
+	ldr	r12, =0x00400802
 	ldr	r10, =0xf81f07e0
-1:	sub	r3, r3, r12, lsl #16
+	blx	4f
+	mov	lr, #320
+1:	sub	r3, #320 << 16
 2:
 	READ2X2
 	SCALE15X_12 r6, r7, lsl, lsr
@@ -494,21 +490,21 @@ CODE32_FN scr_update_3d2_asm
 
 	add	r7, r9
 	add	r11, r6, r8
-	and	r4, r11, lr, lsl #1
+	and	r4, r11, r12, lsl #1
 	add	r4, r4, r11, lsl #1
 	and	r4, r10
 	orr	r4, r4, r4, lsl #16
 	add	r11, r7
-	and	r6, lr, r11, lsr #2
+	and	r6, r12, r11, lsr #2
 	add	r11, r6
-	add	r11, lr
+	add	r11, r12
 	and	r11, r10
 	orr	r11, r11, r11, lsr #16
 	lsl	r11, #16
 	orr	r11, r11, r4, lsr #16
 	str	r11, [r1, #480 * 2 - 4]
 
-	and	r4, r7, lr, lsl #1
+	and	r4, r7, r12, lsl #1
 	add	r4, r4, r7, lsl #1
 	and	r4, r10
 	orr	r4, r4, r4, lsl #16
@@ -540,7 +536,7 @@ CODE32_FN scr_update_3d2_asm
 	str	r11, [r1], #4
 
 	add	r11, r6, r8
-	and	r4, r11, lr, lsl #1
+	and	r4, r11, r12, lsl #1
 	add	r4, r4, r11, lsl #1
 	and	r4, r10
 	orr	r4, r4, r4, lsr #16
@@ -550,13 +546,13 @@ CODE32_FN scr_update_3d2_asm
 
 	add	r7, r9
 	add	r11, r7
-	and	r4, lr, r11, lsr #2
+	and	r4, r12, r11, lsr #2
 	add	r11, r4
-	add	r11, lr
+	add	r11, r12
 	and	r11, r10
 	orr	r11, r11, r11, lsl #16
 	lsr	r11, #16
-	and	r4, r7, lr, lsl #1
+	and	r4, r7, r12, lsl #1
 	add	r4, r4, r7, lsl #1
 	and	r4, r10
 	orr	r4, r4, r4, lsr #16
@@ -568,11 +564,53 @@ CODE32_FN scr_update_3d2_asm
 
 	adds	r3, #4 << 16
 	bmi	2b
-	add	r0, r12
+	add	r0, #320
 	add	r1, #480 * 4
 	subs	r3, #2
 	bhi	1b
+	blx	4f
 	pop	{r4-r11,pc}
+
+4:	mov	r4, #0x3fc
+	sub	r3, #320 << 16
+2:	ldr	r9, [r0], #4
+	adds	r3, #4 << 16
+	and	r6, r4, r9, lsl #2
+	and	r7, r4, r9, lsr #6
+	and	r8, r4, r9, lsr #14
+	and	r9, r4, r9, lsr #22
+	ldr	r6, [r2, r6]
+	ldr	r7, [r2, r7]
+	ldr	r8, [r2, r8]
+	ldr	r9, [r2, r9]
+	add	r5, r6, r7
+	and	r6, r10, r6, lsl #2
+	and	r7, r10, r7, lsl #2
+	orr	r6, r6, r6, lsl #16
+	orr	r7, r7, r7, lsl #16
+	lsr	r6, #16
+	lsr	r7, #16
+	and	r11, r5, lr, lsl #1
+	add	r5, r11, r5, lsl #1
+	and	r5, r10
+	orr	r5, r5, r5, lsr #16
+	orr	r6, r6, r5, lsl #16 // 00 01
+
+	add	r5, r8, r9
+	and	r8, r10, r8, lsl #2
+	and	r9, r10, r9, lsl #2
+	orr	r8, r8, r8, lsr #16
+	orr	r9, r9, r9, lsr #16
+	orr	r7, r7, r8, lsl #16 // 11 22
+	lsl	r9, #16
+	and	r11, r5, lr, lsl #1
+	add	r5, r11, r5, lsl #1
+	and	r5, r10
+	orr	r5, r5, r5, lsl #16
+	orr	r8, r9, r5, lsr #16 // 23 33
+	stmia	r1!, {r6-r8}
+	bmi	2b
+	bx	lr
 
 .macro SCALE15X_121 r6, r7
 	and	r11, r10, \r6, lsl #2
@@ -589,13 +627,13 @@ CODE32_FN scr_update_3d2_asm
 CODE32_FN scr_update_25x24d20_asm
 	push	{r4-r11,lr}
 	sub	r2, r1, #256 * 4
-	mov	r3, #SCREENHEIGHT
+	mov	r3, #200
 	ldr	lr, =0x00400802
 	ldr	r10, =0xf81f07e0
-1:
-	sub	r3, #320 * 3 << 16
-3:	ldr	r9, [r0], #4
 	mov	r4, #0x3fc
+1:	sub	r3, #320 * 3 << 16
+3:	ldr	r9, [r0], #4
+	adds	r3, #4 << 16
 	and	r6, r4, r9, lsl #2
 	and	r7, r4, r9, lsr #6
 	and	r8, r4, r9, lsr #14
@@ -616,14 +654,12 @@ CODE32_FN scr_update_25x24d20_asm
 	strh	r5, [r0, #-6]
 	strh	r12, [r0, #-4]
 	strh	r9, [r0, #-2]
-
-	adds	r3, #4 << 16
 	bmi	3b
 
 	sub	r3, #320 << 16
 2:	ldr	r8, [r0, #400]
 	ldr	r6, [r0], #4
-	mov	r4, #0x3fc
+	adds	r3, #4 << 16
 
 	// left
 	and	r7, r4, r6, lsl #2
@@ -693,7 +729,6 @@ CODE32_FN scr_update_25x24d20_asm
 	strh	r5, [r1, #-6]
 	strh	r12, [r1, #-4]
 	sub	r1, #400 * 4
-	adds	r3, #4 << 16
 	bmi	2b
 	add	r0, #320
 	add	r1, #400 * 4

@@ -24,7 +24,7 @@ DOOM_SRCS = \
 	p_tick p_saveg p_user r_bsp r_data r_draw r_main r_plane \
 	r_segs r_sky r_things w_wad wi_stuff v_video st_lib \
 	st_stuff hu_stuff hu_lib s_sound z_zone info sounds \
-	i_main i_system i_sound i_net i_video
+	i_system i_sound i_net i_video
 
 ifeq ($(TWO_STAGE), 0)
 SRCS := start entry $(SRCS) $(DOOM_SRCS)

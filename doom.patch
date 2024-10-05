@@ -1,7 +1,16 @@
 diff --git a/am_map.c b/am_map.c
-index 999e455..4be1e68 100644
+index 999e455..2241dee 100644
 --- a/am_map.c
 +++ b/am_map.c
+@@ -220,7 +220,7 @@ static int 	leveljuststarted = 1; 	// kluge until AM_LevelInit() is called
+ 
+ boolean    	automapactive = false;
+ static int 	finit_width = SCREENWIDTH;
+-static int 	finit_height = SCREENHEIGHT - 32;
++#define finit_height (SCREENHEIGHT - 32)
+ 
+ // location of window on screen
+ static int 	f_x;
 @@ -783,7 +783,7 @@ void AM_doFollowPlayer(void)
  //
  void AM_updateLightLev(void)
@@ -34,7 +43,7 @@ index 999e455..4be1e68 100644
      // For debugging only
      if (      fl->a.x < 0 || fl->a.x >= f_w
 diff --git a/d_main.c b/d_main.c
-index 23427e8..7ccda3d 100644
+index 23427e8..99a01b2 100644
 --- a/d_main.c
 +++ b/d_main.c
 @@ -32,12 +32,9 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
@@ -83,7 +92,40 @@ index 23427e8..7ccda3d 100644
      {
  	ev = &events[eventtail];
  	if (M_Responder (ev))
-@@ -529,18 +519,10 @@ void D_StartTitle (void)
+@@ -239,20 +229,26 @@ void D_Display (void)
+ 	    break;
+ 	if (automapactive)
+ 	    AM_Drawer ();
+-	if (wipe || (viewheight != 200 && fullscreen) )
+-	    redrawsbar = true;
+-	if (inhelpscreensstate && !inhelpscreens)
+-	    redrawsbar = true;              // just put away the help screen
+-	ST_Drawer (viewheight == 200, redrawsbar );
+-	fullscreen = viewheight == 200;
++	{   /* height fix */
++            int fullscreen2 = viewheight == SCREENHEIGHT;
++	    if (wipe || (!fullscreen2 && fullscreen) ||
++	        (inhelpscreensstate && !inhelpscreens)) // just put away the help screen
++	        redrawsbar = true;
++	    ST_Drawer (fullscreen2, redrawsbar );
++	    fullscreen = fullscreen2;
++	}
+ 	break;
+ 
+       case GS_INTERMISSION:
++	patch_yadd = SCREENHEIGHTFIX2;
+ 	WI_Drawer ();
++	patch_yadd = 0;
+ 	break;
+ 
+       case GS_FINALE:
++	patch_yadd = SCREENHEIGHTFIX2;
+ 	F_Drawer ();
++	patch_yadd = 0;
+ 	break;
+ 
+       case GS_DEMOSCREEN:
+@@ -529,18 +525,10 @@ void D_StartTitle (void)
      D_AdvanceDemo ();
  }
  
@@ -103,7 +145,7 @@ index 23427e8..7ccda3d 100644
  {
      int     numwadfiles;
      char    *newfile;
-@@ -554,6 +536,9 @@ void D_AddFile (char *file)
+@@ -554,6 +542,9 @@ void D_AddFile (char *file)
      wadfiles[numwadfiles] = newfile;
  }
  
@@ -113,7 +155,7 @@ index 23427e8..7ccda3d 100644
  //
  // IdentifyVersion
  // Checks availability of IWAD files by name,
-@@ -563,6 +548,34 @@ void D_AddFile (char *file)
+@@ -563,6 +554,34 @@ void D_AddFile (char *file)
  void IdentifyVersion (void)
  {
  
@@ -148,7 +190,7 @@ index 23427e8..7ccda3d 100644
      char*	doom1wad;
      char*	doomwad;
      char*	doomuwad;
-@@ -707,6 +720,7 @@ void IdentifyVersion (void)
+@@ -707,6 +726,7 @@ void IdentifyVersion (void)
        D_AddFile (doom1wad);
        return;
      }
@@ -156,7 +198,7 @@ index 23427e8..7ccda3d 100644
  
      printf("Game mode indeterminate.\n");
      gamemode = indetermined;
-@@ -814,6 +828,9 @@ void D_DoomMain (void)
+@@ -814,6 +834,9 @@ void D_DoomMain (void)
      else if (M_CheckParm ("-deathmatch"))
  	deathmatch = 1;
  
@@ -166,7 +208,7 @@ index 23427e8..7ccda3d 100644
      switch ( gamemode )
      {
        case retail:
-@@ -870,17 +887,11 @@ void D_DoomMain (void)
+@@ -870,17 +893,11 @@ void D_DoomMain (void)
      }
      
      printf ("%s\n",title);
@@ -185,7 +227,7 @@ index 23427e8..7ccda3d 100644
      // turbo option
      if ( (p=M_CheckParm ("-turbo")) )
      {
-@@ -1091,7 +1102,7 @@ void D_DoomMain (void)
+@@ -1091,7 +1108,7 @@ void D_DoomMain (void)
      printf ("M_Init: Init miscellaneous info.\n");
      M_Init ();
  
@@ -194,7 +236,7 @@ index 23427e8..7ccda3d 100644
      R_Init ();
  
      printf ("\nP_Init: Init Playloop state.\n");
-@@ -1112,17 +1123,6 @@ void D_DoomMain (void)
+@@ -1112,17 +1129,6 @@ void D_DoomMain (void)
      printf ("ST_Init: Init status bar.\n");
      ST_Init ();
  
@@ -212,7 +254,7 @@ index 23427e8..7ccda3d 100644
      // start the apropriate game based on parms
      p = M_CheckParm ("-record");
  
-@@ -1150,10 +1150,7 @@ void D_DoomMain (void)
+@@ -1150,10 +1156,7 @@ void D_DoomMain (void)
      p = M_CheckParm ("-loadgame");
      if (p && p < myargc-1)
      {
@@ -412,7 +454,7 @@ index bab5e00..f9b3926 100644
  
  
 diff --git a/doomdef.h b/doomdef.h
-index 1850477..5571030 100644
+index 1850477..b3bb4b0 100644
 --- a/doomdef.h
 +++ b/doomdef.h
 @@ -25,6 +25,7 @@
@@ -430,6 +472,20 @@ index 1850477..5571030 100644
 -#define SNDSERV  1
 +//#define SNDSERV  1
  //#define SNDINTR  1
+ 
+ 
+@@ -109,8 +110,12 @@ typedef enum
+ // So there.
+ #define SCREENWIDTH  320
+ //SCREEN_MUL*BASE_WIDTH //320
+-#define SCREENHEIGHT 200
++#define SCREENHEIGHTOLD 200
+ //(int)(SCREEN_MUL*BASE_WIDTH*INV_ASPECT_RATIO) //200
++#define SCREENHEIGHTMAX 240
++extern int screenheight, patch_yadd;
++#define SCREENHEIGHT screenheight
++#define SCREENHEIGHTFIX2 ((SCREENHEIGHT-SCREENHEIGHTOLD)/2u)
+ 
  
  
 diff --git a/doomstat.h b/doomstat.h
@@ -485,6 +541,45 @@ index e6abe88..bc1e5b2 100644
  
    // FinalDOOM?
    "fuck you, pussy!\nget the fuck out!",
+diff --git a/f_finale.c b/f_finale.c
+index a6e74dd..7be5219 100644
+--- a/f_finale.c
++++ b/f_finale.c
+@@ -620,6 +620,7 @@ F_DrawPatchCol
+ 	
+     column = (column_t *)((byte *)patch + LONG(patch->columnofs[col]));
+     desttop = screens[0]+x;
++    desttop += SCREENHEIGHTFIX2*SCREENWIDTH;
+ 
+     // step through the posts in a column
+     while (column->topdelta != 0xff )
+@@ -651,6 +652,8 @@ void F_BunnyScroll (void)
+     int		stage;
+     static int	laststage;
+ 		
++    if (!finalecount) /* height fix */
++	memset(screens[0], 0, SCREENWIDTH*SCREENHEIGHT);
+     p1 = W_CacheLumpName ("PFUB2", PU_LEVEL);
+     p2 = W_CacheLumpName ("PFUB1", PU_LEVEL);
+ 
+@@ -675,7 +678,7 @@ void F_BunnyScroll (void)
+     if (finalecount < 1180)
+     {
+ 	V_DrawPatch ((SCREENWIDTH-13*8)/2,
+-		     (SCREENHEIGHT-8*8)/2,0, W_CacheLumpName ("END0",PU_CACHE));
++		     (SCREENHEIGHTOLD-8*8)/2,0, W_CacheLumpName ("END0",PU_CACHE));
+ 	laststage = 0;
+ 	return;
+     }
+@@ -690,7 +693,7 @@ void F_BunnyScroll (void)
+     }
+ 	
+     sprintf (name,"END%i",stage);
+-    V_DrawPatch ((SCREENWIDTH-13*8)/2, (SCREENHEIGHT-8*8)/2,0, W_CacheLumpName (name,PU_CACHE));
++    V_DrawPatch ((SCREENWIDTH-13*8)/2, (SCREENHEIGHTOLD-8*8)/2,0, W_CacheLumpName (name,PU_CACHE));
+ }
+ 
+ 
 diff --git a/f_wipe.c b/f_wipe.c
 index e8596f3..2ebcb10 100644
 --- a/f_wipe.c
@@ -627,6 +722,19 @@ index 30ac33c..fada899 100644
        gameaction = ga_nothing;
        return;
      }
+diff --git a/hu_stuff.c b/hu_stuff.c
+index efb1396..b7bb5ca 100644
+--- a/hu_stuff.c
++++ b/hu_stuff.c
+@@ -52,7 +52,7 @@ rcsid[] = "$Id: hu_stuff.c,v 1.4 1997/02/03 16:47:52 b1 Exp $";
+ #define HU_TITLET	(mapnamest[gamemap-1])
+ #define HU_TITLEHEIGHT	1
+ #define HU_TITLEX	0
+-#define HU_TITLEY	(167 - SHORT(hu_font[0]->height))
++#define HU_TITLEY	(SCREENHEIGHT - 33 - SHORT(hu_font[0]->height))
+ 
+ #define HU_INPUTTOGGLE	't'
+ #define HU_INPUTX	HU_MSGX
 diff --git a/i_net.c b/i_net.c
 index 557f417..773bca7 100644
 --- a/i_net.c
@@ -836,7 +944,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..11dd961 100644
+index 9b311b3..c1aa73d 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -855,10 +963,11 @@ index 9b311b3..11dd961 100644
  #include <signal.h>
  
  #include "doomstat.h"
-@@ -59,6 +61,14 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+@@ -59,6 +61,15 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
  
  #define POINTER_WARP_COUNTDOWN	1
  
++int screenheight = 200, patch_yadd = 0;
 +#ifdef EMBEDDED
 +#include "../syscode.h"
 +uint8_t* framebuffer_init(void);
@@ -870,7 +979,7 @@ index 9b311b3..11dd961 100644
  Display*	X_display=0;
  Window		X_mainWindow;
  Colormap	X_cmap;
-@@ -82,6 +92,7 @@ int		X_shmeventtype;
+@@ -82,6 +93,7 @@ int		X_shmeventtype;
  // Needs an invisible mouse cursor at least.
  boolean		grabMouse;
  int		doPointerWarp = POINTER_WARP_COUNTDOWN;
@@ -878,7 +987,7 @@ index 9b311b3..11dd961 100644
  
  // Blocky mode,
  // replace each 320x200 pixel with multiply*multiply pixels.
-@@ -89,6 +100,89 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+@@ -89,6 +101,96 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
  // to use ....
  static int	multiply=1;
  
@@ -944,7 +1053,14 @@ index 9b311b3..11dd961 100644
 +	switch (type) {
 +	case EVENT_KEYDOWN:
 +	    if (key == KEY_ENTER && !menuactive) key = ' ';
-+	    if (key == KEY_RSHIFT && gamekeydown[KEY_RSHIFT]) goto keyup;
++	    if (key == KEY_RSHIFT) {
++		player_t* p = &players[consoleplayer];
++		if (gamekeydown[KEY_RSHIFT]) {
++		    p->message = "Auto run OFF.";
++		    goto keyup;
++		}
++		p->message = "Auto run ON.";
++	    }
 +	    if (keyup);
 +	    else if (key == '[') keyup = key = I_CycleWeapon(0);
 +	    else if (key == ']') keyup = key = I_CycleWeapon(1);
@@ -968,7 +1084,7 @@ index 9b311b3..11dd961 100644
  
  //
  //  Translates the key currently in X_event
-@@ -272,7 +366,7 @@ void I_GetEvent(void)
+@@ -272,7 +374,7 @@ void I_GetEvent(void)
  	break;
  	
        default:
@@ -977,7 +1093,7 @@ index 9b311b3..11dd961 100644
  	break;
      }
  
-@@ -336,6 +430,7 @@ void I_StartTic (void)
+@@ -336,6 +438,7 @@ void I_StartTic (void)
      mousemoved = false;
  
  }
@@ -985,7 +1101,7 @@ index 9b311b3..11dd961 100644
  
  
  //
-@@ -373,6 +468,11 @@ void I_FinishUpdate (void)
+@@ -373,6 +476,11 @@ void I_FinishUpdate (void)
      
      }
  
@@ -997,7 +1113,7 @@ index 9b311b3..11dd961 100644
      // scales the screen size before blitting it
      if (multiply == 2)
      {
-@@ -518,6 +618,7 @@ void I_FinishUpdate (void)
+@@ -518,6 +626,7 @@ void I_FinishUpdate (void)
  
      }
  
@@ -1005,7 +1121,7 @@ index 9b311b3..11dd961 100644
  }
  
  
-@@ -533,6 +634,12 @@ void I_ReadScreen (byte* scr)
+@@ -533,6 +642,12 @@ void I_ReadScreen (byte* scr)
  //
  // Palette stuff.
  //
@@ -1018,7 +1134,7 @@ index 9b311b3..11dd961 100644
  static XColor	colors[256];
  
  void UploadNewPalette(Colormap cmap, byte *palette)
-@@ -688,6 +795,7 @@ void grabsharedmemory(int size)
+@@ -688,6 +803,7 @@ void grabsharedmemory(int size)
    fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
  	  (int) (image->data));
  }
@@ -1026,7 +1142,7 @@ index 9b311b3..11dd961 100644
  
  void I_InitGraphics(void)
  {
-@@ -699,6 +807,7 @@ void I_InitGraphics(void)
+@@ -699,6 +815,7 @@ void I_InitGraphics(void)
      int			x=0;
      int			y=0;
      
@@ -1034,7 +1150,7 @@ index 9b311b3..11dd961 100644
      // warning: char format, different type arg
      char		xsign=' ';
      char		ysign=' ';
-@@ -708,6 +817,7 @@ void I_InitGraphics(void)
+@@ -708,6 +825,7 @@ void I_InitGraphics(void)
      XSetWindowAttributes attribs;
      XGCValues		xgcvalues;
      int			valuemask;
@@ -1042,7 +1158,7 @@ index 9b311b3..11dd961 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +826,11 @@ void I_InitGraphics(void)
+@@ -716,6 +834,11 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
@@ -1054,7 +1170,7 @@ index 9b311b3..11dd961 100644
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1027,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1035,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1066,7 +1182,7 @@ index 9b311b3..11dd961 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1163,6 @@ Expand4
+@@ -1046,5 +1171,6 @@ Expand4
  	xline += step;
      } while (y--);
  }
@@ -1186,7 +1302,7 @@ index 7cd7c66..e0e54cf 100644
  fixed_t FixedDiv	(fixed_t a, fixed_t b);
  fixed_t FixedDiv2	(fixed_t a, fixed_t b);
 diff --git a/m_menu.c b/m_menu.c
-index 4d415ae..9d53dbd 100644
+index 4d415ae..b7ac3ef 100644
 --- a/m_menu.c
 +++ b/m_menu.c
 @@ -25,10 +25,6 @@
@@ -1293,6 +1409,31 @@ index 4d415ae..9d53dbd 100644
  	if (messageNeedsInput == true &&
  	    !(ch == ' ' || ch == 'n' || ch == 'y' || ch == KEY_ESCAPE))
  	    return false;
+@@ -1753,7 +1741,7 @@ void M_Drawer (void)
+     if (messageToPrint)
+     {
+ 	start = 0;
+-	y = 100 - M_StringHeight(messageString)/2;
++	y = SCREENHEIGHT / 2u - M_StringHeight(messageString)/2;
+ 	while(*(messageString+start))
+ 	{
+ 	    for (i = 0;i < strlen(messageString+start);i++)
+@@ -1781,6 +1769,7 @@ void M_Drawer (void)
+     if (!menuactive)
+ 	return;
+ 
++    patch_yadd = SCREENHEIGHTFIX2;
+     if (currentMenu->routine)
+ 	currentMenu->routine();         // call Draw routine
+     
+@@ -1801,6 +1790,7 @@ void M_Drawer (void)
+     // DRAW SKULL
+     V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
+ 		      W_CacheLumpName(skullName[whichSkull],PU_CACHE));
++    patch_yadd = 0;
+ 
+ }
+ 
 diff --git a/m_misc.c b/m_misc.c
 index 0df4fe5..1444611 100644
 --- a/m_misc.c
@@ -2776,10 +2917,31 @@ index 534fffd..b53b747 100644
  // The span blitting interface.
  // Hook in assembler or system specific BLT
 diff --git a/r_main.c b/r_main.c
-index ad942c7..2c847a8 100644
+index ad942c7..2a9e797 100644
 --- a/r_main.c
 +++ b/r_main.c
-@@ -709,8 +709,8 @@ void R_ExecuteSetViewSize (void)
+@@ -679,7 +679,8 @@ void R_ExecuteSetViewSize (void)
+ 
+     setsizeneeded = false;
+ 
+-    if (setblocks == 11)
++    /* overflow at 255 (byte arrays in visplanes) */
++    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
+     {
+ 	scaledviewwidth = SCREENWIDTH;
+ 	viewheight = SCREENHEIGHT;
+@@ -687,7 +688,9 @@ void R_ExecuteSetViewSize (void)
+     else
+     {
+ 	scaledviewwidth = setblocks*32;
+-	viewheight = (setblocks*168/10)&~7;
++	/* height fix */
++	viewheight = SCREENHEIGHT-32;
++	if (setblocks < 10) viewheight = (setblocks*viewheight/10)&~7;
+     }
+     
+     detailshift = setdetail;
+@@ -709,8 +712,8 @@ void R_ExecuteSetViewSize (void)
      else
      {
  	colfunc = basecolfunc = R_DrawColumnLow;
@@ -2790,6 +2952,74 @@ index ad942c7..2c847a8 100644
  	spanfunc = R_DrawSpanLow;
      }
  
+@@ -719,8 +722,18 @@ void R_ExecuteSetViewSize (void)
+     R_InitTextureMapping ();
+     
+     // psprite scales
++#if 1
++    {   /* height fix */
++	unsigned viewwidth2 = viewwidth;
++	if (viewheight * 8 > viewwidth * 5)
++	    viewwidth2 = ((unsigned)viewheight * 8 + 2) / 5;
++	pspritescale = (FRACUNIT*viewwidth2+SCREENWIDTH-1)/SCREENWIDTH;
++	pspriteiscale = (FRACUNIT*SCREENWIDTH+viewwidth2-1)/viewwidth2;
++    }
++#else
+     pspritescale = FRACUNIT*viewwidth/SCREENWIDTH;
+     pspriteiscale = FRACUNIT*SCREENWIDTH/viewwidth;
++#endif
+     
+     // thing clipping
+     for (i=0 ; i<viewwidth ; i++)
+diff --git a/r_plane.c b/r_plane.c
+index f6ac8e2..2afe97d 100644
+--- a/r_plane.c
++++ b/r_plane.c
+@@ -73,8 +73,8 @@ short			ceilingclip[SCREENWIDTH];
+ // spanstart holds the start of a plane span
+ // initialized to 0 at start
+ //
+-int			spanstart[SCREENHEIGHT];
+-int			spanstop[SCREENHEIGHT];
++int			spanstart[SCREENHEIGHTMAX];
++int			spanstop[SCREENHEIGHTMAX];
+ 
+ //
+ // texture mapping
+@@ -82,15 +82,15 @@ int			spanstop[SCREENHEIGHT];
+ lighttable_t**		planezlight;
+ fixed_t			planeheight;
+ 
+-fixed_t			yslope[SCREENHEIGHT];
++fixed_t			yslope[SCREENHEIGHTMAX];
+ fixed_t			distscale[SCREENWIDTH];
+ fixed_t			basexscale;
+ fixed_t			baseyscale;
+ 
+-fixed_t			cachedheight[SCREENHEIGHT];
+-fixed_t			cacheddistance[SCREENHEIGHT];
+-fixed_t			cachedxstep[SCREENHEIGHT];
+-fixed_t			cachedystep[SCREENHEIGHT];
++fixed_t			cachedheight[SCREENHEIGHTMAX];
++fixed_t			cacheddistance[SCREENHEIGHTMAX];
++fixed_t			cachedxstep[SCREENHEIGHTMAX];
++fixed_t			cachedystep[SCREENHEIGHTMAX];
+ 
+ 
+ 
+diff --git a/r_plane.h b/r_plane.h
+index d266233..d090895 100644
+--- a/r_plane.h
++++ b/r_plane.h
+@@ -43,7 +43,7 @@ extern planefunction_t	ceilingfunc_t;
+ extern short		floorclip[SCREENWIDTH];
+ extern short		ceilingclip[SCREENWIDTH];
+ 
+-extern fixed_t		yslope[SCREENHEIGHT];
++extern fixed_t		yslope[SCREENHEIGHTMAX];
+ extern fixed_t		distscale[SCREENWIDTH];
+ 
+ void R_InitPlanes (void);
 diff --git a/r_things.c b/r_things.c
 index c201fff..8a50d67 100644
 --- a/r_things.c
@@ -2830,11 +3060,64 @@ index bcfb538..8a5bb27 100644
    // cache data if necessary
    if (!sfx->data)
    {
+diff --git a/st_lib.c b/st_lib.c
+index 1f060cf..60ca374 100644
+--- a/st_lib.c
++++ b/st_lib.c
+@@ -72,6 +72,7 @@ STlib_initNum
+   boolean*		on,
+   int			width )
+ {
++    y += SCREENHEIGHT - SCREENHEIGHTOLD;
+     n->x	= x;
+     n->y	= y;
+     n->oldnum	= 0;
+@@ -198,6 +199,7 @@ STlib_initMultIcon
+   int*			inum,
+   boolean*		on )
+ {
++    y += SCREENHEIGHT - SCREENHEIGHTOLD;
+     i->x	= x;
+     i->y	= y;
+     i->oldinum 	= -1;
+@@ -250,6 +252,7 @@ STlib_initBinIcon
+   boolean*		val,
+   boolean*		on )
+ {
++    y += SCREENHEIGHT - SCREENHEIGHTOLD;
+     b->x	= x;
+     b->y	= y;
+     b->oldval	= 0;
 diff --git a/v_video.c b/v_video.c
-index 9b30e64..d1f849d 100644
+index 9b30e64..c3bdbc9 100644
 --- a/v_video.c
 +++ b/v_video.c
-@@ -486,7 +486,8 @@ void V_Init (void)
+@@ -216,6 +216,16 @@ V_DrawPatch
+     byte*	source; 
+     int		w; 
+ 	 
++    /* height fix */
++    if (!(y | x) && patch->height == SCREENHEIGHTOLD) {
++	y = SCREENHEIGHTFIX2;
++	desttop = screens[scrn];
++	memset(desttop, 0, y * SCREENWIDTH);
++	memset(desttop + (y + SCREENHEIGHTOLD) * SCREENWIDTH,
++	    0, y * SCREENWIDTH);
++	if (!scrn)
++	    V_MarkRect(0, 0, patch->width, SCREENHEIGHT);
++    } else y += patch_yadd;
+     y -= SHORT(patch->topoffset); 
+     x -= SHORT(patch->leftoffset); 
+ #ifdef RANGECHECK 
+@@ -283,6 +293,7 @@ V_DrawPatchFlipped
+     byte*	source; 
+     int		w; 
+ 	 
++    y += patch_yadd;
+     y -= SHORT(patch->topoffset); 
+     x -= SHORT(patch->leftoffset); 
+ #ifdef RANGECHECK 
+@@ -486,7 +497,8 @@ void V_Init (void)
  		
      // stick these in low dos memory on PCs
  
@@ -3130,6 +3413,19 @@ index db1faaa..58ab058 100644
      int		position;
      int		size;
  } lumpinfo_t;
+diff --git a/wi_stuff.c b/wi_stuff.c
+index 01502c8..88ff503 100644
+--- a/wi_stuff.c
++++ b/wi_stuff.c
+@@ -85,7 +85,7 @@ rcsid[] = "$Id: wi_stuff.c,v 1.7 1997/02/03 22:45:13 b1 Exp $";
+ #define SP_STATSY		50
+ 
+ #define SP_TIMEX		16
+-#define SP_TIMEY		(SCREENHEIGHT-32)
++#define SP_TIMEY		(SCREENHEIGHTOLD-32)
+ 
+ 
+ // NET GAME STUFF
 diff --git a/z_zone.c b/z_zone.c
 index 4345485..9ce79bf 100644
 --- a/z_zone.c

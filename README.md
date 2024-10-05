@@ -140,6 +140,5 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 
 ### Tweaks
 
-* Use `--scaler 3` option to `libc_server` on 128x160 screens to scale down by 1.5x instead of 2x, this will use the entire screen area but decrease the horizontal viewing angle (-25% total).
 * Use `--charger 2` option to `libc_server` so that the battery can be removed for the SC6531 after the game is loaded, the game will continue to run on USB power.
 
