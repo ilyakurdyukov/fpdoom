@@ -30,9 +30,9 @@ static unsigned timerlast, timertick, timertick_ms;
 static int LoadSRAM(void);
 static int SaveSRAM(void);
 
-/* 888 -> 555 */
+/* 888 -> 5515 */
 #define RGB555(v) \
-	(((v) >> 9 & 0x7c00) | ((v) >> 6 & 0x3e0) | ((v) >> 3 & 0x1e))
+	(((v) >> 8 & 0xf800) | ((v) >> 5 & 0x7c0) | ((v) >> 3 & 0x1e))
 
 WORD NesPalette[64] = { /* ARGB1555 */
 #define X(a, b, c, d) RGB555(a), RGB555(b), RGB555(c), RGB555(d),
@@ -67,20 +67,15 @@ void lcd_appinit(void) {
 	if (h > w) h = w;
 	if (scaler >= 99) crop = 8, scaler -= 100;
 	if (scaler >= 49) wide = 1, scaler -= 50;
-	if ((unsigned)scaler >= 6) {
+	if ((unsigned)scaler >= 3) {
 		if (h >= 320) { // for 320x480 screens
 			scaler = 2; wide = w >= 384;
 		} else scaler = h <= 128;
 	}
-	if (scaler >= 2) {
+	if (scaler == 2) {
 		h = 320;
-		if (scaler == 2) {
-			w = wide ? 384 : 342;
-			if (crop) h -= 21;
-		} else {
-			w = wide ? 480 : 384;
-			crop = 13; // 240 - 13 * 2 = 214
-		}
+		w = wide ? 426 : 342;
+		if (crop) h -= 21;
 	} else {
 		int sh = scaler == 1;
 		w = (wide ? 320 : 256) >> sh;
@@ -99,7 +94,6 @@ static void framebuf_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size = w * h; uint8_t *p;
-	if (sys_data.scaler >= 3 * 2) size += w;
 	p = malloc(size * 2 + 31);
 	framebuf_mem = p;
 	p += -(intptr_t)p & 31;
