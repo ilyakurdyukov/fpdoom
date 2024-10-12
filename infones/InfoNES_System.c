@@ -67,15 +67,18 @@ void lcd_appinit(void) {
 	if (h > w) h = w;
 	if (scaler >= 99) crop = 8, scaler -= 100;
 	if (scaler >= 49) wide = 1, scaler -= 50;
-	if ((unsigned)scaler >= 3) {
-		if (h >= 320) { // for 320x480 screens
-			scaler = 2; wide = w >= 384;
-		} else scaler = h <= 128;
+	if ((unsigned)scaler >= 4) {
+		if (h >= 320) scaler = 2;
+		else if (h >= 240) scaler = 0;
+		else if (h >= 176) scaler = 3;
+		else scaler = 1;
 	}
 	if (scaler == 2) {
-		h = 320;
 		w = wide ? 426 : 342;
-		if (crop) h -= 21;
+		h = 320; if (crop) h -= 21;
+	} else if (scaler == 3) {
+		w = wide ? 220 : 188;
+		h = 176; if (crop) h -= 11;
 	} else {
 		int sh = scaler == 1;
 		w = (wide ? 320 : 256) >> sh;

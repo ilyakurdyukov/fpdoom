@@ -147,7 +147,7 @@ DEF(void, scr_update_4d3, (void *src, uint16_t *d, unsigned h)) {
 DEF(void, scr_update_5x4d3, (void *src, uint16_t *d, unsigned h)) {
 	uint16_t *s = (uint16_t*)src;
 	uint32_t m = 0x07c0f81f, r = m & ~(m << 1);
-	uint32_t a, b, a0, a1, b0, b1, m2 = ~0x200020;
+	uint32_t a, b, a0, a1, b0, b1;
 	unsigned w2 = 426;
 	do {
 		h -= 255 << 16; d += w2;
@@ -184,6 +184,133 @@ DEF(void, scr_update_5x4d3, (void *src, uint16_t *d, unsigned h)) {
 #undef X1
 #undef X2
 
+#define X2(a0, a1, i) a = a0 + a1; \
+	a += r & a >> 1; a = a >> 1 & m; X1(a, i)
+#define X3(a0, a1, a2, i) a = a0 + (a1 << 1) + a2; \
+	a += (r & a >> 2) + r; a = a >> 2 & m; X1(a, i)
+// 0123456789abcde
+// 333333323333333
+// 0001 1122 2333 4445 5566 6778 8899 9aaa bbbc ccdd deee
+#define X4 /* 11d15 */ \
+	X0(a0, 0) X0(a1, 1) \
+	X3(a0, a0, a1, 0) /* 0001 */ \
+	X0(a2, 2) X0(a3, 3) \
+	X2(a1, a2, 1) /* 1122 */ \
+	X3(a2, a3, a3, 2) /* 2333 */ \
+	X0(a0, 4) X0(a1, 5) X0(a2, 6) \
+	X3(a0, a0, a1, 3) /* 4445 */ \
+	X2(a1, a2, 4) /* 5566 */ \
+	X0(a3, 7) X0(a0, 8) \
+	X3(a2, a3, a0, 5) /* 6778 */ \
+	X0(a1, 9) X0(a2, 10) \
+	X2(a0, a1, 6) /* 8899 */ \
+	X3(a1, a2, a2, 7) /* 9aaa */ \
+	X0(a3, 11) X0(a0, 12) \
+	X3(a3, a3, a0, 8) /* bbbc */ \
+	X0(a1, 13) X0(a2, 14) \
+	X2(a0, a1, 9) /* ccdd */ \
+	X3(a1, a2, a2, 10) /* deee */
+
+// 255*11/15+1 = 188, 240*11/15 = 176
+DEF(void, scr_update_11d15, (void *src, uint16_t *d, unsigned h)) {
+	uint16_t *s = (uint16_t*)src;
+	uint32_t m = 0x07c0f81f, r = m & ~(m << 1);
+	unsigned k, w = 256, w2 = 188;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t buf[11 * 15], *t;
+	do {
+		h -= 17 << 10;
+		do {
+			uint16_t *s2 = s;
+			for (t = buf, k = 0; k < 15; k++, s2 += w, t += 11) {
+#define X0(a, i) a = s2[i] & ~0x20; a = (a | a << 16) & m;
+#define X1(a, i) t[i] = a & m;
+				X4
+#undef X0
+#undef X1
+			}
+			s += 15;
+			for (t = buf, k = 0; k < 11; k++, d++, t++) {
+				uint16_t *d2 = d;
+#define X0(a, i) a = t[i * 11];
+#define X1(a, i) a &= m; *d2 = a | a >> 16; d2 += w2;
+				X4
+#undef X0
+#undef X1
+			}
+		} while ((int)(h += 1 << 10) < 0);
+#define X0(a, i) a = *s & ~0x20; s += w; a = (a | a << 16) & m;
+#define X1(a, i) a &= m; *d = a | a >> 16; d += w2;
+		X4
+#undef X0
+#undef X1
+		s += 1 - w; d += 1 - w2;
+	} while ((int)(h -= 15) > 0);
+}
+
+// 2+252*6/7+2 = 220
+// pixel aspect ratio 90:77
+DEF(void, scr_update_90x77d105, (void *src, uint16_t *d, unsigned h)) {
+	uint16_t *s = (uint16_t*)src;
+	uint32_t m = 0x07c0f81f, r = m & ~(m << 1);
+	unsigned k, w = 256, w2 = 220;
+	uint32_t a, a0, a1, a2, a3;
+	uint32_t buf[6 * 15], *t;
+	do {
+		for (k = 0; k < 2; k++, s++, d++) {
+			uint16_t *s2 = s, *d2 = d;
+#define X0(a, i) a = s2[i] & ~0x20; s2 += w; a = (a | a << 16) & m;
+#define X1(a, i) a &= m; *d2 = a | a >> 16; d2 += w2;
+			X4
+#undef X0
+#undef X1
+		}
+		h -= 36 << 10;
+		do {
+			uint16_t *s2 = s;
+			for (t = buf, k = 0; k < 15; k++, s2 += w, t += 6) {
+#define X0(a, i) a = s2[i] & ~0x20; a = (a | a << 16) & m;
+#define X1(a, i) t[i] = a & m;
+// 0123456
+// 3434343
+// 0001 1112 2233 3344 4555 5666
+				X0(a0, 0) X0(a1, 1)
+				X3(a0, a0, a1, 0) /* 0001 */
+				X0(a2, 2) X0(a3, 3)
+				X3(a1, a1, a2, 1) /* 1112 */
+				X2(a2, a3, 2) /* 2233 */
+				X0(a0, 4) X0(a1, 5) X0(a2, 6)
+				X2(a3, a0, 3) /* 3344 */
+				X3(a0, a1, a1, 4) /* 4555 */
+				X3(a1, a2, a2, 5) /* 5666 */
+#undef X0
+#undef X1
+			}
+			s += 7;
+			for (t = buf, k = 0; k < 6; k++, d++, t++) {
+				uint16_t *d2 = d;
+#define X0(a, i) a = t[i * 6];
+#define X1(a, i) a &= m; *d2 = a | a >> 16; d2 += w2;
+				X4
+#undef X0
+#undef X1
+			}
+		} while ((int)(h += 1 << 10) < 0);
+		for (k = 0; k < 2; k++, s++, d++) {
+			uint16_t *s2 = s, *d2 = d;
+#define X0(a, i) a = s2[i] & ~0x20; s2 += w; a = (a | a << 16) & m;
+#define X1(a, i) a &= m; *d2 = a | a >> 16; d2 += w2;
+			X4
+#undef X0
+#undef X1
+		}
+		s += w * 14; d += w2 * 10;
+	} while ((int)(h -= 15) > 0);
+}
+#undef X2
+#undef X3
+#undef X4
+
 #undef DEF
 #ifdef USE_ASM
 #define scr_update_1d1 scr_update_1d1_asm
@@ -199,7 +326,7 @@ typedef void (*scr_update_t)(void *src, uint16_t *dst, unsigned h);
 const scr_update_t scr_update_fn[] = {
 	scr_update_1d1, scr_update_5x4d4,
 	scr_update_1d2, scr_update_5x4d8,
-	scr_update_4d3, scr_update_5x4d3
+	scr_update_4d3, scr_update_5x4d3,
+	scr_update_11d15, scr_update_90x77d105
 };
-
 
