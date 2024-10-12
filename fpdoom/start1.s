@@ -23,8 +23,7 @@ CODE32_FN _start
 	bic	r0, #5
 	orr	r0, #0x1000
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	mov	r2, #0xd3
-	msr	cpsr_c, r2
+	msr	cpsr_c, #0xd3
 	ldr	sp, 1f
 
 	ldr	r2, 3f
@@ -41,7 +40,7 @@ CODE32_FN _start
 	ldr	r2, 5f
 	push	{r4}
 	bl	entry_main
-	pop	{r4}
+	add	sp, #4
 	mov	r3, r0
 	mov	r0, r4
 	ldr	r1, [r4, #0x10]	

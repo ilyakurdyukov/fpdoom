@@ -1,4 +1,5 @@
-#if CHIP == 1
+// SC6531E
+
 static const uint8_t cmd8585_init[] = {
 	LCM_DELAY(120),
 	LCM_CMD(0x11, 0), // Sleep Out Mode
@@ -911,10 +912,10 @@ static const uint8_t cmd7C89F0_init[] = {
 	//LCM_CMD(0x2c, 0),
 	LCM_END
 };
-#endif
 
-#if CHIP == 2 || CHIP == 3
-static const uint8_t cmd9106_init[] = {
+// SC6530/SC6531
+
+static const uint8_t cmd9106_chip2_init[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
 	LCM_CMD(0xb3, 1), 0x03, // ???
@@ -939,7 +940,7 @@ static const uint8_t cmd9106_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd9106_texet_init[] = {
+static const uint8_t cmd9106_chip2_texet_init[] = {
 	LCM_DELAY(120),
 	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
@@ -1296,7 +1297,7 @@ static const uint8_t cmd5CB1F0_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd8552_init[] = {
+static const uint8_t cmd8552_chip2_init[] = {
 	LCM_DELAY(120),
 	LCM_CMD(0xb0, 2), 0x00,0xe0, // RAM Control
 	LCM_CMD(0xb2, 5), 0x0c,0x0c,0x00,0x33,0x33, // Porch Setting
@@ -1353,15 +1354,14 @@ static const uint8_t cmd9341_init[] = {
 	LCM_CMD(0x29, 0), // Display ON
 	LCM_END
 };
-#endif
+
 
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
 #define NO_TIMINGS 0,0,0,0,0,0
 
-static const lcd_config_t lcd_config[] = {
-#if CHIP == 1
+static const lcd_config_t lcd_config1[] = {
 /* F+ F256 */
 
 	// Sitronix ST7789
@@ -1466,9 +1466,9 @@ static const lcd_config_t lcd_config[] = {
 
 	// Sitronix ST7735S BOE
 	X(0x7c89f0, 128,160, 0xd0, 150,150,150,150,150,150, 0, cmd7C89F0)
-#endif
+};
 
-#if CHIP == 2 || CHIP == 3
+static const lcd_config_t lcd_config2[] = {
 
 // GC9106 has checkerboard pattern artifacts on screen refresh when using the wrong config. It's not possible to detect which version of GC9106 is used since the ID is the same.
 // It looks like half of the frame is updated every other pixel, and then the rest. Which probably increases the frame rate, but it hurts the eyes.
@@ -1476,12 +1476,12 @@ static const lcd_config_t lcd_config[] = {
 /* Texet TM-122, TM-130 */
 
 	// GlaxyCore GC9106
-	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_texet)
+	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_chip2_texet)
 
 /* Joy's S21 */
 
 	// GlaxyCore GC9106
-	X(0x009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106)
+	X(0x009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_chip2)
 	// GlaxyCore GC9108
 	X(0x009108, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9108)
 
@@ -1530,13 +1530,12 @@ static const lcd_config_t lcd_config[] = {
 /* Texet TM-302 */
 
 	// Sitronix ST7789
-	X(0x858552, 240,320, 0x00, 15,120,75,40,50,50, 0, cmd8552)
+	X(0x858552, 240,320, 0x00, 15,120,75,40,50,50, 0, cmd8552_chip2)
 
 /* Olmio X04 */
 
 	// Ilitek ILI9341
 	X(0x009341, 240,320, 0x08, 15,120,75,15,35,35, 0, cmd9341)
-#endif
 };
 #undef X
 #undef NO_TIMINGS

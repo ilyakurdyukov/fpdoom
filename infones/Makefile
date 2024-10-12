@@ -5,12 +5,7 @@ LIBC_SDIO = 0
 USE_ASM = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 OBJDIR = obj$(CHIP)
-SRCS = asmcode usbio common libc syscomm
-ifeq ($(CHIP), 0)
-SRCS += chip1_syscode chip2_syscode
-else
-SRCS += syscode
-endif
+SRCS = asmcode usbio common libc syscomm syscode
 ifneq ($(LIBC_SDIO), 0)
 SRCS += sdio microfat
 endif
@@ -127,12 +122,6 @@ $(OBJDIR)/sys/%.o: $(FPDOOM)/%.c | $(OBJDIR)
 
 $(OBJDIR)/nes/%.o: $(INFONES)/%.c | $(OBJDIR)
 	$(call compile_fn,$(NES_CFLAGS))
-
-$(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
-
-$(OBJDIR)/sys/chip2_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
 $(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@

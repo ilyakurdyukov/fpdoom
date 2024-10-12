@@ -239,9 +239,10 @@ void scan_firmware(intptr_t fw_addr) {
 			keymap = scan_drps((uint32_t*)(fw_addr + trapgami[2]));
 		if (!keymap) DBG_LOG("!!! keymap not found\n");
 	}
-	DBG_LOG("scan_firmware: %dms\n", sys_timer_ms() - time0);
+	time0 = sys_timer_ms() - time0;
 	if (pinmap) DBG_LOG("pinmap = %p\n", (void*)pinmap);
 	else ERR_EXIT("pinmap not found\n");
+	DBG_LOG("scan_firmware: %dms\n", time0);
 	if (!sys_data.keymap_addr)
 		sys_data.keymap_addr = keymap;
 	pinmap_addr = pinmap;
@@ -306,13 +307,4 @@ struct sys_data sys_data;
 #if !CHIP
 int _chip;
 #endif
-
-void sys_init(void) { CHIP_FN(sys_init)(); }
-void sys_brightness(unsigned val) { CHIP_FN(sys_brightness)(val); }
-void sys_framebuffer(void *base) { CHIP_FN(sys_framebuffer)(base); }
-void sys_start_refresh(void) { CHIP_FN(sys_start_refresh)(); }
-void sys_wait_refresh(void) { CHIP_FN(sys_wait_refresh)(); }
-
-#define SYSCODE_AUTO 1
-#include "syscode.c"
 

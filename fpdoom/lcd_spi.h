@@ -128,7 +128,6 @@ static void lcdc_init(void);
 
 #define SPI_ID(spi) ((spi) >> 24 & 1)
 
-#if CHIP == 2
 static void spi_pin_grp_select(uint32_t spi, unsigned pin_gid) {
 	uint32_t tmp = MEM4(0x8b0001e0);
 	unsigned shl = SPI_ID(spi) ? 4 : 29;
@@ -137,7 +136,6 @@ static void spi_pin_grp_select(uint32_t spi, unsigned pin_gid) {
 	MEM4(0x8b0001e0) = tmp;
 	DELAY(100)
 }
-#endif
 
 static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	uint32_t id, cs = 0, tmp;
@@ -163,9 +161,8 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		DELAY(1000)
 	}
 
-#if CHIP == 2
-	spi_pin_grp_select(spi, 1);
-#endif
+	if (_chip == 2)
+		spi_pin_grp_select(spi, 1);
 
 	{
 		uint32_t mode = 0;
@@ -194,7 +191,12 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	}
 
 	{
-		int i, n = sizeof(lcd_config) / sizeof(*lcd_config);
+		const lcd_config_t *lcd_config = lcd_config1;
+		int i, n = sizeof(lcd_config1) / sizeof(*lcd_config1);
+		if (_chip != 1) {
+			lcd_config = lcd_config2;
+			n = sizeof(lcd_config2) / sizeof(*lcd_config2);
+		}
 		for (i = 0; i < n; i++)
 			if ((id & lcd_config[i].id_mask) == lcd_config[i].id &&
 					lcd_config[i].spi.freq) break;
@@ -203,12 +205,10 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	}
 
 	{
-#if CHIP == 1
 		unsigned spi_freq = 104000000;
-#elif CHIP == 2 || CHIP == 3
-		unsigned spi_freq = !SPI_ID(spi) ? 78000000 : 48000000;
-#endif
 		unsigned freq = lcd_setup.lcd->spi.freq, clkd;
+		if (_chip != 1)
+			spi_freq = !SPI_ID(spi) ? 78000000 : 48000000;
 		clkd = spi_freq / (freq << 1);
 		if (clkd) clkd--;
 		spi_set_clkd(spi, clkd);

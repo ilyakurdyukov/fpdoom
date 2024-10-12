@@ -4,12 +4,7 @@ TWO_STAGE = 0
 LIBC_SDIO = 0
 PACK_RELOC = ../pack_reloc/pack_reloc
 OBJDIR = obj$(CHIP)
-SRCS = asmcode usbio common libc syscomm
-ifeq ($(CHIP), 0)
-SRCS += chip1_syscode chip2_syscode
-else
-SRCS += syscode
-endif
+SRCS = asmcode usbio common libc syscomm syscode
 SRCS += microfat
 
 NAME = fpmenu
@@ -104,12 +99,6 @@ $(OBJDIR)/sys/%.o: %.c | $(OBJDIR)
 
 $(OBJDIR)/sys/%.o: $(FPDOOM)/%.c | $(OBJDIR)
 	$(call compile_fn,)
-
-$(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
-
-$(OBJDIR)/sys/chip2_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
 $(OBJDIR)/sys/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@

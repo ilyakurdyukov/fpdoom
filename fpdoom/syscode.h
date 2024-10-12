@@ -65,22 +65,6 @@ enum {
 	EVENT_KEYDOWN, EVENT_KEYUP, EVENT_END, EVENT_QUIT
 };
 
-#if !CHIP
-#define CHIP_FN_DECL(pre, name, arg) \
-	pre sc6531e_##name arg; \
-	pre sc6531_##name arg;
-#else
-#define CHIP_FN_DECL(pre, name, arg) \
-	pre CHIP_FN(name) arg;
-#endif
-
-CHIP_FN_DECL(void, sys_init, (void))
-CHIP_FN_DECL(void, sys_brightness, (unsigned val))
-CHIP_FN_DECL(void, sys_framebuffer, (void*))
-CHIP_FN_DECL(void, sys_start_refresh, (void))
-CHIP_FN_DECL(void, sys_wait_refresh, (void))
-#undef CHIP_FN_DECL
-
 // extern
 
 extern uint32_t *pinmap_addr;

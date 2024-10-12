@@ -4,15 +4,11 @@ TWO_STAGE = 1
 LIBC_SDIO = 0
 PACK_RELOC = ../pack_reloc/pack_reloc
 OBJDIR = obj$(CHIP)
-SRCS = asmcode usbio common libc syscomm doomasm keytrn scr_update
-ifeq ($(CHIP), 0)
-SRCS += chip1_syscode chip2_syscode
-else
-SRCS += syscode
-endif
+SRCS = asmcode usbio common libc syscomm syscode
 ifneq ($(LIBC_SDIO), 0)
 SRCS += sdio microfat
 endif
+SRCS += doomasm keytrn scr_update
 
 DOOM_DIR = ../doom_src
 DOOM_SRCS = \
@@ -113,12 +109,6 @@ $(OBJDIR)/%.o: %.c | $(OBJDIR)
 
 $(OBJDIR)/%.o: $(DOOM_DIR)/%.c | $(OBJDIR)
 	$(call compile_fn,$(DOOM_CFLAGS))
-
-$(OBJDIR)/chip1_%.o: %.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
-
-$(OBJDIR)/chip2_%.o: %.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
 $(OBJDIR)/%.o: %.s | $(OBJDIR)
 	$(CC) $< -c -o $@

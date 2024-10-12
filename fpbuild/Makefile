@@ -5,12 +5,7 @@ LIBC_SDIO = 0
 USE_ASM = 1
 NO_FLOAT = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
-SRCS = asmcode usbio common libc syscomm
-ifeq ($(CHIP), 0)
-SRCS += chip1_syscode chip2_syscode
-else
-SRCS += syscode
-endif
+SRCS = asmcode usbio common libc syscomm syscode
 ifneq ($(LIBC_SDIO), 0)
 SRCS += sdio microfat
 endif
@@ -254,12 +249,6 @@ ifeq ($(GAME), blood)
 else
 	$(call compile_fn,)
 endif
-
-$(OBJDIR)/sys/chip1_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=1 -DCHIP_AUTO)
-
-$(OBJDIR)/sys/chip2_%.o: $(FPDOOM)/%.c | $(OBJDIR)
-	$(call compile_fn,-DCHIP=2 -DCHIP_AUTO)
 
 $(OBJDIR)/sys/%.o: $(FPDOOM)/%.s | $(OBJDIR)
 	$(CC) $< -c -o $@

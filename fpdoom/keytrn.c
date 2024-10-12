@@ -41,6 +41,7 @@ void keytrn_init(void) {
 		KEY(LSOFT, KEY_EQUALS)
 		KEY(RSOFT, KEY_MINUS)
 		KEY(DIAL, KEY_TAB) /* map */
+		KEY(0, KEY_F11) /* gamma */
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);
