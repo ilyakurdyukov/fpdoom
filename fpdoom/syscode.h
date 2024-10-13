@@ -86,6 +86,7 @@ extern struct sys_data {
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;
+	uint8_t *framebuf;
 	uint8_t user[4];
 } sys_data;
 

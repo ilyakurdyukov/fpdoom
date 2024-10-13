@@ -69,6 +69,33 @@ CODE32_FN clean_invalidate_dcache_range
 	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
 	bx	lr
 
+CODE32_FN lcd_gpio_send_asm
+	mov	r12, #0x8a000000
+	orr	r12, #(0x28 >> 4) << 7
+	lsl	r1, #24
+	ldr	r2, [r12]
+	orr	r1, #1 << 23
+1:	bic	r2, #0x700
+	orr	r2, r2, r0, lsl #8
+	str	r2, [r12]
+	// 1 + (4 * 2 - 2) + 2 = 9
+	mov	r0, #2	// 1
+2:	subs	r0, #1	// 1
+	bne	2b	// 3/1
+	orr	r2, #0x200
+	mov	r0, #1	// 1
+	str	r2, [r12]
+	// (4 * 1 - 2) + 2 + 3 + 2 = 9
+2:	subs	r0, #1	// 1
+	bne	2b	// 3/1
+	lsr	r0, r1, #31
+	lsls	r1, #1
+	bne	1b	// 3/1
+	b	2f	// 3
+2:	orr	r2, #0x700
+	str	r2, [r12]
+	bx	lr
+
 CODE32_FN __gnu_thumb1_case_uqi
 	bic	r12, lr, #1
 	ldrb	r12, [r12, r0]

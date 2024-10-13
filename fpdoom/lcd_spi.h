@@ -137,7 +137,8 @@ static void spi_pin_grp_select(uint32_t spi, unsigned pin_gid) {
 	DELAY(100)
 }
 
-static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
+static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
+	const lcd_config_t *lcd;
 	uint32_t id, cs = 0, tmp;
 
 	(void)clk_rate;
@@ -189,24 +190,11 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		id |= spi_send_recv(spi, 0xdc << 8, 1, 0) & 0xff;
 		DBG_LOG("LCD(SPI%u): id = 0x%06x\n", SPI_ID(spi), id);
 	}
-
-	{
-		const lcd_config_t *lcd_config = lcd_config1;
-		int i, n = sizeof(lcd_config1) / sizeof(*lcd_config1);
-		if (_chip != 1) {
-			lcd_config = lcd_config2;
-			n = sizeof(lcd_config2) / sizeof(*lcd_config2);
-		}
-		for (i = 0; i < n; i++)
-			if ((id & lcd_config[i].id_mask) == lcd_config[i].id &&
-					lcd_config[i].spi.freq) break;
-		if (i == n) ERR_EXIT("unknown LCD\n");
-		lcd_setup.lcd = lcd_config + i;
-	}
+	lcd = lcd_find_conf(id, 1);
 
 	{
 		unsigned spi_freq = 104000000;
-		unsigned freq = lcd_setup.lcd->spi.freq, clkd;
+		unsigned freq = lcd->spi.freq, clkd;
 		if (_chip != 1)
 			spi_freq = !SPI_ID(spi) ? 78000000 : 48000000;
 		clkd = spi_freq / (freq << 1);
@@ -215,5 +203,6 @@ static void lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	}
 	spi_set_chnl_len(spi, 8);
 	spi_set_mode(spi, sys_data.spi_mode);
+	return lcd;
 }
 

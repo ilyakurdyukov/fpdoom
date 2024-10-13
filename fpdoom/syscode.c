@@ -278,32 +278,28 @@ typedef struct {
 } lcd_config_t;
 
 static struct {
-	const lcd_config_t *lcd;
-	uint32_t cs, addr[2];
+	void (*send)(unsigned, unsigned);
+	uint32_t addr;
 } lcd_setup;
 
 static void lcm_config_addr(unsigned cs) {
-	uint32_t tmp = cs << 26 | 0x60000000;
-	lcd_setup.addr[0] = tmp;
-	lcd_setup.addr[1] = tmp | 0x20000;
+	lcd_setup.addr = cs << 26 | 0x60000000;
 }
 
-static void lcm_set_mode(unsigned a0) {
-	uint32_t cs = lcd_setup.cs;
+static void lcm_set_mode(unsigned val) {
+	uint32_t cs = sys_data.lcd_cs;
 	while (LCM_CR(0) & 2);
-	MEM4(LCM_REG_BASE + 0x10 + (cs << 4)) = a0 ? 1 : 0x28;
+	MEM4(LCM_REG_BASE + 0x10 + (cs << 4)) = val;
 }
 
 static void lcm_send(unsigned idx, unsigned val) {
-	//lcm_set_mode(1);
 	while (LCM_CR(0) & 2);
-	MEM2(lcd_setup.addr[idx]) = val;
+	MEM2(lcd_setup.addr | idx << 17) = val;
 }
 
 static uint16_t lcm_recv(unsigned idx) {
-	//lcm_set_mode(1);
 	while (LCM_CR(0) & 2);
-	return MEM2(lcd_setup.addr[idx]);
+	return MEM2(lcd_setup.addr | idx << 17);
 }
 
 static inline void lcm_send_cmd(unsigned val) { lcm_send(0, val); }
@@ -383,9 +379,6 @@ static void lcm_set_freq(unsigned cs, uint32_t clk_rate, const lcd_config_t *lcd
 
 	while (LCM_CR(0) & 2);
 
-	lcd_setup.lcd = lcd;
-	lcd_setup.cs = cs;
-
 	MEM4(LCM_REG_BASE + 0x14 + (cs << 4)) = sum;
 }
 
@@ -420,12 +413,31 @@ static unsigned lcd_getid(void) {
 #define LCM_END 0
 
 #include "lcd_config.h"
+
+static const lcd_config_t* lcd_find_conf(uint32_t id, int mode) {
+	const lcd_config_t *lcd_config = lcd_config1;
+	int i, n = sizeof(lcd_config1) / sizeof(*lcd_config1);
+	if (_chip != 1) {
+		lcd_config = lcd_config2;
+		n = sizeof(lcd_config2) / sizeof(*lcd_config2);
+	}
+	for (i = 0; i < n; i++)
+		if ((id & lcd_config[i].id_mask) == lcd_config[i].id) {
+			if (mode == 0) {
+				if (lcd_config[i].mcu_timing.rcss) break;
+			} else if (mode == 1) {
+				if (lcd_config[i].spi.freq) break;
+			} else break;
+		}
+	if (i == n) ERR_EXIT("unknown LCD\n");
+	return lcd_config + i;
+}
+
 #include "lcd_spi.h"
+#include "lcd_mono.h"
 
 static void lcm_exec(const uint8_t *cmd) {
-	void (*send_fn)(unsigned, unsigned) = lcm_send;
-
-	if (sys_data.spi) send_fn = spi_send;
+	void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
 
 	for (;;) {
 		uint32_t a, len;
@@ -462,7 +474,7 @@ static unsigned lcd_getid2(void) {
 void lcm_send_rgb16(uint16_t *ptr, uint32_t size) {
 	uint32_t addr, tmp;
 	//lcm_set_mode(1);
-	addr = lcd_setup.addr[1];
+	addr = lcd_setup.addr | 1 << 17;
 	while (size--) {
 		tmp = *ptr++;
 		while (LCM_CR(0) & 2);
@@ -480,13 +492,17 @@ static int is_whtled_on(void) {
 		return (adi_read(0x82001000 + 0x320) & 4) == 0;
 }
 
-static void lcm_init(void) {
+static const lcd_config_t* lcm_init(void) {
 	uint32_t id, clk_rate, cs = sys_data.lcd_cs;
-	const lcd_config_t *lcd_config = lcd_config1;
-	int i, n = sizeof(lcd_config1) / sizeof(*lcd_config1);
-	if (_chip != 1) {
-		lcd_config = lcd_config2;
-		n = sizeof(lcd_config2) / sizeof(*lcd_config2);
+	const lcd_config_t *lcd;
+
+	id = sys_data.lcd_id;
+	if (id == 0x1230) {
+		DBG_LOG("LCD: id = 0x%06x\n", id);
+		lcd = lcd_find_conf(id, 2);
+		lcd_gpio_reset();
+		lcd_setup.send = lcd_gpio_send;
+		return lcd;
 	}
 
 	AHB_PWR_ON(0x40);	// LCM enable
@@ -501,8 +517,9 @@ static void lcm_init(void) {
 	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
 
 	if (sys_data.spi) {
-		lcd_spi_init(sys_data.spi, clk_rate);
-		return;
+		lcd = lcd_spi_init(sys_data.spi, clk_rate);
+		lcd_setup.send = spi_send;
+		return lcd;
 	}
 
 	lcm_set_safe_freq(cs);
@@ -519,19 +536,23 @@ static void lcm_init(void) {
 	if (!id) id = lcd_cmdret(0xd3, 4) & 0xffffff; // ILI9341
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
+	lcd = lcd_find_conf(id, 0);
 
-	for (i = 0; i < n; i++)
-		if ((id & lcd_config[i].id_mask) == lcd_config[i].id &&
-				lcd_config[i].mcu_timing.rcss) break;
-	if (i == n) ERR_EXIT("unknown LCD\n");
-
-	lcm_set_freq(cs, clk_rate, lcd_config + i);
-	lcm_config_addr(cs);
+	lcm_set_freq(cs, clk_rate, lcd);
 	lcm_set_mode(1);
+	lcd_setup.send = lcm_send;
+	return lcd;
 }
 
 void sys_start_refresh(void) {
 	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
+	if (sys_data.mac & 0x100) {
+		if (sys_data.lcd_id == 0x7567)
+			lcd_refresh_st7567();
+		else if (sys_data.lcd_id == 0x1230)
+			lcd_refresh_hx1230();
+		return;
+	}
 	clean_dcache();
 	if (sys_data.spi)
 		spi_refresh_next(sys_data.spi);
@@ -548,25 +569,19 @@ void sys_wait_refresh(void) {
 	LCDC_CR(LCDC_IRQ_CLR) |= mask;
 }
 
-static void lcd_init(void) {
-	const lcd_config_t *lcd = lcd_setup.lcd;
+static void lcd_init(const lcd_config_t *lcd) {
 	unsigned w = lcd->width, h = lcd->height, x2, y2, w2, h2;
 	unsigned rotate, mac_arg;
 	const uint8_t rtab[4] = { 0, 0xa0, 0xc0, 0x60 };
-	static uint8_t cmd_init2[] = {
-		// MY, MX, MV, ML, RB, MH, 0, 0
-		LCM_CMD(0x36, 1), 0, // Memory Access Control
-		LCM_CMD(0x2a, 4), 0,0,0,0, // Column Address Set
-		LCM_CMD(0x2b, 4), 0,0,0,0, // Page Address Set
-		LCM_CMD(0x2c, 0), // Memory Write
-		LCM_END
-	};
+
 	sys_data.lcd_id = lcd->id;
 
 	rotate = sys_data.rotate & 3;
 	mac_arg = lcd->mac_arg;
-	if (sys_data.mac) mac_arg = sys_data.mac;
+	if (sys_data.mac)
+		mac_arg = (mac_arg & ~0xff) | (sys_data.mac & 0xff);
 	mac_arg ^= rtab[rotate];
+	if (mac_arg & 0x100) mac_arg &= ~0x20;
 	if (mac_arg & 0x20) {
 		unsigned t = w; w = h; h = t;
 	}
@@ -633,7 +648,30 @@ static void lcd_init(void) {
 		p += 6;
 		if (!(mac_arg & 0x80)) p[4] = h2 >> 8, p[5] = h2;
 		lcm_exec(p0);
+	} else if (sys_data.mac & 0x100) {
+		void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
+		if (sys_data.spi) FATAL();
+		send_fn(0, 0xa0 | (mac_arg >> 6 & 1)); // SEG Direction (MX)
+		send_fn(0, 0xc0 | (mac_arg >> 4 & 8)); // COM Direction (MY)
+		if (1 && lcd->id == 0x7567) { // ST7567A
+			send_fn(0, 0xff); // Extension Command (ON)
+			send_fn(0, 0x72); // Display Setting Mode (ON)
+			send_fn(0, 0xfe); // Extension Command (OFF)
+			send_fn(0, 0xd0 + 4); // Set Duty (65)
+			send_fn(0, 0x90 + 0); // Set Bias (1/9)
+			send_fn(0, 0x98 + 6); // Set Frame Rate (300)
+			send_fn(0, 0x81); // Set EV (contrast)
+			send_fn(0, 0x28); // Set EV (value)
+		}
 	} else {
+		static uint8_t cmd_init2[] = {
+			// MY, MX, MV, ML, RB, MH, 0, 0
+			LCM_CMD(0x36, 1), 0, // Memory Access Control
+			LCM_CMD(0x2a, 4), 0,0,0,0, // Column Address Set
+			LCM_CMD(0x2b, 4), 0,0,0,0, // Page Address Set
+			LCM_CMD(0x2c, 0), // Memory Write
+			LCM_END
+		};
 		uint8_t *p = cmd_init2;
 		p[2] = mac_arg; p += 3;
 		p[2] = x2 >> 8; p[3] = x2;
@@ -648,6 +686,11 @@ static void lcdc_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1;
 	unsigned w2 = disp->w2, h2 = disp->h2;
+
+	if (sys_data.mac & 0x100) {
+		lcd_clear_mono();
+		return;
+	}
 
 	AHB_PWR_ON(0x1000);	// LCDC enable
 	// AHB_SOFT_RST?
@@ -671,8 +714,8 @@ static void lcdc_init(void) {
 	{
 		uint32_t addr, mode;
 		if (!sys_data.spi) {
-			lcm_set_mode(0);
-			mode = 2; addr = lcd_setup.addr[1];
+			lcm_set_mode(0x28);
+			mode = 2; addr = lcd_setup.addr | 1 << 17;
 		} else {
 			spi_refresh_init(sys_data.spi);
 			mode = 0; addr = sys_data.spi + SPI_TXD;
@@ -713,6 +756,15 @@ void sys_framebuffer(void *base) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, w2 = disp->w2;
 	unsigned offset = (w2 - w) >> 1;
+
+	if (sys_data.mac & 0x100) {
+		uint32_t r = sys_timer_ms();
+		uint8_t *d = (uint8_t*)base + (w *= disp->h1);
+		sys_data.framebuf = base;
+		do *d++ = (r = (r * 0x08088405) + 1) >> 25;
+		while (--w);
+		return;
+	}
 
 	if (w2 < w) offset = 0;
 
@@ -861,8 +913,7 @@ void sys_init(void) {
 	init_charger();
 	init_chip_id();
 	pin_init();
-	lcm_init();
-	lcd_init();
+	lcd_init(lcm_init());
 	lcd_appinit();
 	lcdc_init();
 	if (sys_data.keymap_addr) {

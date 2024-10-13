@@ -31,8 +31,7 @@ sdbootkey: // sdboot + 0x14
 	orr	r0, #0x1000
 .endif
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	mov	r2, #0xd3
-	msr	cpsr_c, r2
+	msr	cpsr_c, #0xd3
 	ldr	sp, 1f
 	adr	r0, _start
 .if 1

@@ -294,6 +294,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			sys_data.lcd_id = strtol(argv[1], NULL, 0);
+			if (sys_data.lcd_id == 0x1230) sys_data.gpio_init = 1;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--mac")) {
 			unsigned a = strtol(argv[1], NULL, 0);

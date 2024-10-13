@@ -1355,6 +1355,56 @@ static const uint8_t cmd9341_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd7567_init[] = {
+	//LCM_DELAY(200),
+	LCM_CMD(0xe2, 0), // Reset
+	LCM_CMD(0xa2, 0), // Bias Select (BS=0)
+	//LCM_CMD(0xa0, 0), // SEG Direction (MX=0)
+	//LCM_CMD(0xc8, 0), // COM Direction (MY=1)
+	LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
+	LCM_CMD(0x40, 0), // Set Start Line (0)
+	LCM_CMD(0x24, 0), // Regulation Ratio (4)
+	LCM_CMD(0x81, 0), // Set EV (contrast)
+#if 0 // Tokky FP10
+	LCM_CMD(0x20, 0), // Set EV (value, 0x20)
+#else // Fontel FP100
+	LCM_CMD(0x23, 0), // Set EV (value, 0x23)
+#endif
+	LCM_CMD(0x2c, 0), // Power Control (VB=1, VR=0, VF=0)
+	LCM_DELAY(100),
+	LCM_CMD(0x2e, 0), // Power Control (VB=1, VR=1, VF=0)
+	LCM_DELAY(100),
+	LCM_CMD(0x2f, 0), // Power Control (VB=1, VR=1, VF=1)
+	LCM_CMD(0xaf, 0), // Display ON
+	LCM_DELAY(50),
+	LCM_END
+};
+
+static const uint8_t cmd1230_init[] = {
+	LCM_DELAY(20),
+	LCM_CMD(0xe2, 0), // Reset
+	LCM_DELAY(120),
+	LCM_CMD(0x2f, 0), // Power Control (VB=1, VR=1, VF=1)
+	LCM_DELAY(50),
+	LCM_CMD(0x24, 0), // Regulation Ratio (4)
+	LCM_CMD(0x8b, 0), // Electronic Volume (EV=0xb)
+	//LCM_CMD(0xb0, 0), // Set Page Address
+	//LCM_CMD(0xc8, 0), // COM Direction (MY=1)
+	//LCM_CMD(0x10, 0), // Set Column Address (high)
+	//LCM_CMD(0x00, 0), // Set Column Address (low)
+	// HX1230 doesn't support SEG Direction
+	//LCM_CMD(0xa1, 0), // SEG Direction (MX=1)
+	LCM_CMD(0x40, 0), // Set Start Line (0)
+#if 0
+	LCM_CMD(0xa7, 0), // Inverse Display (INV=1)
+#else
+	LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
+#endif
+	LCM_CMD(0xaf, 0), // Display ON
+	LCM_CMD(0xa4, 0), // All Pixel (AP=0)
+	LCM_END
+};
+
 
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
@@ -1536,6 +1586,16 @@ static const lcd_config_t lcd_config2[] = {
 
 	// Ilitek ILI9341
 	X(0x009341, 240,320, 0x08, 15,120,75,15,35,35, 0, cmd9341)
+
+/* Tokky FP10, Fontel FP100 */
+
+	// Sitronix ST7567
+	X(0x007567, 128,64, 0x180, 15,120,75,40,50,50, 0, cmd7567)
+
+/* Joy's S16 */
+
+	// HX1230 (0x0001)
+	X(0x001230, 96,68, 0x1c0, NO_TIMINGS, 0, cmd1230)
 };
 #undef X
 #undef NO_TIMINGS

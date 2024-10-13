@@ -19,6 +19,17 @@ ret name##_asm args; ret name args
 		r = load; g = load; b = load; process; \
 	}
 
+DEF(void, pal_update8, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
+	int i, r, g, b;
+	uint8_t *d = (uint8_t*)dest - 256;
+	if (!gamma)
+		PAL_UPDATE(*pal++,
+				*d++ = (r * 4899 + g * 9617 + b * 1868 + 0x2000) >> 14)
+	else
+		PAL_UPDATE(gamma[*pal++],
+				*d++ = (r * 4899 + g * 9617 + b * 1868 + 0x2000) >> 14)
+}
+
 DEF(void, pal_update16, (uint8_t *pal, void *dest, const uint8_t *gamma)) {
 	int i, r, g, b;
 	uint16_t *d = (uint16_t*)dest - 256;
@@ -247,6 +258,72 @@ DEF(void, scr_update_11d16, (uint8_t *s, void *dest)) {
 #undef X3
 #undef X4
 
+DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest;
+	uint8_t *c8 = (uint8_t*)dest - 256;
+	unsigned x, y, h = 200; // (7*3+4)*8
+	uint32_t a, b, t;
+// 00112 23344
+#define X(op) \
+	a op (c8[s2[0]] + c8[s2[1]]) * 2; \
+	a += t = c8[s2[2]]; \
+	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
+	do {
+		for (y = 0; y < 7; y++, s += 320 * 2)
+		for (x = 0; x < 320; x += 5, s += 5) {
+			uint8_t *s2 = s;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
+			a = (a + 7) * 0x8889 >> 19; // div15
+			b = (b + 7) * 0x8889 >> 19;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+		}
+		for (x = 0; x < 320; x += 5, s += 5) {
+			uint8_t *s2 = s;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
+			a = a * 0xcccd + 0x7c000; // div20
+			b = b * 0xcccd + 0x7c000;
+			a = (a + (a >> 6 & 0x4000)) >> 20;
+			b = (b + (b >> 6 & 0x4000)) >> 20;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+		}
+		s += 320 * 3;
+	} while ((h -= 25));
+#undef X
+}
+
+DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest;
+	uint8_t *c8 = (uint8_t*)dest - 256;
+	unsigned x, h = 204;
+	uint32_t a, b, c, t0, t1;
+// 0001112223 3344455566 6777888999
+#define X(op) \
+	a op (c8[s2[0]] + c8[s2[1]] + c8[s2[2]]) * 3; \
+	a += t0 = c8[s2[3]]; \
+	b op t0 * 2 + (c8[s2[4]] + c8[s2[5]]) * 3; \
+	b += (t1 = c8[s2[6]]) * 2; \
+	c op t1 + (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) * 3;
+	do {
+		for (x = 0; x < 320; x += 10, s += 10) {
+			uint8_t *s2 = s;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
+			a = a * 0x8889 + 0x7c000; // div30
+			b = b * 0x8889 + 0x7c000;
+			c = c * 0x8889 + 0x7c000;
+			a = (a + (a >> 6 & 0x4000)) >> 20;
+			b = (b + (b >> 6 & 0x4000)) >> 20;
+			c = (c + (c >> 6 & 0x4000)) >> 20;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+			*d++ = (c + 1) >> 1;
+		}
+		s += 320 * 2;
+	} while ((h -= 3));
+#undef X
+}
+
 #undef DEF
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
@@ -258,7 +335,7 @@ DEF(void, scr_update_11d16, (uint8_t *s, void *dest)) {
 #endif
 
 uint8_t* framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4 };
+	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -268,6 +345,8 @@ uint8_t* framebuffer_init(void) {
 		{ pal_update32, scr_update_3d2 },
 		{ pal_update32, scr_update_11d16 },
 		{ pal_update32, scr_update_25x24d20 },
+		{ pal_update8, scr_update_128x64 },
+		{ pal_update8, scr_update_96x68 },
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
@@ -298,12 +377,15 @@ int main(int argc, char **argv) {
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
 		320, 240, 240,  160, 128, 256,  480, 320, 214,
-		220, 176, 256,  400, 240, 200
+		220, 176, 256,  400, 240, 200,
+		128,  64, 200,   96,  68, 204,
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
-	if (mode >= 5) {
-		int w = disp->w1, h = disp->h1;
+	unsigned w = disp->w1, h = disp->h1;
+	if (w == 128 && h == 64) mode = 5;
+	else if (w == 96 && h == 68) mode = 6;
+	else if (mode >= 5) {
 		switch (w) {
 		case 400: mode = 4; break;
 		case 480: mode = 2; break;
