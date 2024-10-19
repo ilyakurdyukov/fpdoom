@@ -3,6 +3,11 @@
 #include "usbio.h"
 #include "syscode.h"
 
+#if LIBC_SDIO >= 3
+#define MEM_REMAP (MEM4(0x205000e0) & 1)
+#else
+#define MEM_REMAP 0
+#endif
 #define SMC_INIT_BUF (CHIPRAM_ADDR + 0xa000 - 1024)
 #if !CHIP || CHIP == 2
 #include "init_sc6531da.h"
@@ -176,14 +181,16 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		unsigned i;
 		for (i = 0; i < 0x1000; i++)
 			tab[i] = i << 20 | 3 << 10 | 0x12; // section descriptor
+		tab[0] = 0 | 1 << 5 | 0x12; // domain = 1
 		// cached=1, buffered=1
 		tab[CHIPRAM_ADDR >> 20] |= 3 << 2;
 		for (i = 0; i < (ram_size >> 20); i++)
 			tab[ram_addr >> 20 | i] |= 3 << 2;
 		// for faster search
 		for (i = 0; i < 16; i++)
-			tab[fw_addr >> 20 | i] |= 3 << 2;
-		enable_mmu((uint32_t*)tab, -1);
+			tab[fw_addr >> 20 | i] |= 1 << 5 | 3 << 2; // domain = 1
+		// domains: 0 - manager, 1 - client, 2..15 - no access
+		enable_mmu((uint32_t*)tab, 7);
 	}
 	ram_size -= 0x4000; // MMU table
 #endif

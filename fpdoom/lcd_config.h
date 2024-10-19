@@ -1361,7 +1361,7 @@ static const uint8_t cmd7567_init[] = {
 	LCM_CMD(0xa2, 0), // Bias Select (BS=0)
 	//LCM_CMD(0xa0, 0), // SEG Direction (MX=0)
 	//LCM_CMD(0xc8, 0), // COM Direction (MY=1)
-	LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
+	//LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
 	LCM_CMD(0x40, 0), // Set Start Line (0)
 	LCM_CMD(0x24, 0), // Regulation Ratio (4)
 	LCM_CMD(0x81, 0), // Set EV (contrast)
@@ -1374,6 +1374,25 @@ static const uint8_t cmd7567_init[] = {
 	LCM_DELAY(100),
 	LCM_CMD(0x2e, 0), // Power Control (VB=1, VR=1, VF=0)
 	LCM_DELAY(100),
+	LCM_CMD(0x2f, 0), // Power Control (VB=1, VR=1, VF=1)
+	LCM_CMD(0xaf, 0), // Display ON
+	LCM_DELAY(50),
+	LCM_END
+};
+
+static const uint8_t cmd7565_init[] = {
+	//LCM_DELAY(200),
+	LCM_CMD(0xa4, 0), // All Pixel (AP=0)
+	//LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
+	//LCM_CMD(0xa0, 0), // SEG Direction (MX=0)
+	//LCM_CMD(0xc8, 0), // COM Direction (MY=1)
+	LCM_CMD(0x40, 0), // Set Start Line (0)
+	LCM_CMD(0x25, 0), // Regulation Ratio (5)
+	LCM_CMD(0x81, 0), // Set EV (contrast)
+	LCM_CMD(0x17, 0), // Set EV (value, 0x17)
+	LCM_CMD(0xa2, 0), // Bias Select (BS=0)
+	LCM_CMD(0x2c, 0), // Power Control (VB=1, VR=0, VF=0)
+	LCM_CMD(0x2e, 0), // Power Control (VB=1, VR=1, VF=0)
 	LCM_CMD(0x2f, 0), // Power Control (VB=1, VR=1, VF=1)
 	LCM_CMD(0xaf, 0), // Display ON
 	LCM_DELAY(50),
@@ -1395,11 +1414,7 @@ static const uint8_t cmd1230_init[] = {
 	// HX1230 doesn't support SEG Direction
 	//LCM_CMD(0xa1, 0), // SEG Direction (MX=1)
 	LCM_CMD(0x40, 0), // Set Start Line (0)
-#if 0
-	LCM_CMD(0xa7, 0), // Inverse Display (INV=1)
-#else
-	LCM_CMD(0xa6, 0), // Inverse Display (INV=0)
-#endif
+	//LCM_CMD(0xa7, 0), // Inverse Display (INV=1)
 	LCM_CMD(0xaf, 0), // Display ON
 	LCM_CMD(0xa4, 0), // All Pixel (AP=0)
 	LCM_END
@@ -1590,12 +1605,17 @@ static const lcd_config_t lcd_config2[] = {
 /* Tokky FP10, Fontel FP100 */
 
 	// Sitronix ST7567
-	X(0x007567, 128,64, 0x180, 15,120,75,40,50,50, 0, cmd7567)
+	X(0x007567, 128,64, 0x191, 30,150,150,40,50,50, 0, cmd7567)
 
 /* Joy's S16 */
 
 	// HX1230 (0x0001)
 	X(0x001230, 96,68, 0x1c0, NO_TIMINGS, 0, cmd1230)
+
+/* Joy's S19 */
+
+	// Sitronix ST7565R
+	X(0x007565, 128,64, 0x180, 30,150,150,40,50,50, 0, cmd7565)
 };
 #undef X
 #undef NO_TIMINGS

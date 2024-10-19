@@ -137,12 +137,8 @@ static void sc6531da_init_smc(void) {
 #else
 	sc6531da_init_smc_1(base);
 
-#if LIBC_SDIO >= 3
-	ps = MEM4(0x205000e0) & 1;
+	ps = MEM_REMAP;
 	ps = ps << 29 | ps << 28 | 0x04000000;
-#else
-	ps = 0x34000000;
-#endif
 
 	MEM4(base + 0x50) |= 0x20000;
 	MEM2(ps + (ps_off1 << 1)) = 0;

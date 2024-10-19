@@ -15,15 +15,31 @@ CODE32_FN _start
 
 //  0 : MMU enable
 //  2 : Level 1 Data Cache enable
+//  8 : System protection
+//  9 : ROM protection
 // 12 : Instruction Cache enable
 
 	mov	r1, #0
 	mcr	p15, #0, r1, c7, c5, #0	// Invalidate ICache
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
 	bic	r0, #5
-	orr	r0, #0x1000
+	// SR=01, read-only
+	bic	r0, #0x100 // 8
+	orr	r0, #0x1200 // 12 + 9
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	msr	cpsr_c, #0xd3
+	msr	cpsr_c, #0xdf // SYS mode
+.if 0 // remap flash to 0
+	adr	lr, 10f
+	ldmia	lr!, {r1-r4}
+	stm	r2, {r3-r4}
+	ldr	r0, [r1]
+	bic	r0, #1
+	bic	lr, #0xf0000000
+	bx	r2
+10:	.long	0x205000e0, 0x40009000
+	str	r0, [r1]
+	bx	lr
+.endif
 	ldr	sp, 1f
 
 	ldr	r2, 3f

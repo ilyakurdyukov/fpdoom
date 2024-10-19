@@ -81,12 +81,7 @@ static void sc6531e_init_smc() {
 	MEM4(base + 0x00) &= ~0x100;
 	DELAY(100)
 
-#if LIBC_SDIO >= 3
-	// check remap
-	ps = (MEM4(0x205000e0) & 1) << 28 | 0x04000000;
-#else
-	ps = 0x14000000;
-#endif
+	ps = MEM_REMAP << 28 | 0x04000000;
 
 	id = sc6531e_smc_get_id(base, ps);
 	if (id == 6) {

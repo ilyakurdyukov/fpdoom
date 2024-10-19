@@ -5,10 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* from assembly code */
-uint32_t get_cpsr(void);
-void set_cpsr_c(uint32_t a);
-
 #define DBG_LOG(...) fprintf(stderr, __VA_ARGS__)
 #define ERR_EXIT(...) do { \
 	fprintf(stderr, "!!! " __VA_ARGS__); \
@@ -289,7 +285,7 @@ static void lcm_config_addr(unsigned cs) {
 static void lcm_set_mode(unsigned val) {
 	uint32_t cs = sys_data.lcd_cs;
 	while (LCM_CR(0) & 2);
-	MEM4(LCM_REG_BASE + 0x10 + (cs << 4)) = val;
+	LCM_CR(0x10 + (cs << 4)) = val;
 }
 
 static void lcm_send(unsigned idx, unsigned val) {
@@ -348,7 +344,7 @@ static void lcm_set_safe_freq(unsigned cs) {
 	uint32_t addr = LCM_REG_BASE + 0x10 + (cs << 4);
 	uint32_t sum = 30 << 16 | 6 | 0x80;
 	sum |= 30 << 21 | 14 << 8 | 6 << 4;
-	MEM4(addr) = 1;
+	MEM4(addr) = 1; // lcm_set_mode(1)
 	MEM4(addr + 4) = sum;
 }
 
@@ -379,7 +375,7 @@ static void lcm_set_freq(unsigned cs, uint32_t clk_rate, const lcd_config_t *lcd
 
 	while (LCM_CR(0) & 2);
 
-	MEM4(LCM_REG_BASE + 0x14 + (cs << 4)) = sum;
+	LCM_CR(0x14 + (cs << 4)) = sum;
 }
 
 // ID0: LCD module's manufacturer ID
@@ -470,21 +466,6 @@ static unsigned lcd_getid2(void) {
 	return id;
 }
 
-#if 0
-void lcm_send_rgb16(uint16_t *ptr, uint32_t size) {
-	uint32_t addr, tmp;
-	//lcm_set_mode(1);
-	addr = lcd_setup.addr | 1 << 17;
-	while (size--) {
-		tmp = *ptr++;
-		while (LCM_CR(0) & 2);
-		MEM2(addr) = tmp >> 8;
-		while (LCM_CR(0) & 2);
-		MEM2(addr) = tmp & 0xff;
-	}
-}
-#endif
-
 static int is_whtled_on(void) {
 	if (_chip == 1) // ANA_WHTLED_CTR
 		return (adi_read(0x82001400 + 0x13c) & 1) == 0;
@@ -539,7 +520,6 @@ static const lcd_config_t* lcm_init(void) {
 	lcd = lcd_find_conf(id, 0);
 
 	lcm_set_freq(cs, clk_rate, lcd);
-	lcm_set_mode(1);
 	lcd_setup.send = lcm_send;
 	return lcd;
 }
@@ -547,9 +527,12 @@ static const lcd_config_t* lcm_init(void) {
 void sys_start_refresh(void) {
 	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
 	if (sys_data.mac & 0x100) {
-		if (sys_data.lcd_id == 0x7567)
+		unsigned id;
+		if (sys_data.mac & 1) return;
+		id = sys_data.lcd_id;
+		if (id == 0x7567 || id == 0x7565)
 			lcd_refresh_st7567();
-		else if (sys_data.lcd_id == 0x1230)
+		else if (id == 0x1230)
 			lcd_refresh_hx1230();
 		return;
 	}
@@ -650,10 +633,12 @@ static void lcd_init(const lcd_config_t *lcd) {
 		lcm_exec(p0);
 	} else if (sys_data.mac & 0x100) {
 		void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
+		uint32_t timer_val = 0;
 		if (sys_data.spi) FATAL();
 		send_fn(0, 0xa0 | (mac_arg >> 6 & 1)); // SEG Direction (MX)
 		send_fn(0, 0xc0 | (mac_arg >> 4 & 8)); // COM Direction (MY)
-		if (1 && lcd->id == 0x7567) { // ST7567A
+		send_fn(0, 0xa6 | (mac_arg >> 3 & 1)); // Inverse Display (INV)
+		if (lcd->id == 0x7567 && (sys_data.mac & 0x10)) { // ST7567A
 			send_fn(0, 0xff); // Extension Command (ON)
 			send_fn(0, 0x72); // Display Setting Mode (ON)
 			send_fn(0, 0xfe); // Extension Command (OFF)
@@ -662,6 +647,12 @@ static void lcd_init(const lcd_config_t *lcd) {
 			send_fn(0, 0x98 + 6); // Set Frame Rate (300)
 			send_fn(0, 0x81); // Set EV (contrast)
 			send_fn(0, 0x28); // Set EV (value)
+			timer_val = 26000000 / 300;
+		}
+		if (sys_data.mac & 1) {
+			if (timer_val)
+				lcd_setup_timer(LCD_TIMER, timer_val);
+			else sys_data.mac &= ~1;
 		}
 	} else {
 		static uint8_t cmd_init2[] = {
@@ -714,7 +705,7 @@ static void lcdc_init(void) {
 	{
 		uint32_t addr, mode;
 		if (!sys_data.spi) {
-			lcm_set_mode(0x28);
+			lcm_set_mode(0x28); // 8x2 BE
 			mode = 2; addr = lcd_setup.addr | 1 << 17;
 		} else {
 			spi_refresh_init(sys_data.spi);
@@ -763,6 +754,10 @@ void sys_framebuffer(void *base) {
 		sys_data.framebuf = base;
 		do *d++ = (r = (r * 0x08088405) + 1) >> 25;
 		while (--w);
+		if (sys_data.mac & 1) {
+			lcd_setup_irq();
+			lcd_start_timer();
+		}
 		return;
 	}
 
@@ -934,6 +929,7 @@ void sys_exit(void) {
 		sys_brightness(0);
 		LCDC_CR(LCDC_CTRL) &= ~1;
 		AHB_PWR_OFF(0x1000 | 0x40); // LCDC, LCM
+		set_cpsr_c(0xdf); // mask interrupts
 	}
 	sys_wdg_reset(SYS_RESET_DELAY); // 0.5 sec
 }

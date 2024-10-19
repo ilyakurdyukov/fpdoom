@@ -54,19 +54,27 @@ typedef struct {
 
 static void draw_text(draw_t *draw, unsigned y0, const char *str) {
 	unsigned a, x, y, st = draw->st, n = draw->cols;
-	uint16_t *p0 = draw->framebuf, *p;
 	unsigned sel = y0 == draw->sel - draw->msel;
-	p0 += y0 * st * FONT_H;
+	unsigned pos = y0 * st * FONT_H;
 	do {
 		const uint8_t *bm; uint32_t c = sel;
 		if ((a = *str)) str++; else a = 0x20, c = 0;
 		if (a - 0x20 >= 0x60) a = '?';
 		bm = font_data + (a - 0x20) * FONT_H;
-		c = draw->pal[c].u32;
-		for (p = p0, y = 0; y < FONT_H; y++, p += st)
-		for (a = bm[y], x = 0; x < FONT_W; x++, a <<= 1)
-			p[x] = c >> ((a & 0x80) >> 3);
-		p0 += FONT_W;
+		if (sys_data.mac & 0x100) {
+			uint8_t *p = (uint8_t*)draw->framebuf + pos;
+			c = (c - 1) & 0xff;
+			for (y = 0; y < FONT_H; y++, p += st)
+			for (a = bm[y] ^ c, x = 0; x < FONT_W; x++, a <<= 1)
+				p[x] = a & 0x80;
+		} else {
+			uint16_t *p = draw->framebuf + pos;
+			c = draw->pal[c].u32;
+			for (y = 0; y < FONT_H; y++, p += st)
+			for (a = bm[y], x = 0; x < FONT_W; x++, a <<= 1)
+				p[x] = c >> ((a & 0x80) >> 3);
+		}
+		pos += FONT_W;
 	} while (--n);
 }
 
@@ -252,6 +260,8 @@ int main(int argc, char **argv) {
 	draw.mrows = menu_count(draw.menu, ~0);
 	if (draw.mrows <= 0) return 1;
 
+	if (sys_data.mac & 0x100)
+		sys_data.mac &= ~1; // disable irq refresh
 	sys_framebuffer(draw.framebuf);
 	sys_start();
 
@@ -260,9 +270,13 @@ int main(int argc, char **argv) {
 		if (draw.flags & 1) {
 			unsigned size = draw.st * draw.rows * FONT_H;
 			uint16_t *p = draw.framebuf;
-			unsigned a = draw.pal[0].u16[0];
-			do *p++ = a; while (--size);
 			draw.flags &= ~1;
+			if (sys_data.mac & 0x100) {
+				memset(p, 0, size);
+			} else {
+				unsigned a = draw.pal[0].u16[0];
+				do *p++ = a; while (--size);
+			}
 		}
 		{
 			unsigned i;

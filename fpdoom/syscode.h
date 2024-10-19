@@ -31,6 +31,7 @@ typedef volatile struct {
 
 /* from assembly code */ 
 void enable_mmu(uint32_t *table, uint32_t domain);
+void set_cpsr_c(uint32_t a);
 
 int sys_lzma_decode(const uint8_t *src, unsigned src_size,
 		uint8_t *dst, unsigned dst_size);

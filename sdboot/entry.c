@@ -3,6 +3,11 @@
 #include "usbio.h"
 #include "syscode.h"
 
+#if LIBC_SDIO >= 3
+#define MEM_REMAP (MEM4(0x205000e0) & 1)
+#else
+#define MEM_REMAP 0
+#endif
 #include "init_sc6531e.h"
 #include "init_sc6531da.h"
 #include "init_sc6530.h"

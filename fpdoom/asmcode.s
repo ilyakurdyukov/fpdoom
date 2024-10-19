@@ -26,6 +26,31 @@ CODE32_FN sys_wait_clk
 	bhi	1b	// 3
 	bx	lr
 
+CODE32_FN set_mode_sp
+	msr	CPSR_c, r0
+	mov	sp, r1
+	msr	CPSR_c, #0xdf // SYS mode
+	bx	lr
+
+CODE32_FN int_vectors
+1:	b	1b // reset
+1:	b	1b // undefined
+1:	b	1b // swi
+1:	b	1b // prefetch
+1:	b	1b // data
+1:	b	1b // reserved
+	b	2f // irq
+1:	b	1b // fiq
+3:	.long 0
+2:	sub	lr, #4
+	push	{r0-r4,r12,lr}
+	ldr	lr, 3b
+	blx	lr
+	ldm	sp!, {r0-r4,r12,pc}^
+
+	.global int_vectors_end
+int_vectors_end:
+
 CODE32_FN enable_mmu
 	mcr	p15, #0, r0, c2, c0, #0
 	mcr	p15, #0, r1, c3, c0, #0 // Domain Access Control Register
@@ -34,6 +59,15 @@ CODE32_FN enable_mmu
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
 	orr	r0, #5
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
+	bx	lr
+
+CODE32_FN invalidate_tlb
+	mov	r0, #0
+	mcr	p15, #0, r0, c8, c7, #0
+	bx	lr
+
+CODE32_FN invalidate_tlb_mva
+	mcr	p15, #0, r0, c8, c7, #1
 	bx	lr
 
 CODE32_FN clean_icache
