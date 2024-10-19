@@ -29,6 +29,8 @@ extern int RunInvert;
 extern int CalcRotateMult;
 
 extern uint16_t *framebuf;
+extern unsigned frameWidth, frameHeight;
+extern void (*fizzlePixel)(unsigned x, unsigned y, uint8_t *src);
 
 enum {
 	sc_None = 0,
@@ -71,6 +73,8 @@ unsigned sys_timer_ms(void);
 void sys_wait_ms(uint32_t delay);
 #else
 extern int16_t screenWidth, screenHeight;
+void initFizzle(void);
+#define GS_MODE 4
 
 #include "syscode.h"
 #endif

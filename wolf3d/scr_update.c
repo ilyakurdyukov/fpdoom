@@ -3,8 +3,20 @@
 #define WLSYS_MAIN
 #include "wlsys_def.h"
 
+unsigned frameWidth, frameHeight;
+
 #define DEF(ret, name, args) \
 ret name##_asm args; ret name args
+
+DEF(void, pal_update8, (SDL_Color *pal, void *dest)) {
+	int i, a;
+	uint8_t *pal8 = (uint8_t*)dest - 256;
+	for (i = 0; i < 256; i++) {
+		int r = pal[i].r, g = pal[i].g, b = pal[i].b;
+		a = (r * 4899 + g * 9617 + b * 1868 + 0x2000) >> 14;
+		pal8[i] = a;
+	}
+}
 
 DEF(void, pal_update16, (SDL_Color *pal, void *dest)) {
 	int i, a;
@@ -153,6 +165,41 @@ DEF(uint16_t*, scr_update_25x24d20, (uint16_t *d, const uint8_t *s, uint16_t *c1
 #undef X1
 #undef X2
 
+DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest;
+	uint8_t *c8 = (uint8_t*)dest - 256;
+	unsigned x, y, h = 200; // (7*3+4)*8
+	uint32_t a, b, t;
+// 00112 23344
+#define X(op) \
+	a op (c8[s2[0]] + c8[s2[1]]) * 2; \
+	a += t = c8[s2[2]]; \
+	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
+	do {
+		for (y = 0; y < 7; y++, s += 320 * 2)
+		for (x = 0; x < 320; x += 5, s += 5) {
+			uint8_t *s2 = s;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
+			a = (a + 7) * 0x8889 >> 19; // div15
+			b = (b + 7) * 0x8889 >> 19;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+		}
+		for (x = 0; x < 320; x += 5, s += 5) {
+			uint8_t *s2 = s;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
+			a = a * 0xcccd + 0x7c000; // div20
+			b = b * 0xcccd + 0x7c000;
+			a = (a + (a >> 6 & 0x4000)) >> 20;
+			b = (b + (b >> 6 & 0x4000)) >> 20;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+		}
+		s += 320 * 3;
+	} while ((h -= 25));
+#undef X
+}
+
 #undef DEF
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
@@ -168,19 +215,21 @@ void wlsys_setpal(SDL_Color *pal) {
 	uint16_t *d = framebuf;
 	int scaler = sys_data.scaler;
 #if EMBEDDED == 1
-	if (scaler >= 4) scaler = 0;
+	if (scaler >= GS_MODE) scaler = 0;
 #endif
 	if (scaler == 0) {
 		pal_update16(pal, d);
 	} else if (scaler == 1) {
 		pal_update32(pal, d);
+	} else if (scaler >= GS_MODE) {
+		pal_update8(pal, d);
 	} else if (scaler >= 2) {
 		pal_update16(pal, d);
 		pal_update32(pal, d - 256);
 	}
 }
 
-static void wlsys_refresh0(const uint8_t *src, int type) {
+static void wlsys_refresh_1d1(const uint8_t *src, int type) {
 	uint16_t *d = framebuf;
 	uint16_t *pal16 = (uint16_t*)d - 256;
 	unsigned w = 320, h = 240, skip, v;
@@ -195,7 +244,7 @@ static void wlsys_refresh0(const uint8_t *src, int type) {
 	}
 }
 
-static void wlsys_refresh1(const uint8_t *src, int type) {
+static void wlsys_refresh_1d2(const uint8_t *src, int type) {
 	uint16_t *d = framebuf;
 	uint32_t *pal32 = (uint32_t*)d - 256;
 	unsigned w = 320, w2 = w / 2, h = 256, skip, v;
@@ -211,7 +260,7 @@ static void wlsys_refresh1(const uint8_t *src, int type) {
 	}
 }
 
-static void wlsys_refresh2(const uint8_t *src, int type) {
+static void wlsys_refresh_3d2(const uint8_t *src, int type) {
 	uint16_t *d = framebuf;
 	uint16_t *pal16 = (uint16_t*)d - 256;
 	unsigned w = 480, h = 320, skip, v;
@@ -230,7 +279,7 @@ static void wlsys_refresh2(const uint8_t *src, int type) {
 	}
 }
 
-static void wlsys_refresh3(const uint8_t *src, int type) {
+static void wlsys_refresh_25x24d20(const uint8_t *src, int type) {
 	uint16_t *d = framebuf;
 	uint16_t *pal16 = (uint16_t*)d - 256;
 	unsigned w = 400, h = 240, skip, v;
@@ -244,9 +293,60 @@ static void wlsys_refresh3(const uint8_t *src, int type) {
 	}
 }
 
+static void wlsys_refresh_128x64(const uint8_t *src, int type) {
+	scr_update_128x64((uint8_t*)src, framebuf);
+}
+
+void (*fizzlePixel)(unsigned x, unsigned y, uint8_t *src);
+
+static void fizzlePixel_1d1(unsigned x, unsigned y, uint8_t *src) {
+	uint16_t *d = framebuf, *pal = d - 256;
+	unsigned pos = y * frameWidth + x;
+	d[pos] = pal[src[pos]];
+}
+
+static void fizzlePixel_1d2(unsigned x, unsigned y, uint8_t *src) {
+	uint16_t *d = framebuf;
+	uint32_t *pal = (uint32_t*)d - 256;
+	unsigned pos = y * screenWidth + x;
+	unsigned a, b = 0x00400802;
+	uint8_t *s = src + pos * 2;
+	a = pal[s[0]] + pal[s[1]]; s += screenWidth;
+	a += pal[s[0]] + pal[s[1]];
+	a += (b & a >> 2) + b; a &= 0xf81f07e0;
+	d[(pos + x) >> 1] = a | a >> 16;
+}
+
+static void fizzlePixel_gs(unsigned x, unsigned y, uint8_t *src) {
+	uint8_t *d = (uint8_t*)framebuf, *pal = d - 256;
+	unsigned x1 = x * screenWidth / frameWidth;
+	unsigned y1 = y * screenHeight / frameHeight;
+	unsigned x2 = ((x + 1) * screenWidth) / frameWidth;
+	unsigned y2 = ((y + 1) * screenHeight) / frameHeight;
+	unsigned a = 0, n, st = frameWidth;
+	src += y1 * st + x1;
+	y2 -= y1; x2 -= x1; n = x2 * y2;
+	do {
+		for (x1 = 0; x1 < x2; x1++) a += pal[src[x1]];
+		src += st;
+	} while (--y2);
+	a = (a + n / 2) / n;
+	d[y * frameWidth + x] = (a + 1) >> 1;
+}
+
+void initFizzle(void) {
+	unsigned scaler = sys_data.scaler;
+	if (scaler == 1) fizzlePixel = fizzlePixel_1d2;
+	else if (scaler >= GS_MODE) fizzlePixel = fizzlePixel_gs;
+	else fizzlePixel = fizzlePixel_1d1;
+}
+
 typedef void (*wlsys_refresh_t)(const uint8_t *src, int type);
 static const wlsys_refresh_t wlsys_refresh_fn[] = {
-	wlsys_refresh0, wlsys_refresh1, wlsys_refresh2, wlsys_refresh3 };
+	wlsys_refresh_1d1, wlsys_refresh_1d2,
+	wlsys_refresh_3d2, wlsys_refresh_25x24d20,
+	wlsys_refresh_128x64,
+};
 
 int force_refresh_type;
 int last_refresh_type;
@@ -257,7 +357,7 @@ void wlsys_refresh(const uint8_t *src, int type) {
 	type &= 15; last_refresh_type = type;
 
 #if EMBEDDED == 1
-	if (sys_data.scaler >= 4) {
+	if (sys_data.scaler >= GS_MODE) {
 		uint16_t *pal16 = (uint16_t*)framebuf - 256;
 		scr_update_1d1(framebuf, src, pal16, screenWidth * screenHeight);
 	} else

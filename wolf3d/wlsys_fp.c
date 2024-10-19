@@ -14,8 +14,9 @@ void lcd_appinit(void) {
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned scaler = sys_data.scaler - 1;
-	if (scaler >= 4) {
-		int w = disp->w1, h = disp->h1;
+	unsigned w = disp->w1, h = disp->h1;
+	if (w == 128 && h == 64) scaler = GS_MODE;
+	else if (scaler >= GS_MODE) {
 		switch (w) {
 		case 400: scaler = 3; break;
 		case 480: scaler = 2; break;
@@ -29,8 +30,12 @@ void lcd_appinit(void) {
 		}
 	}
 	sys_data.scaler = scaler;
-	disp->w2 = dim[scaler * 2];
-	disp->h2 = dim[scaler * 2 + 1];
+	if (scaler < GS_MODE) {
+		w = dim[scaler * 2];
+		h = dim[scaler * 2 + 1];
+	}
+	disp->w2 = w;
+	disp->h2 = h;
 }
 
 void wlsys_end(void) {
@@ -41,13 +46,20 @@ uint8_t* wlsys_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size, size1, size2; uint8_t *p;
-	static const uint8_t pal_size[] = { 2, 4, 6, 6 };
-	int scaler = sys_data.scaler, sh = scaler == 1;
-
-	screenWidth = w << sh;
-	screenHeight = h << sh;
+	static const uint8_t pal_size[] = { 2, 4, 6, 6, 1 };
+	int scaler = sys_data.scaler;
+	int w1 = w, h1 = h;
+	if (scaler == 1) {
+		w1 <<= 1; h1 <<= 1;
+	} else if (scaler >= GS_MODE) {
+		w1 = 320; h1 = 200;
+	}
+	frameWidth = w;
+	frameHeight = h;
+	screenWidth = w1;
+	screenHeight = h1;
 	size = w * h;
-	size1 = size << sh * 2;
+	size1 = w1 * h1;
 	size2 = pal_size[scaler] << 8;
 	p = malloc(size * 2 + size2 + size1 + 31);
 	framebuf_mem = p;
@@ -56,6 +68,7 @@ uint8_t* wlsys_init(void) {
 	framebuf = (uint16_t*)p;
 	p += size * 2;
 
+	initFizzle();
 	sys_framebuffer(framebuf);
 	sys_start();
 
