@@ -633,7 +633,7 @@ static void lcd_init(const lcd_config_t *lcd) {
 		lcm_exec(p0);
 	} else if (sys_data.mac & 0x100) {
 		void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
-		uint32_t timer_val = 0;
+		uint32_t timer_val = 26000000 / 75;
 		if (sys_data.spi) FATAL();
 		send_fn(0, 0xa0 | (mac_arg >> 6 & 1)); // SEG Direction (MX)
 		send_fn(0, 0xc0 | (mac_arg >> 4 & 8)); // COM Direction (MY)

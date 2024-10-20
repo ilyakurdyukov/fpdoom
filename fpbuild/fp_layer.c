@@ -480,10 +480,11 @@ DEF(void, scr_update_1d2, (uint8_t *s, void *dest)) {
 	}
 }
 
+/* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
 DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 	uint8_t *d = (uint8_t*)dest;
 	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, y, h = 200; // (7*3+4)*8
+	unsigned x, y, h = 224;
 	uint32_t a, b, t;
 // 00112 23344
 #define X(op) \
@@ -491,7 +492,6 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 	a += t = c8[s2[2]]; \
 	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
 	do {
-		for (y = 0; y < 7; y++, s += 320 * 2)
 		for (x = 0; x < 320; x += 5, s += 5) {
 			uint8_t *s2 = s;
 			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
@@ -500,6 +500,7 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 			*d++ = (a + 1) >> 1;
 			*d++ = (b + 1) >> 1;
 		}
+		s += 320 * 2;
 		for (x = 0; x < 320; x += 5, s += 5) {
 			uint8_t *s2 = s;
 			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
@@ -511,7 +512,7 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 			*d++ = (b + 1) >> 1;
 		}
 		s += 320 * 3;
-	} while ((h -= 25));
+	} while ((h -= 7));
 #undef X
 }
 
@@ -557,7 +558,7 @@ void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1, mode;
 	if (w == 128 && h == 64) {
-		w = 320; h = 200; mode = 2;
+		w = 320; h = 224; mode = 2;
 	} else {
 		if (h > w) h = w;
 		mode = h <= 128;

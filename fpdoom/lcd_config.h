@@ -1610,12 +1610,12 @@ static const lcd_config_t lcd_config2[] = {
 /* Joy's S16 */
 
 	// HX1230 (0x0001)
-	X(0x001230, 96,68, 0x1c0, NO_TIMINGS, 0, cmd1230)
+	X(0x001230, 96,68, 0x1c1, NO_TIMINGS, 0, cmd1230)
 
 /* Joy's S19 */
 
 	// Sitronix ST7565R
-	X(0x007565, 128,64, 0x180, 30,150,150,40,50,50, 0, cmd7565)
+	X(0x007565, 128,64, 0x181, 30,150,150,40,50,50, 0, cmd7565)
 };
 #undef X
 #undef NO_TIMINGS
