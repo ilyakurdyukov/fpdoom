@@ -52,7 +52,7 @@ uint8_t* wlsys_init(void) {
 	if (scaler == 1) {
 		w1 <<= 1; h1 <<= 1;
 	} else if (scaler >= GS_MODE) {
-		w1 = 320; h1 = 200;
+		w1 = 320; h1 = 224;
 	}
 	frameWidth = w;
 	frameHeight = h;
@@ -108,6 +108,9 @@ void keytrn_init(void) {
 		KEY(DOWN, sc_Escape)
 		KEY(CENTER, sc_Return)
 		KEY(DIAL, sc_O) /* map */
+		KEY(4, sc_G) /* G+Y: god mode */
+		KEY(5, sc_Y)
+		KEY(6, sc_M) /* M+Y: all items */
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);

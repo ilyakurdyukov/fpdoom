@@ -39,8 +39,12 @@ static const uint8_t font_data[] = {
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1;
-	disp->w2 = w - w % FONT_W;
-	disp->h2 = h - h % FONT_H;
+	if (!(sys_data.mac & 0x100)) {
+		w -= w % FONT_W;
+		h -= h % FONT_H;
+	}
+	disp->w2 = w;
+	disp->h2 = h;
 }
 
 typedef struct {
@@ -263,6 +267,12 @@ int main(int argc, char **argv) {
 	if (sys_data.mac & 0x100)
 		sys_data.mac &= ~1; // disable irq refresh
 	sys_framebuffer(draw.framebuf);
+	if (sys_data.mac & 0x100) {
+		struct sys_display *disp = &sys_data.display;
+		unsigned w = disp->w2, h = disp->h2;
+		draw.framebuf = (uint16_t*)((uint8_t*)draw.framebuf +
+				((h % FONT_H) >> 1) * w);
+	}
 	sys_start();
 
 	for (;;) {
@@ -272,7 +282,7 @@ int main(int argc, char **argv) {
 			uint16_t *p = draw.framebuf;
 			draw.flags &= ~1;
 			if (sys_data.mac & 0x100) {
-				memset(p, 0, size);
+				memset(p, 0x80, size);
 			} else {
 				unsigned a = draw.pal[0].u16[0];
 				do *p++ = a; while (--size);

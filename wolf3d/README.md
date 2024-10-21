@@ -26,6 +26,9 @@ Port of the [Wolf4SDL](https://github.com/KS-Presto/Wolf4SDL).
 | Power + Down   | open/close menu    |
 | Power + L/R    | prev/next weapon   |
 | Power + Dial   | map                |
+| Power + 4,5,6  | G, Y, M            |
+
+* Cheats: G + Y toggles God Mode, M + Y gives all items.
 
 ### Issues
 

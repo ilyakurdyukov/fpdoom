@@ -258,45 +258,43 @@ DEF(void, scr_update_11d16, (uint8_t *s, void *dest)) {
 #undef X3
 #undef X4
 
+/* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
 DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
-	uint8_t *d = (uint8_t*)dest;
-	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, y, h = 200; // (7*3+4)*8
+	uint8_t *d = (uint8_t*)dest, *c8 = dest - 256;
+	unsigned x, y, h = 64;
 	uint32_t a, b, t;
 // 00112 23344
-#define X(op) \
-	a op (c8[s2[0]] + c8[s2[1]]) * 2; \
-	a += t = c8[s2[2]]; \
-	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
+#define X \
+	t = c8[s2[2]]; t += t << 16; \
+	t += (c8[s2[0]] + c8[s2[1]]) << 1; \
+	t += (c8[s2[3]] + c8[s2[4]]) << 17; \
+	s2 += 320; a += t << 1;
 	do {
-		for (y = 0; y < 7; y++, s += 320 * 2)
 		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = (a + 7) * 0x8889 >> 19; // div15
-			b = (b + 7) * 0x8889 >> 19;
+			const uint8_t *s2 = s;
+			for (a = 0, y = 0; y < 4; y++) { X }
+			a -= t;
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
 			*d++ = (a + 1) >> 1;
 			*d++ = (b + 1) >> 1;
+			for (a = t, y = 0; y < 3; y++) { X }
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
+			d[126] = (a + 1) >> 1;
+			d[127] = (b + 1) >> 1;
 		}
-		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = a * 0xcccd + 0x7c000; // div20
-			b = b * 0xcccd + 0x7c000;
-			a = (a + (a >> 6 & 0x4000)) >> 20;
-			b = (b + (b >> 6 & 0x4000)) >> 20;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
-		}
-		s += 320 * 3;
-	} while ((h -= 25));
+		s += 320 * 6; d += 128;
+	} while ((h -= 2));
 #undef X
 }
 
 DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
 	uint8_t *d = (uint8_t*)dest;
 	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, h = 204;
+	unsigned x, y = 0, h = 68; // (3+3+4)*22+3+3
 	uint32_t a, b, c, t0, t1;
 // 0001112223 3344455566 6777888999
 #define X(op) \
@@ -307,20 +305,26 @@ DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
 	c op t1 + (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) * 3;
 	do {
 		for (x = 0; x < 320; x += 10, s += 10) {
-			uint8_t *s2 = s;
+			uint8_t *s2 = s; uint32_t m;
 			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = a * 0x8889 + 0x7c000; // div30
-			b = b * 0x8889 + 0x7c000;
-			c = c * 0x8889 + 0x7c000;
-			a = (a + (a >> 6 & 0x4000)) >> 20;
-			b = (b + (b >> 6 & 0x4000)) >> 20;
-			c = (c + (c >> 6 & 0x4000)) >> 20;
+			m = 0x8889 * 2; // div30
+			if (y == 2) {
+				s2 += 320; X(+=)
+				m = 0xcccd; // div40
+			}
+			a = a * m + 0xfc000;
+			b = b * m + 0xfc000;
+			c = c * m + 0xfc000;
+			a = (a + (a >> 7 & 0x4000)) >> 21;
+			b = (b + (b >> 7 & 0x4000)) >> 21;
+			c = (c + (c >> 7 & 0x4000)) >> 21;
 			*d++ = (a + 1) >> 1;
 			*d++ = (b + 1) >> 1;
 			*d++ = (c + 1) >> 1;
 		}
 		s += 320 * 2;
-	} while ((h -= 3));
+		if (++y == 3) s += 320, y = 0;
+	} while ((h -= 1));
 #undef X
 }
 
@@ -378,7 +382,7 @@ void lcd_appinit(void) {
 	static const uint16_t dim[] = {
 		320, 240, 240,  160, 128, 256,  480, 320, 214,
 		220, 176, 256,  400, 240, 200,
-		128,  64, 200,   96,  68, 204,
+		128,  64, 224,   96,  68, 226,
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;

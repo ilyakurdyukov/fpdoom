@@ -749,11 +749,13 @@ void sys_framebuffer(void *base) {
 	unsigned offset = (w2 - w) >> 1;
 
 	if (sys_data.mac & 0x100) {
-		uint32_t r = sys_timer_ms();
-		uint8_t *d = (uint8_t*)base + (w *= disp->h1);
+		uint32_t r, n = w * disp->h1;
+		uint8_t *d = (uint8_t*)base;
 		sys_data.framebuf = base;
+		memset(d, 0x80, n); d += n;
+		r = sys_timer_ms();
 		do *d++ = (r = (r * 0x08088405) + 1) >> 25;
-		while (--w);
+		while (--n);
 		if (sys_data.mac & 1) {
 			lcd_setup_irq();
 			lcd_start_timer();

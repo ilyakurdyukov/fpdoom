@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #define WLSYS_MAIN
 #include "wlsys_def.h"
 
@@ -165,39 +166,38 @@ DEF(uint16_t*, scr_update_25x24d20, (uint16_t *d, const uint8_t *s, uint16_t *c1
 #undef X1
 #undef X2
 
-DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
-	uint8_t *d = (uint8_t*)dest;
-	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, y, h = 200; // (7*3+4)*8
+/* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
+DEF(uint8_t*, scr_update_128x64, (uint8_t *d, const uint8_t *s, uint8_t *c8, unsigned h)) {
+	unsigned x, y;
 	uint32_t a, b, t;
 // 00112 23344
-#define X(op) \
-	a op (c8[s2[0]] + c8[s2[1]]) * 2; \
-	a += t = c8[s2[2]]; \
-	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
+#define X \
+	t = c8[s2[2]]; t += t << 16; \
+	t += (c8[s2[0]] + c8[s2[1]]) << 1; \
+	t += (c8[s2[3]] + c8[s2[4]]) << 17; \
+	s2 += 320; a += t << 1;
 	do {
-		for (y = 0; y < 7; y++, s += 320 * 2)
 		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = (a + 7) * 0x8889 >> 19; // div15
-			b = (b + 7) * 0x8889 >> 19;
+			const uint8_t *s2 = s;
+			for (a = 0, y = 0; y < 4; y++) { X }
+			a -= t;
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
 			*d++ = (a + 1) >> 1;
 			*d++ = (b + 1) >> 1;
+			if (h == 1) continue;
+			for (a = t, y = 0; y < 3; y++) { X }
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
+			d[126] = (a + 1) >> 1;
+			d[127] = (b + 1) >> 1;
 		}
-		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = a * 0xcccd + 0x7c000; // div20
-			b = b * 0xcccd + 0x7c000;
-			a = (a + (a >> 6 & 0x4000)) >> 20;
-			b = (b + (b >> 6 & 0x4000)) >> 20;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
-		}
-		s += 320 * 3;
-	} while ((h -= 25));
+		s += 320 * 6; d += 128;
+	} while ((int)(h -= 2) > 0);
 #undef X
+	return d - ((h & 1) << 7);
 }
 
 #undef DEF
@@ -294,7 +294,16 @@ static void wlsys_refresh_25x24d20(const uint8_t *src, int type) {
 }
 
 static void wlsys_refresh_128x64(const uint8_t *src, int type) {
-	scr_update_128x64((uint8_t*)src, framebuf);
+	uint8_t *d = (uint8_t*)framebuf, *pal8 = d - 256;
+	unsigned w = 128, v;
+	if (type == 0) {
+		v = pal8[src[0]]; v = (v + 1) >> 1;
+		memset(d, v, w * 4); d += w * 4;
+		d = scr_update_128x64(d, src, pal8, 57);
+		memset(d, v, w * 3);
+	} else {
+		scr_update_128x64(d, src, pal8, 64);
+	}
 }
 
 void (*fizzlePixel)(unsigned x, unsigned y, uint8_t *src);

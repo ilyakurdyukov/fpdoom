@@ -944,7 +944,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..c1aa73d 100644
+index 9b311b3..6900dc7 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -987,7 +987,7 @@ index 9b311b3..c1aa73d 100644
  
  // Blocky mode,
  // replace each 320x200 pixel with multiply*multiply pixels.
-@@ -89,6 +101,96 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+@@ -89,6 +101,94 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
  // to use ....
  static int	multiply=1;
  
@@ -1017,18 +1017,16 @@ index 9b311b3..c1aa73d 100644
 +	/* wp_supershotgun */ wp_chaingun
 +    } };
 +    do {
++	ammotype_t ammo;
 +	next = cycle[dir][next];
-+	if (p->weaponowned[next]) {
-+#if 0
-+	    if (1) {
-+#else
-+	    ammotype_t ammo = weaponinfo[next].ammo;
-+	    if (ammo == am_noammo || p->ammo[ammo] > 0) {
-+#endif
-+		// p->pendingweapon = next;
-+		return "123456713"[next];
-+	    }
-+	}
++	if (!p->weaponowned[next]) continue;
++	ammo = weaponinfo[next].ammo;
++	if (ammo != am_noammo && p->ammo[ammo] <= 0) continue;
++	/* Only possible with cheats. */
++	if (next == wp_supershotgun && gamemode != commercial) continue;
++	if (ammo == am_cell && gamemode == shareware) continue;
++	// p->pendingweapon = next;
++	return "123456713"[next];
 +    } while (next != cur);
 +    return 0x8000;
 +}
@@ -1084,7 +1082,7 @@ index 9b311b3..c1aa73d 100644
  
  //
  //  Translates the key currently in X_event
-@@ -272,7 +374,7 @@ void I_GetEvent(void)
+@@ -272,7 +372,7 @@ void I_GetEvent(void)
  	break;
  	
        default:
@@ -1093,7 +1091,7 @@ index 9b311b3..c1aa73d 100644
  	break;
      }
  
-@@ -336,6 +438,7 @@ void I_StartTic (void)
+@@ -336,6 +436,7 @@ void I_StartTic (void)
      mousemoved = false;
  
  }
@@ -1101,7 +1099,7 @@ index 9b311b3..c1aa73d 100644
  
  
  //
-@@ -373,6 +476,11 @@ void I_FinishUpdate (void)
+@@ -373,6 +474,11 @@ void I_FinishUpdate (void)
      
      }
  
@@ -1113,7 +1111,7 @@ index 9b311b3..c1aa73d 100644
      // scales the screen size before blitting it
      if (multiply == 2)
      {
-@@ -518,6 +626,7 @@ void I_FinishUpdate (void)
+@@ -518,6 +624,7 @@ void I_FinishUpdate (void)
  
      }
  
@@ -1121,7 +1119,7 @@ index 9b311b3..c1aa73d 100644
  }
  
  
-@@ -533,6 +642,12 @@ void I_ReadScreen (byte* scr)
+@@ -533,6 +640,12 @@ void I_ReadScreen (byte* scr)
  //
  // Palette stuff.
  //
@@ -1134,7 +1132,7 @@ index 9b311b3..c1aa73d 100644
  static XColor	colors[256];
  
  void UploadNewPalette(Colormap cmap, byte *palette)
-@@ -688,6 +803,7 @@ void grabsharedmemory(int size)
+@@ -688,6 +801,7 @@ void grabsharedmemory(int size)
    fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
  	  (int) (image->data));
  }
@@ -1142,7 +1140,7 @@ index 9b311b3..c1aa73d 100644
  
  void I_InitGraphics(void)
  {
-@@ -699,6 +815,7 @@ void I_InitGraphics(void)
+@@ -699,6 +813,7 @@ void I_InitGraphics(void)
      int			x=0;
      int			y=0;
      
@@ -1150,7 +1148,7 @@ index 9b311b3..c1aa73d 100644
      // warning: char format, different type arg
      char		xsign=' ';
      char		ysign=' ';
-@@ -708,6 +825,7 @@ void I_InitGraphics(void)
+@@ -708,6 +823,7 @@ void I_InitGraphics(void)
      XSetWindowAttributes attribs;
      XGCValues		xgcvalues;
      int			valuemask;
@@ -1158,7 +1156,7 @@ index 9b311b3..c1aa73d 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +834,11 @@ void I_InitGraphics(void)
+@@ -716,6 +832,11 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
@@ -1170,7 +1168,7 @@ index 9b311b3..c1aa73d 100644
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1035,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1033,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1182,7 +1180,7 @@ index 9b311b3..c1aa73d 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1171,6 @@ Expand4
+@@ -1046,5 +1169,6 @@ Expand4
  	xline += step;
      } while (y--);
  }

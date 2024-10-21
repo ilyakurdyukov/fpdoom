@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 		uint32_t cachesize = maxcache1dsize;
 		cachesize += ram_size - (4 << 20);
 		// 160x128 mode uses less memory for the framebuffer
-		if (sys_data.display.h2 == 128) cachesize += 105 << 10;
+		if (sys_data.display.h2 <= 128) cachesize += 105 << 10;
 		if (cachesize > 4 << 20) cachesize = 4 << 20;
 		maxcache1dsize = cachesize;
 	}
@@ -147,6 +147,7 @@ enum {
 	X(0x34, DOT)
 	X(0x39, SPACE)
 	X(0x3a, CAPSLOCK)
+	X(0x57, F11)
 	X(0xc8, UP)
 	X(0xcb, LEFT)
 	X(0xcd, RIGHT)
@@ -197,6 +198,7 @@ void keytrn_init(void) {
 		KEY(LSOFT, KEY_EQUALS)
 		KEY(RSOFT, KEY_MINUS)
 		KEY(DIAL, KEY_TAB) /* map */
+		KEY(0, KEY_F11) /* gamma */
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);
@@ -343,6 +345,11 @@ int setvideomode(int x, int y, int c, int fs) {
 
 	getvalidmodes();
 	x = disp->w2; y = disp->h2;
+	if (y <= 68) {
+		x = 320;
+		if (y == 68) y = 226;
+		else y = 224;
+	}
 	if (sys_data.scaler == 1) x <<= 1, y <<= 1;
 	buildprintf("Setting video mode %dx%d\n", x, y);
 
@@ -482,37 +489,72 @@ DEF(void, scr_update_1d2, (uint8_t *s, void *dest)) {
 
 /* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
 DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
-	uint8_t *d = (uint8_t*)dest;
-	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, y, h = 224;
+	uint8_t *d = (uint8_t*)dest, *c8 = dest - 256;
+	unsigned x, y, h = 64;
 	uint32_t a, b, t;
 // 00112 23344
-#define X(op) \
-	a op (c8[s2[0]] + c8[s2[1]]) * 2; \
-	a += t = c8[s2[2]]; \
-	b op t + (c8[s2[3]] + c8[s2[4]]) * 2;
+#define X \
+	t = c8[s2[2]]; t += t << 16; \
+	t += (c8[s2[0]] + c8[s2[1]]) << 1; \
+	t += (c8[s2[3]] + c8[s2[4]]) << 17; \
+	s2 += 320; a += t << 1;
 	do {
 		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = (a + 7) * 0x8889 >> 19; // div15
-			b = (b + 7) * 0x8889 >> 19;
+			const uint8_t *s2 = s;
+			for (a = 0, y = 0; y < 4; y++) { X }
+			a -= t;
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
 			*d++ = (a + 1) >> 1;
 			*d++ = (b + 1) >> 1;
+			for (a = t, y = 0; y < 3; y++) { X }
+			b = a >> 16; a &= 0xffff;
+			a = (a + 35 / 2) * 0xea0f >> 21; // div35
+			b = (b + 35 / 2) * 0xea0f >> 21;
+			d[126] = (a + 1) >> 1;
+			d[127] = (b + 1) >> 1;
+		}
+		s += 320 * 6; d += 128;
+	} while ((h -= 2));
+#undef X
+}
+
+DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest;
+	uint8_t *c8 = (uint8_t*)dest - 256;
+	unsigned x, y = 0, h = 68; // (3+3+4)*22+3+3
+	uint32_t a, b, c, t0, t1;
+// 0001112223 3344455566 6777888999
+#define X(op) \
+	a op (c8[s2[0]] + c8[s2[1]] + c8[s2[2]]) * 3; \
+	a += t0 = c8[s2[3]]; \
+	b op t0 * 2 + (c8[s2[4]] + c8[s2[5]]) * 3; \
+	b += (t1 = c8[s2[6]]) * 2; \
+	c op t1 + (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) * 3;
+	// (3+3+4)*22+3+3
+	do {
+		for (x = 0; x < 320; x += 10, s += 10) {
+			uint8_t *s2 = s; uint32_t m;
+			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
+			m = 0x8889 * 2; // div30
+			if (y == 2) {
+				s2 += 320; X(+=)
+				m = 0xcccd; // div40
+			}
+			a = a * m + 0xfc000;
+			b = b * m + 0xfc000;
+			c = c * m + 0xfc000;
+			a = (a + (a >> 7 & 0x4000)) >> 21;
+			b = (b + (b >> 7 & 0x4000)) >> 21;
+			c = (c + (c >> 7 & 0x4000)) >> 21;
+			*d++ = (a + 1) >> 1;
+			*d++ = (b + 1) >> 1;
+			*d++ = (c + 1) >> 1;
 		}
 		s += 320 * 2;
-		for (x = 0; x < 320; x += 5, s += 5) {
-			uint8_t *s2 = s;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=) s2 += 320; X(+=)
-			a = a * 0xcccd + 0x7c000; // div20
-			b = b * 0xcccd + 0x7c000;
-			a = (a + (a >> 6 & 0x4000)) >> 20;
-			b = (b + (b >> 6 & 0x4000)) >> 20;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
-		}
-		s += 320 * 3;
-	} while ((h -= 7));
+		if (++y == 3) s += 320, y = 0;
+	} while ((h -= 1));
 #undef X
 }
 
@@ -526,7 +568,7 @@ extern int scr_update_data[2];
 #endif
 
 uint8_t *framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -534,6 +576,7 @@ uint8_t *framebuffer_init(void) {
 		{ pal_update16, scr_update_1d1 },
 		{ pal_update32, scr_update_1d2 },
 		{ pal_update8, scr_update_128x64 },
+		{ pal_update8, scr_update_96x68 },
 	};
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
@@ -546,8 +589,9 @@ uint8_t *framebuffer_init(void) {
 	dest += size2;
 
 #ifdef USE_ASM
-	scr_update_data[0] = w << mode;
-	scr_update_data[1] = h << mode;
+	if (mode == 1) w <<= 1, h <<= 1;
+	scr_update_data[0] = w;
+	scr_update_data[1] = h;
 #endif
 	app_pal_update = fn[mode].pal_update;
 	app_scr_update = fn[mode].scr_update;
@@ -557,9 +601,9 @@ uint8_t *framebuffer_init(void) {
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1, mode;
-	if (w == 128 && h == 64) {
-		w = 320; h = 224; mode = 2;
-	} else {
+	if (w == 128 && h == 64) mode = 2;
+	else if (w == 96 && h == 68) mode = 3;
+	else {
 		if (h > w) h = w;
 		mode = h <= 128;
 	}

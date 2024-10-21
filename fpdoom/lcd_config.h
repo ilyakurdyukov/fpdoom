@@ -1405,6 +1405,7 @@ static const uint8_t cmd1230_init[] = {
 	LCM_DELAY(120),
 	LCM_CMD(0x2f, 0), // Power Control (VB=1, VR=1, VF=1)
 	LCM_DELAY(50),
+	// RR and EV commands seem to be ignored
 	LCM_CMD(0x24, 0), // Regulation Ratio (4)
 	LCM_CMD(0x8b, 0), // Electronic Volume (EV=0xb)
 	//LCM_CMD(0xb0, 0), // Set Page Address

@@ -42,6 +42,13 @@ void keytrn_init(void) {
 		KEY(RSOFT, KEY_MINUS)
 		KEY(DIAL, KEY_TAB) /* map */
 		KEY(0, KEY_F11) /* gamma */
+		/* for cheats */
+		KEY(1, 'i')
+		KEY(2, 'd')
+		KEY(3, 'q')
+		KEY(4, 'k')
+		KEY(5, 'f')
+		KEY(6, 'a')
 #undef KEY
 	};
 	int i, flags = sys_getkeymap(keymap);

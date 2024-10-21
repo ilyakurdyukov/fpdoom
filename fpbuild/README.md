@@ -33,6 +33,14 @@ Port of games on the Build Engine. Using [jfbuild](https://github.com/jonof/jfbu
 | *              | crouch             |
 | 0              | next item          |
 | 8              | use item           |
+| Power + Center | use                |
+| Power + Up     | run on/off         |
+| Power + Down   | open/close menu    |
+| Power + L/R    | prev/next weapon   |
+| Power + LSoft  | zoom in            |
+| Power + RSoft  | zoom out           |
+| Power + Dial   | map                |
+| Power + 0      | gamma (0..7)       |
 
 ### Issues
 
