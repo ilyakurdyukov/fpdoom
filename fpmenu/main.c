@@ -113,7 +113,7 @@ static void draw_menu_adv(draw_t *draw, int adv) {
 
 /* 888 -> 565 */
 #define RGB565(v) \
-	(((v) >> 8 & 0xf800) | ((v) >> 5 & 0x7e0) | ((v) >> 3 & 0x1e))
+	(((v) >> 8 & 0xf800) | ((v) >> 5 & 0x7e0) | ((v) >> 3 & 0x1f))
 
 static unsigned menu_count(char *p, unsigned lim) {
 	unsigned i = 0;

@@ -346,9 +346,9 @@ int setvideomode(int x, int y, int c, int fs) {
 	getvalidmodes();
 	x = disp->w2; y = disp->h2;
 	if (y <= 68) {
-		x = 320;
-		if (y == 68) y = 226;
-		else y = 224;
+		int h = y;
+		x = 320; y = 224;
+		if (h == 68) y = 226;
 	}
 	if (sys_data.scaler == 1) x <<= 1, y <<= 1;
 	buildprintf("Setting video mode %dx%d\n", x, y);
@@ -489,72 +489,73 @@ DEF(void, scr_update_1d2, (uint8_t *s, void *dest)) {
 
 /* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
 DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
-	uint8_t *d = (uint8_t*)dest, *c8 = dest - 256;
+	uint8_t *d = (uint8_t*)dest, *c8 = d - 256;
 	unsigned x, y, h = 64;
 	uint32_t a, b, t;
 // 00112 23344
-#define X \
-	t = c8[s2[2]]; t += t << 16; \
-	t += (c8[s2[0]] + c8[s2[1]]) << 1; \
-	t += (c8[s2[3]] + c8[s2[4]]) << 17; \
-	s2 += 320; a += t << 1;
+#define X(a0, n, a1) \
+	for (a = a0, y = 0; y < n; y++) { \
+		t = c8[s2[2]]; t += t << 16; \
+		t += (c8[s2[0]] + c8[s2[1]]) << 1; \
+		t += (c8[s2[3]] + c8[s2[4]]) << 17; \
+		s2 += 320; a += t << 1; \
+	} \
+	a -= a1; b = a >> 16; a &= 0xffff; \
+	a = (a * 0xea0f + (3 << 20)) >> 22; /* div35 */ \
+	b = (b * 0xea0f + (3 << 20)) >> 22;
 	do {
-		for (x = 0; x < 320; x += 5, s += 5) {
+		for (x = 0; x < 128; x += 2, s += 5) {
 			const uint8_t *s2 = s;
-			for (a = 0, y = 0; y < 4; y++) { X }
-			a -= t;
-			b = a >> 16; a &= 0xffff;
-			a = (a + 35 / 2) * 0xea0f >> 21; // div35
-			b = (b + 35 / 2) * 0xea0f >> 21;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
-			for (a = t, y = 0; y < 3; y++) { X }
-			b = a >> 16; a &= 0xffff;
-			a = (a + 35 / 2) * 0xea0f >> 21; // div35
-			b = (b + 35 / 2) * 0xea0f >> 21;
-			d[126] = (a + 1) >> 1;
-			d[127] = (b + 1) >> 1;
+			X(0, 4, t) *d++ = a; *d++ = b;
+			X(t, 3, 0) d[126] = a; d[127] = b;
 		}
 		s += 320 * 6; d += 128;
 	} while ((h -= 2));
 #undef X
 }
 
-DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
-	uint8_t *d = (uint8_t*)dest;
-	uint8_t *c8 = (uint8_t*)dest - 256;
-	unsigned x, y = 0, h = 68; // (3+3+4)*22+3+3
-	uint32_t a, b, c, t0, t1;
 // 0001112223 3344455566 6777888999
-#define X(op) \
-	a op (c8[s2[0]] + c8[s2[1]] + c8[s2[2]]) * 3; \
-	a += t0 = c8[s2[3]]; \
-	b op t0 * 2 + (c8[s2[4]] + c8[s2[5]]) * 3; \
-	b += (t1 = c8[s2[6]]) * 2; \
-	c op t1 + (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) * 3;
-	// (3+3+4)*22+3+3
+DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest, *c8 = d - 256;
+	unsigned x, y = 0, h = 68 / 3;
+	uint32_t a0, a1, t0, t1, t2, t3;
+#define X1 \
+	y += 10; do { \
+		t0 = c8[s2[0]] + c8[s2[1]] + c8[s2[2]]; \
+		t0 += (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) << 16; \
+		t2 = c8[s2[3]] + (c8[s2[6]] << 16); \
+		t1 = c8[s2[4]] + c8[s2[5]]; s2 += 320; \
+		t0 += (t0 << 1) + t2; \
+		t1 += (t1 + t2) << 1; \
+		a0 += t0 + (t0 << 1); \
+		a1 += t1 + (t1 << 1); \
+	} while ((int)(y -= 3) > 0); \
+	t2 = a0 + (t0 *= y); a0 = -t0; \
+	t3 = a1 + (t1 *= y); a1 = -t1; \
+	t3 = (t3 + (t3 << 16)) >> 16; \
+	t0 = t2 & 0xffff; t1 = t2 >> 16; \
+	d[0] = (t0 * 0x147b + (3 << 18)) >> 20; /* div100 */ \
+	d[1] = (t3 * 0x147b + (3 << 18)) >> 20; \
+	d[2] = (t1 * 0x147b + (3 << 18)) >> 20; d += 96;
+
 	do {
-		for (x = 0; x < 320; x += 10, s += 10) {
-			uint8_t *s2 = s; uint32_t m;
-			X(=) s2 += 320; X(+=) s2 += 320; X(+=)
-			m = 0x8889 * 2; // div30
-			if (y == 2) {
-				s2 += 320; X(+=)
-				m = 0xcccd; // div40
-			}
-			a = a * m + 0xfc000;
-			b = b * m + 0xfc000;
-			c = c * m + 0xfc000;
-			a = (a + (a >> 7 & 0x4000)) >> 21;
-			b = (b + (b >> 7 & 0x4000)) >> 21;
-			c = (c + (c >> 7 & 0x4000)) >> 21;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
-			*d++ = (c + 1) >> 1;
+		for (x = 0; x < 32; x++, s += 10, d += 3 - 96 * 3) {
+			const uint8_t *s2 = s;
+			a0 = a1 = 0;
+			do { X1 } while (y);
 		}
-		s += 320 * 2;
-		if (++y == 3) s += 320, y = 0;
-	} while ((h -= 1));
+		s += 320 * 9; d += 96 * 2;
+	} while (--h);
+	for (x = 0; x < 32; x++, s += 10, d += 3 - 96 * 2) {
+		const uint8_t *s2 = s;
+		a0 = a1 = 0;
+		for (;;) {
+			X1 if (!y) break;
+			y -= 2; t0 = 255 * 10; t0 |= t0 << 16;
+			a0 += t0 << 1; a1 += t0;
+		}
+	}
+#undef X1
 #undef X
 }
 
@@ -565,6 +566,8 @@ extern int scr_update_data[2];
 #define pal_update32 pal_update32_asm
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
+#define scr_update_128x64 scr_update_128x64_asm
+#define scr_update_96x68 scr_update_96x68_asm
 #endif
 
 uint8_t *framebuffer_init(void) {
@@ -589,7 +592,6 @@ uint8_t *framebuffer_init(void) {
 	dest += size2;
 
 #ifdef USE_ASM
-	if (mode == 1) w <<= 1, h <<= 1;
 	scr_update_data[0] = w;
 	scr_update_data[1] = h;
 #endif
@@ -601,9 +603,10 @@ uint8_t *framebuffer_init(void) {
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1, mode;
-	if (w == 128 && h == 64) mode = 2;
-	else if (w == 96 && h == 68) mode = 3;
-	else {
+	if (h <= 68) {
+		mode = 2;
+		if (h == 68) mode = 3;
+	} else {
 		if (h > w) h = w;
 		mode = h <= 128;
 	}

@@ -32,7 +32,7 @@ static int SaveSRAM(void);
 
 /* 888 -> 5515 */
 #define RGB555(v) \
-	(((v) >> 8 & 0xf800) | ((v) >> 5 & 0x7c0) | ((v) >> 3 & 0x1e))
+	(((v) >> 8 & 0xf800) | ((v) >> 5 & 0x7c0) | ((v) >> 3 & 0x1f))
 
 WORD NesPalette[64] = { /* ARGB1555 */
 #define X(a, b, c, d) RGB555(a), RGB555(b), RGB555(c), RGB555(d),
@@ -67,7 +67,9 @@ void lcd_appinit(void) {
 	if (h > w) h = w;
 	if (scaler >= 99) crop = 8, scaler -= 100;
 	if (scaler >= 49) wide = 1, scaler -= 50;
-	if ((unsigned)scaler >= 4) {
+	if (h <= 68) {
+		scaler = 4; crop = 8; wide = h == 68;
+	} else if ((unsigned)scaler >= 4) {
 		if (h >= 320) scaler = 2;
 		else if (h >= 240) scaler = 0;
 		else if (h >= 176) scaler = 3;
@@ -79,12 +81,12 @@ void lcd_appinit(void) {
 	} else if (scaler == 3) {
 		w = wide ? 220 : 188;
 		h = 176; if (crop) h -= 11;
-	} else {
+	} else if (scaler < 2) {
 		int sh = scaler == 1;
 		w = (wide ? 320 : 256) >> sh;
 		h = (240 - crop * 2) >> sh;
 	}
-	sys_data.scaler = scaler * 2 | wide;
+	sys_data.scaler = scaler << 1 | wide;
 	sys_data.user[0] = crop;
 	disp->w2 = w;
 	disp->h2 = h;
@@ -109,6 +111,18 @@ static void framebuf_init(void) {
 }
 
 int main(int argc, char **argv) {
+
+	if (sys_data.mac & 0x100) {
+		unsigned i, r, g, b;
+		for (i = 0; i < 64; i++) {
+			b = NesPalette[i];
+			r = b >> 8 & 0xf8; r |= r >> 5;
+			g = b >> 3 & 0xf8; g |= g >> 5;
+			b = b << 3 & 0xf8; b |= b >> 5;
+			r = (r * 4899 + g * 9617 + b * 1868 + 0x2000) >> 14;
+			NesPalette[i] = r << 8;
+		}
+	}
 
 	while (argc > 1) {
 		if (argc > 2 && !strcmp(argv[1], "--scanline_step")) {

@@ -476,7 +476,7 @@ CODE32_FN scr_update_3d2_asm
 	mov	r3, #212
 	ldr	r12, =0x00400802
 	ldr	r10, =0xf81f07e0
-	blx	4f
+	bl	4f
 	mov	lr, #320
 1:	sub	r3, #320 << 16
 2:
@@ -568,7 +568,7 @@ CODE32_FN scr_update_3d2_asm
 	add	r1, #480 * 4
 	subs	r3, #2
 	bhi	1b
-	blx	4f
+	bl	4f
 	pop	{r4-r11,pc}
 
 4:	mov	r4, #0x3fc
@@ -649,15 +649,15 @@ CODE32_FN scr_update_25x24d20_asm
 	and	r9, r10, r9, lsl #2
 	orr	r8, r8, r8, lsr #16
 	orr	r9, r9, r9, lsr #16
-	strh	r8, [r0], #10
-	strh	r11, [r0, #-8]
-	strh	r5, [r0, #-6]
-	strh	r12, [r0, #-4]
-	strh	r9, [r0, #-2]
+	strh	r8, [r1], #10
+	strh	r11, [r1, #-8]
+	strh	r5, [r1, #-6]
+	strh	r12, [r1, #-4]
+	strh	r9, [r1, #-2]
 	bmi	3b
 
 	sub	r3, #320 << 16
-2:	ldr	r8, [r0, #400]
+2:	ldr	r8, [r0, #320]
 	ldr	r6, [r0], #4
 	adds	r3, #4 << 16
 
@@ -718,9 +718,9 @@ CODE32_FN scr_update_25x24d20_asm
 	orr	r6, r6, r6, lsr #16
 	orr	r5, r5, r5, lsr #16
 	orr	r7, r7, r7, lsr #16
-	strh	r6, [r0, #-8]
-	strh	r5, [r0, #-6]
-	strh	r7, [r0, #-4]
+	strh	r6, [r1, #-8]
+	strh	r5, [r1, #-6]
+	strh	r7, [r1, #-4]
 	add	r1, #400 * 2
 
 	// bottom
@@ -735,4 +735,153 @@ CODE32_FN scr_update_25x24d20_asm
 	subs	r3, #5
 	bhi	1b
 9:	pop	{r4-r11,pc}
+
+CODE32_FN scr_update_128x64_asm
+	push	{r4-r9,lr}
+	sub	r2, r1, #256
+	mov	r3, #64
+	ldr	r8, =0xea0f // div35
+	mov	r9, #3 << (21 - 1)
+1:	sub	r3, #128 << 16
+2:	mov	r6, #7
+	mov	r12, #0
+	bl	3f
+	strh	r4, [r1], #2
+	mov	r6, #6
+	mov	r12, r7
+	bl	3f
+	strh	r4, [r1, #126]
+	add	r0, #5
+	adds	r3, #2 << 16
+	sub	r0, #320 * 7
+	bmi	2b
+	add	r0, #320 * 6
+	add	r1, #128
+	subs	r3, #2
+	bhi	1b
+	pop	{r4-r9,pc}
+
+3:	ldrb	r4, [r0, #4]
+	ldrb	r5, [r0, #3]
+	ldrb	r7, [r0, #2]
+	ldrb	r4, [r2, r4]
+	ldrb	r5, [r2, r5]
+	ldrb	r7, [r2, r7]
+	add	r4, r5
+	add	r7, r7, r7, lsl #16
+	add	r7, r7, r4, lsl #17
+	ldrb	r4, [r0, #1]
+	ldrb	r5, [r0], #320
+	ldrb	r4, [r2, r4]
+	ldrb	r5, [r2, r5]
+	add	r4, r5
+	add	r7, r7, r4, lsl #1
+	add	r12, r12, r7, lsl #1
+	subs	r6, #2
+	bhi	3b
+	sublo	r12, r7
+	lsr	r5, r12, #16
+	sub	r4, r12, r5, lsl #16
+	mla	r5, r8, r5, r9
+	mla	r4, r8, r4, r9
+	lsr	r5, #21 + 1
+	lsr	r4, #21 + 1
+	orr	r4, r4, r5, lsl #8
+	bx	lr
+
+CODE32_FN scr_update_96x68_asm
+	push	{r4-r11,lr}
+	sub	r2, r1, #256
+	mov	r3, #68 / 3
+	ldr	r8, =0x147b // div100
+	mov	r10, #3 << 18
+	mov	r11, #0 // a0
+	mov	r12, #0 // a1
+	mov	r6, #0 // y
+1:	sub	r3, #32 << 16
+2:	bl	3f
+	bl	3f
+	bl	3f
+	add	r0, #10
+	add	r1, #3
+	sub	r0, #320 * 10
+	sub	r1, #96 * 3
+	adds	r3, #1 << 16
+	bmi	2b
+	add	r0, #320 * 9
+	add	r1, #96 * 2
+	subs	r3, #1
+	bhi	1b
+	sub	r3, #32 << 16
+2:	bl	3f
+	ldr	r4, =0xff00ff * 10
+	sub	r6, #2
+	add	r11, r11, r4, lsl #1
+	add	r12, r12, r4
+	bl	3f
+	add	r0, #10
+	sub	r1, #96 * 2 - 3
+	sub	r0, #320 * 6
+	adds	r3, #1 << 16
+	bmi	2b
+	pop	{r4-r11,pc}
+
+3:	add	r6, #10
+4:	ldrb	r4, [r0, #1]
+	ldrb	r5, [r0, #2]
+	ldrb	r7, [r0, #7]
+	ldrb	r4, [r2, r4]
+	ldrb	r5, [r2, r5]
+	ldrb	r7, [r2, r7]
+	add	r4, r5
+	ldrb	r5, [r0, #8]
+	add	r4, r4, r7, lsl #16
+	ldrb	r7, [r0, #9]
+	ldrb	r5, [r2, r5]
+	ldrb	r7, [r2, r7]
+	add	r4, r4, r5, lsl #16
+	add	r4, r4, r7, lsl #16
+	ldrb	r5, [r0, #4]
+	ldrb	r7, [r0, #5]
+	ldrb	r5, [r2, r5]
+	ldrb	r7, [r2, r7]
+	ldrb	r9, [r0, #3]
+	add	r5, r7	// t1
+	ldrb	r7, [r0, #6]
+	ldrb	r9, [r2, r9]
+	ldrb	r7, [r2, r7]
+	add	r5, r5, r5, lsl #1
+	add	r9, r9, r7, lsl #16	// t2
+	ldrb	r7, [r0], #320
+	add	r5, r5, r9, lsl #1
+	ldrb	r7, [r2, r7]
+	add	r12, r5
+	add	r4, r7	// t0
+	add	r4, r4, r4, lsl #1
+	add	r4, r9
+	add	r11, r4
+	add	r12, r12, r5, lsl #1
+	add	r11, r11, r4, lsl #1
+	subs	r6, #3
+	bhi	4b
+	mul	r4, r6, r4	// t0
+	mul	r5, r6, r5	// t1
+	add	r7, r11, r4	// t2
+	add	r9, r12, r5	// t3
+	rsb	r11, r4, #0	// a0
+	rsb	r12, r5, #0	// a1
+	add	r9, r9, r9, lsl #16
+	lsr	r5, r7, #16	// t1
+	lsr	r9, #16		// t3
+	sub	r4, r7, r5, lsl #16	// t0
+	mla	r9, r8, r9, r10
+	mla	r5, r8, r5, r10
+	mla	r4, r8, r4, r10
+	lsr	r9, #20
+	lsr	r5, #20
+	lsr	r4, #20
+	strb	r9, [r1, #1]
+	strb	r5, [r1, #2]
+	strb	r4, [r1], #96
+	bx	lr
 

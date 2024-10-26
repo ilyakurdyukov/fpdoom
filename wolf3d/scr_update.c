@@ -171,33 +171,73 @@ DEF(uint8_t*, scr_update_128x64, (uint8_t *d, const uint8_t *s, uint8_t *c8, uns
 	unsigned x, y;
 	uint32_t a, b, t;
 // 00112 23344
-#define X \
-	t = c8[s2[2]]; t += t << 16; \
-	t += (c8[s2[0]] + c8[s2[1]]) << 1; \
-	t += (c8[s2[3]] + c8[s2[4]]) << 17; \
-	s2 += 320; a += t << 1;
+#define X(a0, n, a1) \
+	for (a = a0, y = 0; y < n; y++) { \
+		t = c8[s2[2]]; t += t << 16; \
+		t += (c8[s2[0]] + c8[s2[1]]) << 1; \
+		t += (c8[s2[3]] + c8[s2[4]]) << 17; \
+		s2 += 320; a += t << 1; \
+	} \
+	a -= a1; b = a >> 16; a &= 0xffff; \
+	a = (a * 0xea0f + (3 << 20)) >> 22; /* div35 */ \
+	b = (b * 0xea0f + (3 << 20)) >> 22;
 	do {
-		for (x = 0; x < 320; x += 5, s += 5) {
+		for (x = 0; x < 128; x += 2, s += 5) {
 			const uint8_t *s2 = s;
-			for (a = 0, y = 0; y < 4; y++) { X }
-			a -= t;
-			b = a >> 16; a &= 0xffff;
-			a = (a + 35 / 2) * 0xea0f >> 21; // div35
-			b = (b + 35 / 2) * 0xea0f >> 21;
-			*d++ = (a + 1) >> 1;
-			*d++ = (b + 1) >> 1;
+			X(0, 4, t) *d++ = a; *d++ = b;
 			if (h == 1) continue;
-			for (a = t, y = 0; y < 3; y++) { X }
-			b = a >> 16; a &= 0xffff;
-			a = (a + 35 / 2) * 0xea0f >> 21; // div35
-			b = (b + 35 / 2) * 0xea0f >> 21;
-			d[126] = (a + 1) >> 1;
-			d[127] = (b + 1) >> 1;
+			X(t, 3, 0) d[126] = a; d[127] = b;
 		}
 		s += 320 * 6; d += 128;
 	} while ((int)(h -= 2) > 0);
 #undef X
 	return d - ((h & 1) << 7);
+}
+
+DEF(uint8_t*, scr_update_96x68, (uint8_t *d, const uint8_t *s, uint8_t *c8, unsigned h)) {
+	unsigned x, y = 0;
+	uint32_t a0, a1, t0, t1, t2, t3;
+#define X1 \
+	y += 10; do { \
+		t0 = c8[s2[0]] + c8[s2[1]] + c8[s2[2]]; \
+		t0 += (c8[s2[7]] + c8[s2[8]] + c8[s2[9]]) << 16; \
+		t2 = c8[s2[3]] + (c8[s2[6]] << 16); \
+		t1 = c8[s2[4]] + c8[s2[5]]; s2 += 320; \
+		t0 += (t0 << 1) + t2; \
+		t1 += (t1 + t2) << 1; \
+		a0 += t0 + (t0 << 1); \
+		a1 += t1 + (t1 << 1); \
+	} while ((int)(y -= 3) > 0); \
+	t2 = a0 + (t0 *= y); a0 = -t0; \
+	t3 = a1 + (t1 *= y); a1 = -t1; \
+	t3 = (t3 + (t3 << 16)) >> 16; \
+	t0 = t2 & 0xffff; t1 = t2 >> 16; \
+	d[0] = (t0 * 0x147b + (3 << 18)) >> 20; /* div100 */ \
+	d[1] = (t3 * 0x147b + (3 << 18)) >> 20; \
+	d[2] = (t1 * 0x147b + (3 << 18)) >> 20; d += 96;
+
+	h -= 2;
+	do {
+		for (x = 0; x < 32; x++, s += 10, d += 3 - 96 * 3) {
+			const uint8_t *s2 = s;
+			a0 = a1 = 0;
+			do { X1 } while (y);
+		}
+		s += 320 * 9; d += 96 * 2;
+	} while ((int)(h -= 3) > 0);
+	if (h) return d;
+	for (x = 0; x < 32; x++, s += 10, d += 3 - 96 * 2) {
+		const uint8_t *s2 = s;
+		a0 = a1 = 0;
+		for (;;) {
+			X1 if (!y) break;
+			y -= 2; t0 = 255 * 10; t0 |= t0 << 16;
+			a0 += t0 << 1; a1 += t0;
+		}
+	}
+	return d + 96;
+#undef X1
+#undef X
 }
 
 #undef DEF
@@ -306,6 +346,19 @@ static void wlsys_refresh_128x64(const uint8_t *src, int type) {
 	}
 }
 
+static void wlsys_refresh_96x68(const uint8_t *src, int type) {
+	uint8_t *d = (uint8_t*)framebuf, *pal8 = d - 256;
+	unsigned w = 96, v;
+	if (type == 0) {
+		v = pal8[src[0]]; v = (v + 1) >> 1;
+		memset(d, v, w * 4); d += w * 4;
+		d = scr_update_96x68(d, src, pal8, 60);
+		memset(d, v, w * 4);
+	} else {
+		scr_update_96x68(d, src, pal8, 68);
+	}
+}
+
 void (*fizzlePixel)(unsigned x, unsigned y, uint8_t *src);
 
 static void fizzlePixel_1d1(unsigned x, unsigned y, uint8_t *src) {
@@ -354,7 +407,7 @@ typedef void (*wlsys_refresh_t)(const uint8_t *src, int type);
 static const wlsys_refresh_t wlsys_refresh_fn[] = {
 	wlsys_refresh_1d1, wlsys_refresh_1d2,
 	wlsys_refresh_3d2, wlsys_refresh_25x24d20,
-	wlsys_refresh_128x64,
+	wlsys_refresh_128x64, wlsys_refresh_96x68,
 };
 
 int force_refresh_type;

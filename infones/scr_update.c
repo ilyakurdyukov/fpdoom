@@ -311,6 +311,68 @@ DEF(void, scr_update_90x77d105, (void *src, uint16_t *d, unsigned h)) {
 #undef X3
 #undef X4
 
+/* display aspect ratio 7:5, LCD pixel aspect ratio 7:10 */
+DEF(void, scr_update_128x64, (void *src, uint16_t *dst, unsigned h)) {
+	uint8_t *s = (uint8_t*)src, *d = (uint8_t*)dst;
+	unsigned x, y;
+	uint32_t a, b, t;
+// 00112 23344
+#define X(a0, n, a1) \
+	for (a = a0, y = 0; y < n; y++) { \
+		t = s2[1] + s2[3]; \
+		t += (s2[5] + s2[7]) << 16; \
+		s2 += 512; a += t << 1; \
+	} \
+	a -= a1; b = a >> 16; a &= 0xffff; \
+	a = a * 0x924a + 0x3c000; /* div14 */ \
+	b = b * 0x924a + 0x3c000; \
+	a = (a + (a >> 5 & 0x4000) + 0x80000) >> (19 + 1); \
+	b = (b + (b >> 5 & 0x4000) + 0x80000) >> (19 + 1);
+	do {
+		for (x = 0; x < 128; x += 2, s += 8) {
+			const uint8_t *s2 = s;
+			X(0, 4, t) *d++ = a; *d++ = b;
+			X(t, 3, 0) d[126] = a; d[127] = b;
+		}
+		s += 512 * 6; d += 128;
+	} while ((h -= 7));
+#undef X
+}
+
+// 00011122 23334445 55666777
+DEF(void, scr_update_96x68, (void *src, uint16_t *dst, unsigned h)) {
+	uint8_t *s = (uint8_t*)src, *d = (uint8_t*)dst;
+	unsigned x, y = 0;
+	uint32_t a0, a1, a2, t0, t1, t2, t3;
+	do {
+		for (x = 0; x < 96; x += 3, s += 16, d += 3) {
+			const uint8_t *s2 = s;
+			a0 = a1 = a2 = 0;
+			do {
+				y += 56;
+				do {
+					t0 = s2[1] + s2[3];
+					t1 = s2[7] + s2[9]; t1 += t1 << 1;
+					t2 = s2[13] + s2[15];
+					t1 += t3 = s2[5]; t0 += (t0 + t3) << 1;
+					t1 += t3 = s2[11]; t2 += (t2 + t3) << 1;
+					s2 += 512;
+					a0 += t0 + (t0 << 4);
+					a1 += t1 + (t1 << 4);
+					a2 += t2 + (t2 << 4);
+				} while ((int)(y -= 17) > 0);
+#define X(i) a##i += t##i *= y; \
+	a##i = (a##i * 0x4925 + (3 << 22)) >> 24; /* div448 */ \
+	d[i] = a##i; a##i = -t##i;
+				X(0) X(1) X(2) d += 96;
+#undef X
+			} while (y);
+			d -= 96 * 17;
+		}
+		s += 512 * (56 - 1); d += 96 * (17 - 1);
+	} while ((h -= 56));
+}
+
 #undef DEF
 #ifdef USE_ASM
 #define scr_update_1d1 scr_update_1d1_asm
@@ -327,6 +389,7 @@ const scr_update_t scr_update_fn[] = {
 	scr_update_1d1, scr_update_5x4d4,
 	scr_update_1d2, scr_update_5x4d8,
 	scr_update_4d3, scr_update_5x4d3,
-	scr_update_11d15, scr_update_90x77d105
+	scr_update_11d15, scr_update_90x77d105,
+	scr_update_128x64, scr_update_96x68,
 };
 

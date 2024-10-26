@@ -1714,7 +1714,7 @@ index 0b72c63..739259f 100644
  //
  // JAPANESE VERSION
 diff --git a/wl_play.c b/wl_play.c
-index 4bc2a13..2e13e41 100644
+index 4bc2a13..585e1f6 100644
 --- a/wl_play.c
 +++ b/wl_play.c
 @@ -54,7 +54,12 @@ unsigned tics;
@@ -1755,7 +1755,7 @@ index 4bc2a13..2e13e41 100644
  }
  
  
-@@ -558,6 +568,13 @@ void CheckKeys (void)
+@@ -558,6 +568,16 @@ void CheckKeys (void)
      if (Keyboard[sc_Tab] && Keyboard[sc_G] && Keyboard[sc_F10])
      {
          WindowH = 160;
@@ -1764,12 +1764,15 @@ index 4bc2a13..2e13e41 100644
 +    if (Keyboard[sc_G] && Keyboard[sc_Y])
 +    {
 +        WindowH = screenHeight / scaleFactor - 40;
++#define Message(str) { \
++  int old_refresh = force_refresh_type; force_refresh_type = 1; \
++  Message(str); force_refresh_type = old_refresh; }
 +#endif
 +#if defined(SPEAR) || defined(EMBEDDED)
          if (godmode)
          {
              Message ("God mode OFF");
-@@ -581,7 +598,11 @@ void CheckKeys (void)
+@@ -581,7 +601,11 @@ void CheckKeys (void)
      //
      // SECRET CHEAT CODE: 'MLI'
      //
@@ -1781,7 +1784,7 @@ index 4bc2a13..2e13e41 100644
      {
          gamestate.health = 100;
          gamestate.ammo = 99;
-@@ -611,6 +632,7 @@ void CheckKeys (void)
+@@ -611,6 +635,7 @@ void CheckKeys (void)
      //
      // OPEN UP DEBUG KEYS
      //
@@ -1789,30 +1792,17 @@ index 4bc2a13..2e13e41 100644
  #ifdef DEBUGKEYS
      if (Keyboard[sc_BackSpace] && Keyboard[sc_LShift] && Keyboard[sc_Alt] && param_debugmode)
      {
-@@ -683,6 +705,9 @@ void CheckKeys (void)
+@@ -683,6 +708,10 @@ void CheckKeys (void)
      }
  
      if ((scan >= sc_F1 && scan <= sc_F9) || scan == sc_Escape || buttonstate[bt_esc])
 +#else
++#undef Message
 +    if (scan == sc_Escape || buttonstate[bt_esc])
 +#endif
      {
          int lastoffs = StopMusic ();
          ClearMemory ();
-@@ -1318,7 +1343,13 @@ void PlayLoop (void)
-         if (screenfaded)
-             VW_FadeIn ();
- 
-+#ifdef EMBEDDED
-+        force_refresh_type = 1;
-+#endif
-         CheckKeys ();
-+#ifdef EMBEDDED
-+        force_refresh_type = 0;
-+#endif
- 
- //
- // debug aids
 diff --git a/wl_scale.c b/wl_scale.c
 index 0b1bf03..6745e5e 100644
 --- a/wl_scale.c
