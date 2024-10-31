@@ -913,6 +913,50 @@ static const uint8_t cmd7C89F0_init[] = {
 	LCM_END
 };
 
+#if LIBC_SDIO == 0
+static const uint8_t cmd1306_init[] = {
+	LCM_DELAY(20),
+	LCM_CMD(0xae, 0), // Display OFF
+	//LCM_CMD(0x00, 0), // Set Column Address (low)
+	//LCM_CMD(0x12, 0), // Set Column Address (high)
+	LCM_CMD(0x40, 0), // Set Start Line (0)
+	//LCM_CMD(0xb0, 0), // Set Page Address
+	LCM_CMD(0x81, 0), // Set Contrast Control
+#if 0 // orig
+	LCM_CMD(0xff, 0), // (value)
+#else
+	LCM_CMD(0x80, 0), // (value)
+#endif
+	//LCM_CMD(0xa1, 0), // SEG Direction (MX=1)
+	//LCM_CMD(0xa7, 0), // Inverse Display (INV=1)
+	LCM_CMD(0xa8, 0), // Set Multiplex Ratio
+	LCM_CMD(0x2f, 0), // (value)
+	//LCM_CMD(0xc8, 0), // COM Direction (MY=1)
+	LCM_CMD(0xd3, 0), // Set Display Offset
+	LCM_CMD(0x00, 0), // (value)
+	LCM_CMD(0xd5, 0), // Set Display Clock
+#if 0 // orig
+	LCM_CMD(0x80, 0), // (value)
+#else // max freq
+	LCM_CMD(0xf0, 0), // (value)
+#endif
+	LCM_CMD(0xd9, 0), // Set Pre-charge Period
+#if 0 // orig
+	LCM_CMD(0x21, 0), // (value)
+#else
+	LCM_CMD(0x11, 0), // (value)
+#endif
+	LCM_CMD(0xda, 0), // Set COM Pins
+	LCM_CMD(0x12, 0), // (value)
+	LCM_CMD(0xdb, 0), // Set VCOMH Deselect Level
+	LCM_CMD(0x40, 0), // (value)
+	LCM_CMD(0x8d, 0), // Charge Pump Setting
+	LCM_CMD(0x14, 0), // Enable Charge Pump
+	LCM_CMD(0xaf, 0), // Display ON
+	LCM_END
+};
+#endif
+
 // SC6530/SC6531
 
 static const uint8_t cmd9106_chip2_init[] = {
@@ -1532,6 +1576,13 @@ static const lcd_config_t lcd_config1[] = {
 
 	// Sitronix ST7735S BOE
 	X(0x7c89f0, 128,160, 0xd0, 150,150,150,150,150,150, 0, cmd7C89F0)
+
+#if LIBC_SDIO == 0 /* no SD card slot */
+/* LONG-CZ J9 */
+
+	// Solomon Systech SSD1306
+	X(0x001306, 64,48, 0x1c1, 15,120,75,15,35,35, 0, cmd1306)
+#endif
 };
 
 static const lcd_config_t lcd_config2[] = {

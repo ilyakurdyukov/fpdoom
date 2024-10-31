@@ -478,11 +478,18 @@ static const lcd_config_t* lcm_init(void) {
 	const lcd_config_t *lcd;
 
 	id = sys_data.lcd_id;
-	if (id == 0x1230) {
+	if (id == 0x1230 || id == 0x1306) {
 		DBG_LOG("LCD: id = 0x%06x\n", id);
 		lcd = lcd_find_conf(id, 2);
-		lcd_gpio_reset();
-		lcd_setup.send = lcd_gpio_send;
+		if (id == 0x1230) {
+			lcd_reset_hx1230();
+			lcd_setup.send = lcd_send_hx1230;
+#if LIBC_SDIO == 0
+		} else if (id == 0x1306) {
+			lcd_reset_ssd1306();
+			lcd_setup.send = lcd_send_ssd1306;
+#endif
+		}
 		return lcd;
 	}
 
@@ -527,13 +534,8 @@ static const lcd_config_t* lcm_init(void) {
 void sys_start_refresh(void) {
 	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
 	if (sys_data.mac & 0x100) {
-		unsigned id;
-		if (sys_data.mac & 1) return;
-		id = sys_data.lcd_id;
-		if (id == 0x7567 || id == 0x7565)
-			lcd_refresh_st7567();
-		else if (id == 0x1230)
-			lcd_refresh_hx1230();
+		if (!(sys_data.mac & 1))
+			lcd_refresh_mono(sys_data.framebuf);
 		return;
 	}
 	clean_dcache();
@@ -633,12 +635,13 @@ static void lcd_init(const lcd_config_t *lcd) {
 		lcm_exec(p0);
 	} else if (sys_data.mac & 0x100) {
 		void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
-		uint32_t timer_val = 26000000 / 75;
+		uint32_t timer_val = 26000000 / 75, id;
 		if (sys_data.spi) FATAL();
 		send_fn(0, 0xa0 | (mac_arg >> 6 & 1)); // SEG Direction (MX)
 		send_fn(0, 0xc0 | (mac_arg >> 4 & 8)); // COM Direction (MY)
 		send_fn(0, 0xa6 | (mac_arg >> 3 & 1)); // Inverse Display (INV)
-		if (lcd->id == 0x7567 && (sys_data.mac & 0x10)) { // ST7567A
+		id = lcd->id;
+		if (id == 0x7567 && (sys_data.mac & 0x10)) { // ST7567A
 			send_fn(0, 0xff); // Extension Command (ON)
 			send_fn(0, 0x72); // Display Setting Mode (ON)
 			send_fn(0, 0xfe); // Extension Command (OFF)
@@ -648,6 +651,8 @@ static void lcd_init(const lcd_config_t *lcd) {
 			send_fn(0, 0x81); // Set EV (contrast)
 			send_fn(0, 0x28); // Set EV (value)
 			timer_val = 26000000 / 300;
+		} else if (id == 0x1306) {
+			timer_val = 26000000 / 150;
 		}
 		if (sys_data.mac & 1) {
 			if (timer_val)
@@ -756,8 +761,24 @@ void sys_framebuffer(void *base) {
 		r = sys_timer_ms();
 		do *d++ = (r = (r * 0x08088405) + 1) >> 25;
 		while (--n);
+		{
+			unsigned id = sys_data.lcd_id;
+			void (*fn)(uint8_t*);
+			do {
+				fn = lcd_refresh_st7567;
+				if (id == 0x7567 || id == 0x7565) break;
+				fn = lcd_refresh_hx1230;
+				if (id == 0x1230) break;
+#if LIBC_SDIO == 0
+				fn = lcd_refresh_ssd1306;
+				if (id == 0x1306) break;
+#endif
+				/* should not happen */
+			} while (0);
+			lcd_refresh_mono = fn;
+		}
 		if (sys_data.mac & 1) {
-			lcd_setup_irq();
+			setup_int_vectors();
 			lcd_start_timer();
 		}
 		return;

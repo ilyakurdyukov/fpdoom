@@ -240,6 +240,23 @@ DEF(uint8_t*, scr_update_96x68, (uint8_t *d, const uint8_t *s, uint8_t *c8, unsi
 #undef X
 }
 
+#if LIBC_SDIO == 0
+DEF(uint8_t*, scr_update_64x48, (uint8_t *d, const uint8_t *s, uint8_t *c8, unsigned h)) {
+	unsigned x, y;
+	do {
+		for (x = 64; x; x--, s += 5) {
+			const uint8_t *s2 = s; uint32_t a = 0;
+			for (y = 5; y; y--, s2 += 320)
+				a += c8[s2[0]] + c8[s2[1]] +
+						c8[s2[2]] + c8[s2[3]] + c8[s2[4]];
+			*d++ = (a * 0x147b + (3 << 16)) >> 18; /* div25 */
+		}
+		s += 320 * 4;
+	} while (--h);
+	return d;
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
@@ -359,6 +376,21 @@ static void wlsys_refresh_96x68(const uint8_t *src, int type) {
 	}
 }
 
+#if LIBC_SDIO == 0
+static void wlsys_refresh_64x48(const uint8_t *src, int type) {
+	uint8_t *d = (uint8_t*)framebuf, *pal8 = d - 256;
+	unsigned w = 64, v;
+	if (type == 0) {
+		v = pal8[src[0]]; v = (v + 1) >> 1;
+		memset(d, v, w * 4); d += w * 4;
+		d = scr_update_64x48(d, src, pal8, 40);
+		memset(d, v, w * 4);
+	} else {
+		scr_update_64x48(d, src, pal8, 48);
+	}
+}
+#endif
+
 void (*fizzlePixel)(unsigned x, unsigned y, uint8_t *src);
 
 static void fizzlePixel_1d1(unsigned x, unsigned y, uint8_t *src) {
@@ -408,6 +440,9 @@ static const wlsys_refresh_t wlsys_refresh_fn[] = {
 	wlsys_refresh_1d1, wlsys_refresh_1d2,
 	wlsys_refresh_3d2, wlsys_refresh_25x24d20,
 	wlsys_refresh_128x64, wlsys_refresh_96x68,
+#if LIBC_SDIO == 0
+	wlsys_refresh_64x48,
+#endif
 };
 
 int force_refresh_type;

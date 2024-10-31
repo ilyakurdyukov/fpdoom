@@ -18,6 +18,7 @@ void lcd_appinit(void) {
 	if (h <= 68) {
 		scaler = GS_MODE;
 		if (h == 68) scaler = GS_MODE + 1;
+		if (h == 48) scaler = GS_MODE + 2;
 	} else {
 		if (scaler >= GS_MODE) {
 			switch (w) {
@@ -26,6 +27,7 @@ void lcd_appinit(void) {
 			case 240: case 320:
 				scaler = 0; break;
 			case 128: case 160:
+			case 176: case 220:
 				scaler = 1; break;
 			default:
 				fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
@@ -48,7 +50,7 @@ uint8_t* wlsys_init(void) {
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
 	unsigned size, size1, size2; uint8_t *p;
-	static const uint8_t pal_size[] = { 2, 4, 6, 6, 1, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 6, 6, 1, 1, 1 };
 	int scaler = sys_data.scaler;
 	int w1 = w, h1 = h;
 	if (scaler == 1) {
@@ -56,6 +58,7 @@ uint8_t* wlsys_init(void) {
 	} else if (h <= 68) {
 		w1 = 320; h1 = 224;
 		if (h == 68) h1 = 226;
+		if (h == 48) h1 = 240;
 	}
 	frameWidth = w;
 	frameHeight = h;

@@ -37,14 +37,22 @@ CODE32_FN int_vectors
 1:	b	1b // undefined
 1:	b	1b // swi
 1:	b	1b // prefetch
-1:	b	1b // data
+1:	b	4f // data
 1:	b	1b // reserved
 	b	2f // irq
 1:	b	1b // fiq
 3:	.long 0
+5:	.long 0
+
 2:	sub	lr, #4
 	push	{r0-r4,r12,lr}
 	ldr	lr, 3b
+	blx	lr
+	ldm	sp!, {r0-r4,r12,pc}^
+
+4:	sub	lr, #8
+	push	{r0-r4,r12,lr}
+	ldr	lr, 5b
 	blx	lr
 	ldm	sp!, {r0-r4,r12,pc}^
 
@@ -103,32 +111,154 @@ CODE32_FN clean_invalidate_dcache_range
 	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
 	bx	lr
 
-CODE32_FN lcd_gpio_send_asm
+CODE32_FN lcd_send_hx1230_asm
 	mov	r12, #0x8a000000
-	orr	r12, #(0x28 >> 4) << 7
 	lsl	r1, #24
-	ldr	r2, [r12]
+	ldr	r2, [r12, #0x20 << 3]!
 	orr	r1, #1 << 23
-1:	bic	r2, #0x700
-	orr	r2, r2, r0, lsl #8
-	str	r2, [r12]
-	// 1 + (4 * 2 - 2) + 2 = 9
-	mov	r0, #2	// 1
-2:	subs	r0, #1	// 1
-	bne	2b	// 3/1
-	orr	r2, #0x200
-	mov	r0, #1	// 1
-	str	r2, [r12]
-	// (4 * 1 - 2) + 2 + 3 + 2 = 9
-2:	subs	r0, #1	// 1
-	bne	2b	// 3/1
+	bic	r2, #0x700
+1:	orr	r0, r2, r0, lsl #8
+	str	r0, [r12]
+	orr	r3, r0, #0x200
 	lsr	r0, r1, #31
 	lsls	r1, #1
-	bne	1b	// 3/1
-	b	2f	// 3
-2:	orr	r2, #0x700
+	str	r3, [r12]
+	bne	1b
+	orr	r2, #0x700
 	str	r2, [r12]
 	bx	lr
+
+CODE32_FN lcd_send_ssd1306_asm
+	mov	r12, #0x8a000000
+	ldr	r3, [r12, #0x40 << 3]
+	lsls	r1, #25
+	eor	r0, r3
+	ands	r0, #1
+	eor	r3, r0
+	strne	r3, [r12, #0x40 << 3]
+	ldr	r2, [r12, #0x10 << 3]!
+	orr	r1, #1 << 24
+1:	bic	r2, #0x1c00
+	orrcs	r2, #0x400
+	str	r2, [r12]
+	orr	r2, #0x800
+	lsls	r1, #1
+	str	r2, [r12]
+	bne	1b
+	orr	r2, #0x1c00
+	str	r2, [r12]
+	bx	lr
+
+CODE32_FN lcd_refresh_hx1230_asm
+	push	{r4-r10,lr}
+	add	r4, r0, #96
+	ldr	r8, =0x80808080
+	mov	r7, #9
+1:	rsb	r1, r7, #0xb9
+	and	r10, r1, #8
+	mov	r0, #0
+	bl	lcd_send_hx1230_asm
+	mov	r1, #0x10
+	mov	r0, #0
+	bl	lcd_send_hx1230_asm
+	mov	r1, #0
+	mov	r0, #0
+	bl	lcd_send_hx1230_asm
+
+	lsr	r10, #1
+	sub	r7, #96 << 16
+2:	sub	r4, #4
+	mov	r9, r4
+	add	r5, r4, #96 * 68
+	mov	r6, #0x3f
+	lsr	r6, r10
+3:	ldr	r0, [r9], #96
+	ldr	r1, [r5]
+	ldr	r2, [r9], #96
+	ldr	r3, [r5, #96]
+	add	r0, r1
+	add	r2, r3
+	bic	r1, r0, r8
+	bic	r3, r2, r8
+	str	r1, [r5], #96
+	and	r0, r8
+	str	r3, [r5], #96
+	and	r2, r8
+	orr	r0, r2, r0, lsr #1
+	orrs	r6, r0, r6, lsr #2
+	bcs	3b
+	lsr	r6, r10
+	mvn	r1, r6, lsr #24
+	mov	r0, #1
+	bl	lcd_send_hx1230_asm
+	mvn	r1, r6, lsr #16
+	mov	r0, #1
+	bl	lcd_send_hx1230_asm
+	mvn	r1, r6, lsr #8
+	mov	r0, #1
+	bl	lcd_send_hx1230_asm
+	mvn	r1, r6
+	mov	r0, #1
+	bl	lcd_send_hx1230_asm
+	adds	r7, #4 << 16
+	bmi	2b
+	add	r4, #96 * 9
+	subs	r7, #1
+	bhi	1b
+	pop	{r4-r10,pc}
+
+CODE32_FN lcd_refresh_ssd1306_asm
+	push	{r4-r8,lr}
+	mov	r4, r0
+	ldr	r8, =0x80808080
+	mov	r7, #6
+1:	rsb	r1, r7, #0xb6
+	mov	r0, #0
+	bl	lcd_send_ssd1306_asm
+	mov	r1, #0
+	mov	r0, #0
+	bl	lcd_send_ssd1306_asm
+	mov	r1, #0x12
+	mov	r0, #0
+	bl	lcd_send_ssd1306_asm
+
+	sub	r7, #64 << 16
+2:	add	r5, r4, #64 * 48
+	mov	r6, #0x3f
+3:	ldr	r0, [r4], #64
+	ldr	r1, [r5]
+	ldr	r2, [r4], #64
+	ldr	r3, [r5, #64]
+	add	r0, r1
+	add	r2, r3
+	bic	r1, r0, r8
+	bic	r3, r2, r8
+	str	r1, [r5], #64
+	and	r0, r8
+	str	r3, [r5], #64
+	and	r2, r8
+	orr	r0, r2, r0, lsr #1
+	orrs	r6, r0, r6, lsr #2
+	bcs	3b
+	mov	r1, r6
+	mov	r0, #1
+	bl	lcd_send_ssd1306_asm
+	lsr	r1, r6, #8
+	mov	r0, #1
+	bl	lcd_send_ssd1306_asm
+	lsr	r1, r6, #16
+	mov	r0, #1
+	bl	lcd_send_ssd1306_asm
+	lsr	r1, r6, #24
+	mov	r0, #1
+	bl	lcd_send_ssd1306_asm
+	sub	r4, #64 * 8 - 4
+	adds	r7, #4 << 16
+	bmi	2b
+	add	r4, #64 * 7
+	subs	r7, #1
+	bhi	1b
+	pop	{r4-r8,pc}
 
 CODE32_FN __gnu_thumb1_case_uqi
 	bic	r12, lr, #1

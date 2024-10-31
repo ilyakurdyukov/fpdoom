@@ -373,6 +373,31 @@ DEF(void, scr_update_96x68, (void *src, uint16_t *dst, unsigned h)) {
 	} while ((h -= 56));
 }
 
+#if LIBC_SDIO == 0
+DEF(void, scr_update_64x48, (void *src, uint16_t *dst, unsigned h)) {
+	uint8_t *s = (uint8_t*)src, *d = (uint8_t*)dst;
+	unsigned x, y = 0;
+	do {
+		for (x = 0; x < 64; x++, s += 8, d++) {
+			const uint8_t *s2 = s;
+			uint32_t a0 = 0, t0;
+			do {
+				y += 14;
+				do {
+					t0 = s2[1] + s2[3] + s2[5] + s2[7];
+					a0 += t0 + (t0 << 1); s2 += 512;
+				} while ((int)(y -= 3) > 0);
+				a0 += t0 *= y;
+				a0 = (a0 * 0x4925 + (3 << 18)) >> 20; /* div56 */
+				*d = a0; a0 = -t0; d += 64;
+			} while (y);
+			d -= 64 * 3;
+		}
+		s += 512 * (14 - 1); d += 64 * (3 - 1);
+	} while ((h -= 14));
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 #define scr_update_1d1 scr_update_1d1_asm
@@ -391,5 +416,8 @@ const scr_update_t scr_update_fn[] = {
 	scr_update_4d3, scr_update_5x4d3,
 	scr_update_11d15, scr_update_90x77d105,
 	scr_update_128x64, scr_update_96x68,
+#if LIBC_SDIO == 0
+	scr_update_64x48, scr_update_64x48,
+#endif
 };
 

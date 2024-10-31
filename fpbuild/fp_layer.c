@@ -349,6 +349,7 @@ int setvideomode(int x, int y, int c, int fs) {
 		int h = y;
 		x = 320; y = 224;
 		if (h == 68) y = 226;
+		if (h == 48) y = 240;
 	}
 	if (sys_data.scaler == 1) x <<= 1, y <<= 1;
 	buildprintf("Setting video mode %dx%d\n", x, y);
@@ -559,6 +560,21 @@ DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
 #undef X
 }
 
+#if LIBC_SDIO == 0
+DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest, *c8 = d - 256;
+	unsigned x, y, h = 48;
+	for (; h; h--, s += 320 * 4)
+	for (x = 64; x; x--, s += 5) {
+		const uint8_t *s2 = s; uint32_t a = 0;
+		for (y = 5; y; y--, s2 += 320)
+			a += c8[s2[0]] + c8[s2[1]] +
+					c8[s2[2]] + c8[s2[3]] + c8[s2[4]];
+		*d++ = (a * 0x147b + (3 << 16)) >> 18; /* div25 */
+	}
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 extern int scr_update_data[2];
@@ -571,7 +587,7 @@ extern int scr_update_data[2];
 #endif
 
 uint8_t *framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 1, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 1, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -580,6 +596,9 @@ uint8_t *framebuffer_init(void) {
 		{ pal_update32, scr_update_1d2 },
 		{ pal_update8, scr_update_128x64 },
 		{ pal_update8, scr_update_96x68 },
+#if LIBC_SDIO == 0
+		{ pal_update8, scr_update_64x48 },
+#endif
 	};
 	struct sys_display *disp = &sys_data.display;
 	int w = disp->w2, h = disp->h2;
@@ -606,6 +625,7 @@ void lcd_appinit(void) {
 	if (h <= 68) {
 		mode = 2;
 		if (h == 68) mode = 3;
+		if (h == 48) mode = 4;
 	} else {
 		if (h > w) h = w;
 		mode = h <= 128;

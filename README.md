@@ -102,6 +102,8 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 48 | Fontel FP100            | SC6531   | 128x64  ST7567A   | all d-pad  |
 | 49 | Joy's S16               | SC6530C  |  96x68  HX1230    | up         |
 | 50 | Joy's S19               | SC6531   | 128x64  ST7565R   | 3          |
+| 51 | Vertex M114             | SC6530C  |  96x68  HX1230    | up         |
+| 52 | LONG-CZ J9              | SC6531E  |  64x48  SSD1306   | right soft |
 
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
@@ -115,10 +117,11 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 * Texet TM-B316: use `--lcd 0x8083760f --rotate 1,0`
 * Texet TM-B323, Texet TM-B208: use `--rotate 3,0 --keyflags 1`
-* Texet TM-B323: only games on the Build engine work with this resolution, others need `--scaler 1` option
+* Texet TM-B323: very rare resolution, not the best support for it
 * Tokky FP10, Fontel FP100: use `--lcd 0x7567`
 * Joy's S16: use `--lcd 0x1230`
 * Joy's S19: use `--lcd 0x7565`
+* LONG-CZ J9: use `--lcd 0x1306`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 

@@ -331,6 +331,21 @@ DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
 #undef X
 }
 
+#if LIBC_SDIO == 0
+DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest, *c8 = d - 256;
+	unsigned x, y, h = 48;
+	for (; h; h--, s += 320 * 4)
+	for (x = 64; x; x--, s += 5) {
+		const uint8_t *s2 = s; uint32_t a = 0;
+		for (y = 5; y; y--, s2 += 320)
+			a += c8[s2[0]] + c8[s2[1]] +
+					c8[s2[2]] + c8[s2[3]] + c8[s2[4]];
+		*d++ = (a * 0x147b + (3 << 16)) >> 18; /* div25 */
+	}
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 #define pal_update16 pal_update16_asm
@@ -344,7 +359,7 @@ DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
 #endif
 
 uint8_t* framebuffer_init(void) {
-	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4, 1, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4, 1, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -356,6 +371,9 @@ uint8_t* framebuffer_init(void) {
 		{ pal_update32, scr_update_25x24d20 },
 		{ pal_update8, scr_update_128x64 },
 		{ pal_update8, scr_update_96x68 },
+#if LIBC_SDIO == 0
+		{ pal_update8, scr_update_64x48 },
+#endif
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
@@ -388,6 +406,7 @@ void lcd_appinit(void) {
 		320, 240, 240,  160, 128, 256,  480, 320, 214,
 		220, 176, 256,  400, 240, 200,
 		128,  64, 224,   96,  68, 226,
+		 64,  48, 240,
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
@@ -395,6 +414,7 @@ void lcd_appinit(void) {
 	if (h <= 68) {
 		mode = 5;
 		if (h == 68) mode = 6;
+		if (h == 48) mode = 7;
 	} else if (mode >= 5) {
 		switch (w) {
 		case 400: mode = 4; break;

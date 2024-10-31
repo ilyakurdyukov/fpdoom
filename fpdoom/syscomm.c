@@ -275,14 +275,23 @@ enum { KEYPAD_ENUM(X) };
 int sys_getkeymap(uint8_t *dest) {
 	short *keymap = sys_data.keymap_addr;
 	int i, j, rotate = sys_data.rotate >> 4 & 3;
-	static const unsigned char num_turn[4][4 + 9] = {
+	static const unsigned char num_turn[][4 + 9] = {
 		{ "\004\005\006\007123456789" },
 		{ "\007\006\004\005369258147" },
 		{ "\005\004\007\006987654321" },
-		{ "\006\007\005\004741852963" } };
+		{ "\006\007\005\004741852963" },
+#if LIBC_SDIO == 0
+		{ "\004\005\006\007123745698" },
+#endif
+	};
 	int nrow = sys_data.keyrows;
 	int ncol = sys_data.keycols;
 	int flags = 0;
+
+#if LIBC_SDIO == 0
+	/* special case for LONG-CZ J9 */
+	if (sys_data.lcd_id == 0x1306) rotate = 4;
+#endif
 
 	memset(dest, 0, 64);
 

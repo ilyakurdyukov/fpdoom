@@ -69,6 +69,7 @@ void lcd_appinit(void) {
 	if (scaler >= 49) wide = 1, scaler -= 50;
 	if (h <= 68) {
 		scaler = 4; crop = 8; wide = h == 68;
+		if (h == 48) scaler++;
 	} else if ((unsigned)scaler >= 4) {
 		if (h >= 320) scaler = 2;
 		else if (h >= 240) scaler = 0;
