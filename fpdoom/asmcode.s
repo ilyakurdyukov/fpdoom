@@ -152,19 +152,15 @@ CODE32_FN lcd_send_ssd1306_asm
 CODE32_FN lcd_refresh_hx1230_asm
 	push	{r4-r10,lr}
 	add	r4, r0, #96
+	mov	r12, #0x8a000000
 	ldr	r8, =0x80808080
 	mov	r7, #9
 1:	rsb	r1, r7, #0xb9
 	and	r10, r1, #8
-	mov	r0, #0
-	bl	lcd_send_hx1230_asm
-	mov	r1, #0x10
-	mov	r0, #0
-	bl	lcd_send_hx1230_asm
-	mov	r1, #0
-	mov	r0, #0
-	bl	lcd_send_hx1230_asm
-
+	lsl	r1, #24
+	orr	r1, #0x10 << 16
+	mov	r0, #8
+	bl	4f
 	lsr	r10, #1
 	sub	r7, #96 << 16
 2:	sub	r4, #4
@@ -187,19 +183,9 @@ CODE32_FN lcd_refresh_hx1230_asm
 	orr	r0, r2, r0, lsr #1
 	orrs	r6, r0, r6, lsr #2
 	bcs	3b
-	lsr	r6, r10
-	mvn	r1, r6, lsr #24
-	mov	r0, #1
-	bl	lcd_send_hx1230_asm
-	mvn	r1, r6, lsr #16
-	mov	r0, #1
-	bl	lcd_send_hx1230_asm
-	mvn	r1, r6, lsr #8
-	mov	r0, #1
-	bl	lcd_send_hx1230_asm
-	mvn	r1, r6
-	mov	r0, #1
-	bl	lcd_send_hx1230_asm
+	mvn	r1, r6, lsr r10
+	mov	r0, #0x1f
+	bl	4f
 	adds	r7, #4 << 16
 	bmi	2b
 	add	r4, #96 * 9
@@ -207,21 +193,46 @@ CODE32_FN lcd_refresh_hx1230_asm
 	bhi	1b
 	pop	{r4-r10,pc}
 
+4:	ldr	r2, [r12, #0x20 << 3]
+	lsrs	r0, #1
+2:	and	r3, r1, #0xff << 24
+	lsl	r1, #8
+	orr	r3, #1 << 23
+1:	bic	r2, #0x700
+	orrcs	r2, #0x100
+	str	r2, [r12, #0x20 << 3]
+	orr	r2, #0x200
+	lsls	r3, #1
+	str	r2, [r12, #0x20 << 3]
+	bne	1b
+	lsrs	r0, #1
+	bne	2b
+	orr	r2, #0x700
+	str	r2, [r12, #0x20 << 3]
+	bx	lr
+
 CODE32_FN lcd_refresh_ssd1306_asm
 	push	{r4-r8,lr}
 	mov	r4, r0
+	mov	r12, #0x8a000000
 	ldr	r8, =0x80808080
 	mov	r7, #6
-1:	rsb	r1, r7, #0xb6
-	mov	r0, #0
-	bl	lcd_send_ssd1306_asm
-	mov	r1, #0
-	mov	r0, #0
-	bl	lcd_send_ssd1306_asm
-	mov	r1, #0x12
-	mov	r0, #0
-	bl	lcd_send_ssd1306_asm
-
+.if 0 // page addressing mode
+1:	ldr	r6, [r12, #0x40 << 3]
+	bic	r6, #1
+	str	r6, [r12, #0x40 << 3]
+	rsb	r1, r7, #0xb6
+	lsls	r1, #25
+	orr	r1, #(0x12 * 2 + 1) << 8
+	bl	4f
+	orr	r6, #1
+	str	r6, [r12, #0x40 << 3]
+.else // horizontal addressing mode
+	ldr	r0, [r12, #0x40 << 3]
+	orr	r0, #1
+	str	r0, [r12, #0x40 << 3]
+1:
+.endif
 	sub	r7, #64 << 16
 2:	add	r5, r4, #64 * 48
 	mov	r6, #0x3f
@@ -240,18 +251,17 @@ CODE32_FN lcd_refresh_ssd1306_asm
 	orr	r0, r2, r0, lsr #1
 	orrs	r6, r0, r6, lsr #2
 	bcs	3b
-	mov	r1, r6
-	mov	r0, #1
-	bl	lcd_send_ssd1306_asm
-	lsr	r1, r6, #8
-	mov	r0, #1
-	bl	lcd_send_ssd1306_asm
-	lsr	r1, r6, #16
-	mov	r0, #1
-	bl	lcd_send_ssd1306_asm
-	lsr	r1, r6, #24
-	mov	r0, #1
-	bl	lcd_send_ssd1306_asm
+
+	// r1 = bswap32(r6)
+	mov	lr, #0xff0000
+	orr	lr, #0xff
+	and	r1, lr, r6, ror #24
+	and	r6, lr
+	orr	r1, r1, r6, ror #8
+
+	lsls	r1, #1
+	orr	r1, #1
+	bl	4f
 	sub	r4, #64 * 8 - 4
 	adds	r7, #4 << 16
 	bmi	2b
@@ -259,6 +269,18 @@ CODE32_FN lcd_refresh_ssd1306_asm
 	subs	r7, #1
 	bhi	1b
 	pop	{r4-r8,pc}
+
+4:	ldr	r2, [r12, #0x10 << 3]
+1:	bic	r2, #0x1c00
+	orrcs	r2, #0x400
+	str	r2, [r12, #0x10 << 3]
+	orr	r2, #0x800
+	lsls	r1, #1
+	str	r2, [r12, #0x10 << 3]
+	bne	1b
+	orr	r2, #0x1c00
+	str	r2, [r12, #0x10 << 3]
+	bx	lr
 
 CODE32_FN __gnu_thumb1_case_uqi
 	bic	r12, lr, #1

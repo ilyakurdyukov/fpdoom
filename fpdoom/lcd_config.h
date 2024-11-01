@@ -953,6 +953,16 @@ static const uint8_t cmd1306_init[] = {
 	LCM_CMD(0x8d, 0), // Charge Pump Setting
 	LCM_CMD(0x14, 0), // Enable Charge Pump
 	LCM_CMD(0xaf, 0), // Display ON
+#if 1 // horizontal addressing mode
+	LCM_CMD(0x20, 0), // Set Memory Addressing Mode
+	LCM_CMD(0x00, 0), // (value)
+	LCM_CMD(0x21, 0), // Set Column Address
+	LCM_CMD(0x20, 0), // (start)
+	LCM_CMD(0x5f, 0), // (end)
+	LCM_CMD(0x22, 0), // Set Page Address
+	LCM_CMD(0x00, 0), // (start)
+	LCM_CMD(0x05, 0), // (end)
+#endif
 	LCM_END
 };
 #endif
