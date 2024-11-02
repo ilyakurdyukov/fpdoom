@@ -43,7 +43,7 @@ index 999e455..2241dee 100644
      // For debugging only
      if (      fl->a.x < 0 || fl->a.x >= f_w
 diff --git a/d_main.c b/d_main.c
-index 23427e8..99a01b2 100644
+index 23427e8..c3c6c44 100644
 --- a/d_main.c
 +++ b/d_main.c
 @@ -32,12 +32,9 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
@@ -60,21 +60,19 @@ index 23427e8..99a01b2 100644
  #endif
  
  
-@@ -119,13 +116,6 @@ FILE*		debugfile;
- boolean		advancedemo;
+@@ -121,9 +118,11 @@ boolean		advancedemo;
  
  
--
--
--char		wadfile[1024];		// primary wad file
--char		mapdir[1024];           // directory of development maps
--char		basedefault[1024];      // default file
--
--
+ 
++#if 0
+ char		wadfile[1024];		// primary wad file
+ char		mapdir[1024];           // directory of development maps
+ char		basedefault[1024];      // default file
++#endif
+ 
+ 
  void D_CheckNetGame (void);
- void D_ProcessEvents (void);
- void G_BuildTiccmd (ticcmd_t* cmd);
-@@ -150,7 +140,7 @@ int 		eventtail;
+@@ -150,7 +149,7 @@ int 		eventtail;
  void D_PostEvent (event_t* ev)
  {
      events[eventhead] = *ev;
@@ -83,7 +81,7 @@ index 23427e8..99a01b2 100644
  }
  
  
-@@ -167,7 +157,7 @@ void D_ProcessEvents (void)
+@@ -167,7 +166,7 @@ void D_ProcessEvents (void)
  	 && (W_CheckNumForName("map01")<0) )
        return;
  	
@@ -92,7 +90,7 @@ index 23427e8..99a01b2 100644
      {
  	ev = &events[eventtail];
  	if (M_Responder (ev))
-@@ -239,20 +229,26 @@ void D_Display (void)
+@@ -239,20 +238,26 @@ void D_Display (void)
  	    break;
  	if (automapactive)
  	    AM_Drawer ();
@@ -125,18 +123,16 @@ index 23427e8..99a01b2 100644
  	break;
  
        case GS_DEMOSCREEN:
-@@ -529,18 +525,10 @@ void D_StartTitle (void)
-     D_AdvanceDemo ();
- }
+@@ -533,14 +538,16 @@ void D_StartTitle (void)
  
--
--
--
--//      print title for every printed line
--char            title[128];
--
--
--
+ 
+ //      print title for every printed line
++#if 0
+ char            title[128];
++#endif
+ 
+ 
+ 
  //
  // D_AddFile
  //
@@ -145,7 +141,7 @@ index 23427e8..99a01b2 100644
  {
      int     numwadfiles;
      char    *newfile;
-@@ -554,6 +542,9 @@ void D_AddFile (char *file)
+@@ -554,6 +561,9 @@ void D_AddFile (char *file)
      wadfiles[numwadfiles] = newfile;
  }
  
@@ -155,7 +151,7 @@ index 23427e8..99a01b2 100644
  //
  // IdentifyVersion
  // Checks availability of IWAD files by name,
-@@ -563,6 +554,34 @@ void D_AddFile (char *file)
+@@ -563,6 +573,34 @@ void D_AddFile (char *file)
  void IdentifyVersion (void)
  {
  
@@ -190,7 +186,7 @@ index 23427e8..99a01b2 100644
      char*	doom1wad;
      char*	doomwad;
      char*	doomuwad;
-@@ -707,6 +726,7 @@ void IdentifyVersion (void)
+@@ -707,6 +745,7 @@ void IdentifyVersion (void)
        D_AddFile (doom1wad);
        return;
      }
@@ -198,7 +194,7 @@ index 23427e8..99a01b2 100644
  
      printf("Game mode indeterminate.\n");
      gamemode = indetermined;
-@@ -814,6 +834,9 @@ void D_DoomMain (void)
+@@ -814,6 +853,9 @@ void D_DoomMain (void)
      else if (M_CheckParm ("-deathmatch"))
  	deathmatch = 1;
  
@@ -208,7 +204,7 @@ index 23427e8..99a01b2 100644
      switch ( gamemode )
      {
        case retail:
-@@ -870,17 +893,11 @@ void D_DoomMain (void)
+@@ -870,16 +912,19 @@ void D_DoomMain (void)
      }
      
      printf ("%s\n",title);
@@ -217,17 +213,18 @@ index 23427e8..99a01b2 100644
      if (devparm)
  	printf(D_DEVSTR);
      
--    if (M_CheckParm("-cdrom"))
--    {
--	printf(D_CDROM);
--	mkdir("c:\\doomdata",0);
--	strcpy (basedefault,"c:/doomdata/default.cfg");
--    }	
--    
++#if 0
+     if (M_CheckParm("-cdrom"))
+     {
+ 	printf(D_CDROM);
+ 	mkdir("c:\\doomdata",0);
+ 	strcpy (basedefault,"c:/doomdata/default.cfg");
+     }	
++#endif
+     
      // turbo option
      if ( (p=M_CheckParm ("-turbo")) )
-     {
-@@ -1091,7 +1108,7 @@ void D_DoomMain (void)
+@@ -1091,7 +1136,7 @@ void D_DoomMain (void)
      printf ("M_Init: Init miscellaneous info.\n");
      M_Init ();
  
@@ -236,36 +233,31 @@ index 23427e8..99a01b2 100644
      R_Init ();
  
      printf ("\nP_Init: Init Playloop state.\n");
-@@ -1112,17 +1129,6 @@ void D_DoomMain (void)
-     printf ("ST_Init: Init status bar.\n");
+@@ -1113,8 +1158,12 @@ void D_DoomMain (void)
      ST_Init ();
  
--    // check for a driver that wants intermission stats
--    p = M_CheckParm ("-statcopy");
--    if (p && p<myargc-1)
--    {
--	// for statistics driver
--	extern  void*	statcopy;                            
--
--	statcopy = (void*)atoi(myargv[p+1]);
--	printf ("External statistics registered.\n");
--    }
--    
-     // start the apropriate game based on parms
-     p = M_CheckParm ("-record");
- 
-@@ -1150,10 +1156,7 @@ void D_DoomMain (void)
+     // check for a driver that wants intermission stats
++#if 1
++    if (0)
++#else
+     p = M_CheckParm ("-statcopy");
+     if (p && p<myargc-1)
++#endif
+     {
+ 	// for statistics driver
+ 	extern  void*	statcopy;                            
+@@ -1150,7 +1199,11 @@ void D_DoomMain (void)
      p = M_CheckParm ("-loadgame");
      if (p && p < myargc-1)
      {
--	if (M_CheckParm("-cdrom"))
--	    sprintf(file, "c:\\doomdata\\"SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
--	else
--	    sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
-+	sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
- 	G_LoadGame (file);
-     }
- 	
++#if 1
++	if (0)
++#else
+ 	if (M_CheckParm("-cdrom"))
++#endif
+ 	    sprintf(file, "c:\\doomdata\\"SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
+ 	else
+ 	    sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
 diff --git a/d_main.h b/d_main.h
 index 7763e13..8b02a08 100644
 --- a/d_main.h
@@ -603,7 +595,7 @@ index e8596f3..2ebcb10 100644
      for (i=1;i<width;i++)
      {
 diff --git a/g_game.c b/g_game.c
-index 30ac33c..fada899 100644
+index 30ac33c..f84bb03 100644
 --- a/g_game.c
 +++ b/g_game.c
 @@ -24,6 +24,7 @@
@@ -680,27 +672,19 @@ index 30ac33c..fada899 100644
      save_p += VERSIONSIZE; 
  			 
      gameskill = *save_p++; 
-@@ -1266,6 +1261,7 @@ G_SaveGame
-     strcpy (savedescription, description); 
-     sendsave = true; 
- } 
-+
-  
- void G_DoSaveGame (void) 
- { 
-@@ -1275,10 +1271,7 @@ void G_DoSaveGame (void)
+@@ -1275,7 +1270,11 @@ void G_DoSaveGame (void)
      int		length; 
      int		i; 
  	
--    if (M_CheckParm("-cdrom"))
--	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
--    else
--	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
-+    sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot);
-     description = savedescription; 
- 	 
-     save_p = savebuffer = screens[1]+0x4000; 
-@@ -1286,7 +1279,7 @@ void G_DoSaveGame (void)
++#if 1
++    if (0)
++#else
+     if (M_CheckParm("-cdrom"))
++#endif
+ 	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
+     else
+ 	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
+@@ -1286,7 +1285,7 @@ void G_DoSaveGame (void)
      memcpy (save_p, description, SAVESTRINGSIZE); 
      save_p += SAVESTRINGSIZE; 
      memset (name2,0,sizeof(name2)); 
@@ -709,7 +693,7 @@ index 30ac33c..fada899 100644
      memcpy (save_p, name2, VERSIONSIZE); 
      save_p += VERSIONSIZE; 
  	 
-@@ -1586,9 +1579,10 @@ void G_DoPlayDemo (void)
+@@ -1586,9 +1585,10 @@ void G_DoPlayDemo (void)
  	 
      gameaction = ga_nothing; 
      demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
@@ -3019,7 +3003,7 @@ index d266233..d090895 100644
  
  void R_InitPlanes (void);
 diff --git a/r_things.c b/r_things.c
-index c201fff..8a50d67 100644
+index c201fff..877f348 100644
 --- a/r_things.c
 +++ b/r_things.c
 @@ -210,7 +210,11 @@ void R_InitSpriteDefs (char** namelist)
@@ -3034,17 +3018,6 @@ index c201fff..8a50d67 100644
  	
  	// scan the lumps,
  	//  filling in the frames for whatever is found
-@@ -488,6 +492,10 @@ void R_ProjectSprite (mobj_t* thing)
-     
-     tz = gxt-gyt; 
- 
-+#if 0
-+    sprdef = &sprites[thing->sprite];
-+    printf("!!! R_ProjectSprite %x %x %x %x %x\n", tr_x, tr_y, thing->sprite, thing->frame, sprdef->numframes);
-+#endif
-     // thing is behind view plane?
-     if (tz < MINZ)
- 	return;
 diff --git a/s_sound.c b/s_sound.c
 index bcfb538..8a5bb27 100644
 --- a/s_sound.c
@@ -3126,7 +3099,7 @@ index 9b30e64..c3bdbc9 100644
      for (i=0 ; i<4 ; i++)
  	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
 diff --git a/w_wad.c b/w_wad.c
-index 178f5cb..81ac4e2 100644
+index 178f5cb..b5e05cc 100644
 --- a/w_wad.c
 +++ b/w_wad.c
 @@ -28,14 +28,9 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
@@ -3144,23 +3117,23 @@ index 178f5cb..81ac4e2 100644
  #endif
  
  #include "doomtype.h"
-@@ -71,15 +66,6 @@ void strupr (char* s)
+@@ -71,6 +66,7 @@ void strupr (char* s)
      while (*s) { *s = toupper(*s); s++; }
  }
  
--int filelength (int handle) 
--{ 
--    struct stat	fileinfo;
--    
--    if (fstat (handle,&fileinfo) == -1)
--	I_Error ("Error fstating");
--
--    return fileinfo.st_size;
--}
++#if 0
+ int filelength (int handle) 
+ { 
+     struct stat	fileinfo;
+@@ -80,6 +76,7 @@ int filelength (int handle)
+ 
+     return fileinfo.st_size;
+ }
++#endif
  
  
  void
-@@ -143,12 +129,12 @@ void W_AddFile (char *filename)
+@@ -143,12 +140,12 @@ void W_AddFile (char *filename)
      wadinfo_t		header;
      lumpinfo_t*		lump_p;
      unsigned		i;
@@ -3175,7 +3148,7 @@ index 178f5cb..81ac4e2 100644
      
      // open the file and add to directory
  
-@@ -160,7 +146,7 @@ void W_AddFile (char *filename)
+@@ -160,7 +157,7 @@ void W_AddFile (char *filename)
  	reloadlump = numlumps;
      }
  		
@@ -3184,7 +3157,7 @@ index 178f5cb..81ac4e2 100644
      {
  	printf (" couldn't open %s\n",filename);
  	return;
-@@ -174,14 +160,16 @@ void W_AddFile (char *filename)
+@@ -174,14 +171,16 @@ void W_AddFile (char *filename)
  	// single lump file
  	fileinfo = &singleinfo;
  	singleinfo.filepos = 0;
@@ -3203,7 +3176,7 @@ index 178f5cb..81ac4e2 100644
  	if (strncmp(header.identification,"IWAD",4))
  	{
  	    // Homebrew levels?
-@@ -195,10 +183,16 @@ void W_AddFile (char *filename)
+@@ -195,10 +194,16 @@ void W_AddFile (char *filename)
  	}
  	header.numlumps = LONG(header.numlumps);
  	header.infotableofs = LONG(header.infotableofs);
@@ -3222,7 +3195,7 @@ index 178f5cb..81ac4e2 100644
  	numlumps += header.numlumps;
      }
  
-@@ -211,10 +205,19 @@ void W_AddFile (char *filename)
+@@ -211,10 +216,19 @@ void W_AddFile (char *filename)
  
      lump_p = &lumpinfo[startlump];
  	
@@ -3243,7 +3216,7 @@ index 178f5cb..81ac4e2 100644
  	lump_p->handle = storehandle;
  	lump_p->position = LONG(fileinfo->filepos);
  	lump_p->size = LONG(fileinfo->size);
-@@ -222,7 +225,7 @@ void W_AddFile (char *filename)
+@@ -222,7 +236,7 @@ void W_AddFile (char *filename)
      }
  	
      if (reloadname)
@@ -3252,7 +3225,7 @@ index 178f5cb..81ac4e2 100644
  }
  
  
-@@ -239,23 +242,28 @@ void W_Reload (void)
+@@ -239,23 +253,28 @@ void W_Reload (void)
      int			lumpcount;
      lumpinfo_t*		lump_p;
      unsigned		i;
@@ -3286,7 +3259,7 @@ index 178f5cb..81ac4e2 100644
      
      // Fill in lumpinfo
      lump_p = &lumpinfo[reloadlump];
-@@ -267,11 +275,20 @@ void W_Reload (void)
+@@ -267,11 +286,20 @@ void W_Reload (void)
  	if (lumpcache[i])
  	    Z_Free (lumpcache[i]);
  
@@ -3308,15 +3281,7 @@ index 178f5cb..81ac4e2 100644
  }
  
  
-@@ -372,7 +389,6 @@ int W_CheckNumForName (char* name)
-     v1 = name8.x[0];
-     v2 = name8.x[1];
- 
--
-     // scan backwards so patch lump files take precedence
-     lump_p = lumpinfo + numlumps;
- 
-@@ -435,7 +451,7 @@ W_ReadLump
+@@ -435,7 +463,7 @@ W_ReadLump
  {
      int		c;
      lumpinfo_t*	l;
@@ -3325,7 +3290,7 @@ index 178f5cb..81ac4e2 100644
  	
      if (lump >= numlumps)
  	I_Error ("W_ReadLump: %i >= numlumps",lump);
-@@ -444,24 +460,24 @@ W_ReadLump
+@@ -444,24 +472,24 @@ W_ReadLump
  	
      // ??? I_BeginRead ();
  	
@@ -3357,7 +3322,7 @@ index 178f5cb..81ac4e2 100644
  		
      // ??? I_EndRead ();
  }
-@@ -513,6 +529,7 @@ W_CacheLumpName
+@@ -513,6 +541,7 @@ W_CacheLumpName
  }
  
  
@@ -3365,7 +3330,7 @@ index 178f5cb..81ac4e2 100644
  //
  // W_Profile
  //
-@@ -573,5 +590,6 @@ void W_Profile (void)
+@@ -573,5 +602,6 @@ void W_Profile (void)
      }
      fclose (f);
  }
