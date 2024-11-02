@@ -104,6 +104,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 50 | Joy's S19               | SC6531   | 128x64  ST7565R   | 3          |
 | 51 | Vertex M114             | SC6530C  |  96x68  HX1230    | up         |
 | 52 | LONG-CZ J9              | SC6531E  |  64x48  SSD1306   | right soft |
+| 53 | Digma A106              | SC6530C  |  96x68  HX1230    | up         |
 
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable

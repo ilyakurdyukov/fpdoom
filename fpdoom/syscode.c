@@ -766,7 +766,10 @@ void sys_framebuffer(void *base) {
 			void (*fn)(uint8_t*);
 			do {
 				fn = lcd_refresh_st7567;
-				if (id == 0x7567 || id == 0x7565) break;
+				if (id == 0x7567 || id == 0x7565) {
+					lcd_refresh_st7567_init();
+					break;
+				}
 				fn = lcd_refresh_hx1230;
 				if (id == 0x1230) break;
 #if LIBC_SDIO == 0

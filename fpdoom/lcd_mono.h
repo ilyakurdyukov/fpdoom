@@ -153,12 +153,13 @@ static void lcd_clear_mono(void) {
 	s2[w * h / 4] = b & ~m; \
 	s2 += w / 4; a ^= (b & m) >> i;
 
+#if 0
+static void lcd_refresh_st7567_init(void) {}
 static void lcd_refresh_st7567(uint8_t *s) {
 	unsigned x, y, col = sys_data.mac >> 4 & 4;
 	uint32_t cs = sys_data.lcd_cs;
 	uint32_t addr0, addr1;
 	addr0 = cs << 26 | 0x60000000;
-#if 0
 #define SEND(type, a) { while (LCM_CR(0) & 2); \
 	*(volatile uint16_t*)addr##type = (a); }
 	for (y = 0; y < 8; y++, s += 128 * 7) {
@@ -180,10 +181,19 @@ static void lcd_refresh_st7567(uint8_t *s) {
 		}
 	}
 #undef SEND
+}
 #else
-	col = 0xe30010b0 | col << 16; // 0xe3 = NOP
-	while (LCM_CR(0) & 2);
-	LCM_CR(0x10 + (cs << 4)) = 0x18; // 8x4 LE
+#if 1
+extern uint32_t lcd_refresh_st7567_data[2];
+#define lcd_refresh_st7567 lcd_refresh_st7567_asm
+void lcd_refresh_st7567_asm(uint8_t *s);
+#else
+static uint32_t lcd_refresh_st7567_data[2];
+static void lcd_refresh_st7567(uint8_t *s) {
+	unsigned x, y, col;
+	uint32_t addr0, addr1;
+	addr0 = lcd_refresh_st7567_data[0];
+	col = lcd_refresh_st7567_data[1];
 	for (y = 0; y < 8; y++, s += 128 * 7) {
 		while (LCM_CR(0) & 2);
 		MEM4(addr0) = col + y;
@@ -199,8 +209,19 @@ static void lcd_refresh_st7567(uint8_t *s) {
 			MEM4(addr1) = a;
 		}
 	}
-#endif
 }
+#endif
+static void lcd_refresh_st7567_init(void) {
+	unsigned cs = sys_data.lcd_cs;
+	uint32_t col = sys_data.mac >> 4 & 4;
+	uint32_t addr0 = cs << 26 | 0x60000000;
+	col = 0xe30010b0 | col << 16; // 0xe3 = NOP
+	lcd_refresh_st7567_data[0] = addr0;
+	lcd_refresh_st7567_data[1] = col;
+	while (LCM_CR(0) & 2);
+	LCM_CR(0x10 + (cs << 4)) = 0x18; // 8x4 LE
+}
+#endif
 
 #if 1
 #define lcd_refresh_hx1230 lcd_refresh_hx1230_asm

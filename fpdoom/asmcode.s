@@ -111,6 +111,54 @@ CODE32_FN clean_invalidate_dcache_range
 	mcr	p15, #0, r0, c7, c10, #4 // drain write buffer
 	bx	lr
 
+// SC6531: 0.110 ms
+CODE32_FN lcd_refresh_st7567_asm
+	push	{r4-r10,lr}
+	mov	r4, r0
+	ldr	r10, lcd_refresh_st7567_data
+	ldr	r9, lcd_refresh_st7567_data + 4
+	add	r12, r10, #0x20000
+	mov	lr, #0x20800000
+	ldr	r8, =0x80808080
+1:	ldr	r7, [lr]
+	ands	r7, #2
+	bne	1b
+	str	r9, [r10]
+2:	add	r5, r4, #128 * 64
+	mov	r6, #0x3f
+3:	ldr	r0, [r4], #128
+	ldr	r1, [r5]
+	ldr	r2, [r4], #128
+	ldr	r3, [r5, #128]
+	add	r0, r1
+	add	r2, r3
+	bic	r1, r0, r8
+	bic	r3, r2, r8
+	str	r1, [r5], #128
+	and	r0, r8
+	str	r3, [r5], #128
+	and	r2, r8
+	orr	r0, r2, r0, lsr #1
+	orrs	r6, r0, r6, lsr #2
+	bcs	3b
+	mvn	r1, r6
+4:	ldr	r0, [lr]
+	tst	r0, #2
+	bne	4b
+	str	r1, [r12]
+	sub	r4, #128 * 8 - 4
+	adds	r7, #1 << 27
+	bcc	2b
+	add	r9, #1
+	add	r4, #128 * 7
+	tst	r9, #7
+	bne	1b
+	pop	{r4-r10,pc}
+
+	.global lcd_refresh_st7567_data
+lcd_refresh_st7567_data:
+	.long	0, 0
+
 CODE32_FN lcd_send_hx1230_asm
 	mov	r12, #0x8a000000
 	lsl	r1, #24
@@ -149,6 +197,7 @@ CODE32_FN lcd_send_ssd1306_asm
 	str	r2, [r12]
 	bx	lr
 
+// SC6530C: 3.925 ms
 CODE32_FN lcd_refresh_hx1230_asm
 	push	{r4-r10,lr}
 	add	r4, r0, #96
@@ -211,6 +260,7 @@ CODE32_FN lcd_refresh_hx1230_asm
 	str	r2, [r12, #0x20 << 3]
 	bx	lr
 
+// SC6531E: 1.508 ms
 CODE32_FN lcd_refresh_ssd1306_asm
 	push	{r4-r8,lr}
 	mov	r4, r0
@@ -233,7 +283,6 @@ CODE32_FN lcd_refresh_ssd1306_asm
 	str	r0, [r12, #0x40 << 3]
 1:
 .endif
-	sub	r7, #64 << 16
 2:	add	r5, r4, #64 * 48
 	mov	r6, #0x3f
 3:	ldr	r0, [r4], #64
@@ -263,8 +312,8 @@ CODE32_FN lcd_refresh_ssd1306_asm
 	orr	r1, #1
 	bl	4f
 	sub	r4, #64 * 8 - 4
-	adds	r7, #4 << 16
-	bmi	2b
+	adds	r7, #1 << 28
+	bcc	2b
 	add	r4, #64 * 7
 	subs	r7, #1
 	bhi	1b
