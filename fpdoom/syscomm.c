@@ -45,13 +45,17 @@ static int check_keymap(const void *buf) {
 		tmp = 1u << (a & 31);
 		if (a & 32) t1 |= tmp; else t0 |= tmp;
 	}
-	// exception: Children's Camera
-	if (t0 != 0x20f2 || t1) {
+	do {
+		// DBG_LOG("t0 = 0x%x, t1 = 0x%x\n", t0, t1);
+		// exception: Children's Camera
+		if (t0 == 0x20f2 && !t1) break;
+		// exception: Prestigio Wize J1
+		if (t0 == 0x63f2 && t1 == 0x3fe0400) break;
 		t0 |= ~(1 << 8); // LSOFT
 		tmp = 0x03ff0000 | 1 << ('*' & 31) | 1 << ('#' & 31);
 		t1 |= ~tmp;
 		if (~(t1 & t0)) return 0;
-	}
+	} while (0);
 	// DBG_LOG("keyrows = %u, keycols = %u\n", nrow, ncol);
 	if (!sys_data.keyrows) sys_data.keyrows = nrow;
 	if (!sys_data.keycols) sys_data.keycols = ncol;

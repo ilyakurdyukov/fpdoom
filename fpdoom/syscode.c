@@ -849,6 +849,7 @@ static void keypad_init(void) {
 	ctrl |= 1; // enable
 	ctrl &= ~2; // sleep
 	ctrl |= 4; // long
+	ctrl &= _chip == 1 ? ~0xffff00 : ~0xfcfc00;
 	ctrl |=	row << 16 | col << 8;
 	kpd->ctrl = ctrl;
 

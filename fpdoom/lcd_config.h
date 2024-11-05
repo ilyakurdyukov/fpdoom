@@ -215,6 +215,36 @@ static const uint8_t cmd9106_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9106_prestigio_init[] = {
+	//LCM_DELAY(120),
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xb3, 1), 0x03, // ???
+	LCM_CMD(0xb6, 1), 0x11, // ???
+	LCM_CMD(0xac, 1), 0x0b,
+	LCM_CMD(0xa3, 1), 0x07, // Frame Rate
+	LCM_CMD(0x21, 0), // Display Inversion ON
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0xb4, 1), 0x21, // Display Inversion Control
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x08,0x5e,0x2d,0x6c,
+		0xbe,0x37,0x36,0x00, 0x07,0x10,0x10,0x17, 0x15,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x05,0x21,0x24,0x30,
+		0xaa,0x00,0x01,0x00, 0x02,0x16,0x19,0x16, 0x15,0x0f,
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	//LCM_CMD(0xff, 0), // ???
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_DELAY(10),
+	//LCM_CMD(0x2c, 0),
+	LCM_END
+};
+
 static const uint8_t cmd1C80F3_init[] = {
 	//LCM_DELAY(120),
 	LCM_CMD(0x11, 0), // Sleep Out Mode
@@ -1593,6 +1623,11 @@ static const lcd_config_t lcd_config1[] = {
 	// Solomon Systech SSD1306
 	X(0x001306, 64,48, 0x1c1, 15,120,75,15,35,35, 0, cmd1306)
 #endif
+
+/* Prestigio Wize J1 */
+
+	// GlaxyCore GC9106
+	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_prestigio)
 };
 
 static const lcd_config_t lcd_config2[] = {
