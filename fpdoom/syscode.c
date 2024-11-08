@@ -165,9 +165,16 @@ static void gpio_init(void *ptr) {
 
 static void pin_init(void) {
 	const volatile uint32_t *pinmap = pinmap_addr;
-	// workaround for Samsung GT-E1272
-	// hangs shortly after this pin is enabled
-	uint32_t sc6530_fix = IS_SC6530 && !sys_data.spi ? 0x8c000290 : 0;
+	uint32_t sc6530_fix = 0;
+	if (IS_SC6530) {
+		// workaround for Samsung GT-E1272
+		// hangs shortly after 0x8c000290 is set to 0x231
+		sc6530_fix = 0x8c000290; // SPI0 pin
+		// workaround for Samsung B310E
+		// hangs shortly after 0x8c0002a4 is set to 0x231
+		// this pin belongs to UART TX
+		MEM4(0x8b0000a4) = 0xc00; // disable UART
+	}
 
 	for (;;) {
 		uint32_t addr = pinmap[0], val = pinmap[1];
