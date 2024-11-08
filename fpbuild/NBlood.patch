@@ -1355,7 +1355,7 @@ index fb93fb8..ac8a65f 100644
 +#endif
  }
 diff --git a/source/blood/src/db.cpp b/source/blood/src/db.cpp
-index b1048ae..91318f3 100644
+index b1048ae..fbcc894 100644
 --- a/source/blood/src/db.cpp
 +++ b/source/blood/src/db.cpp
 @@ -28,7 +28,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -1418,7 +1418,19 @@ index b1048ae..91318f3 100644
  
      if (!pNode)
      {
-@@ -743,7 +759,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -726,7 +742,11 @@ unsigned int dbReadMapCRC(const char *pPath)
+     {
+         ThrowError("Map file is wrong version");
+     }
++#ifdef EMBEDDED
++    unsigned int nCRC; memcpy(&nCRC, pData+nSize-4, 4);
++#else
+     unsigned int nCRC = *(unsigned int*)(pData+nSize-4);
++#endif
+     gSysRes.Unlock(pNode);
+     return nCRC;
+ }
+@@ -743,7 +763,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
      memset(show2dsector,0,sizeof(show2dsector));
      memset(show2dwall,0,sizeof(show2dwall));
      memset(show2dsprite,0,sizeof(show2dsprite));
@@ -1428,7 +1440,7 @@ index b1048ae..91318f3 100644
  
      memset(xvel,0,sizeof(xvel));
      memset(yvel,0,sizeof(yvel));
-@@ -764,6 +782,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -764,6 +786,9 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
  
      Bstrncpy(name2, pPath, BMAX_PATH);
      Bstrupr(name2);
@@ -1438,7 +1450,7 @@ index b1048ae..91318f3 100644
      DICTNODE* pNode = *gSysRes.Probe(name2, "MAP");
      if (pNode && pNode->flags & DICT_EXTERNAL)
      {
-@@ -778,6 +799,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -778,6 +803,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
          ChangeExtension(name2, "");
          pNode = gSysRes.Lookup(name2, "MAP");
      }
@@ -1446,7 +1458,7 @@ index b1048ae..91318f3 100644
  
      if (!pNode)
      {
-@@ -801,6 +823,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -801,6 +827,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
          return -1;
      }
      byte_1A76C8 = 0;
@@ -1454,7 +1466,7 @@ index b1048ae..91318f3 100644
      if ((header.version & 0xff00) == 0x700) {
          byte_1A76C8 = 1;
          
-@@ -849,15 +872,21 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -849,15 +876,21 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
      mapHeader.at23 = B_LITTLE16(mapHeader.at23);
  #endif
  
@@ -1476,7 +1488,7 @@ index b1048ae..91318f3 100644
      gVisibility = g_visibility = mapHeader.at12;
      gSongId = mapHeader.at16;
      if (byte_1A76C8)
-@@ -887,6 +916,17 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -887,6 +920,17 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
      gMapRev = mapHeader.at1b;
      numsectors = mapHeader.at1f;
      numwalls = mapHeader.at21;
@@ -1494,7 +1506,7 @@ index b1048ae..91318f3 100644
      dbInit();
      if (byte_1A76C8)
      {
-@@ -902,7 +942,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -902,7 +946,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
      {
          memset(&byte_19AE44, 0, 128);
      }
@@ -1506,7 +1518,7 @@ index b1048ae..91318f3 100644
      IOBuffer1.Read(tpskyoff, gSkyCount*sizeof(tpskyoff[0]));
      if (byte_1A76C8)
      {
-@@ -910,7 +954,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -910,7 +958,11 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
      }
      for (int i = 0; i < ClipHigh(gSkyCount, MAXPSKYTILES); i++)
      {
@@ -1518,7 +1530,7 @@ index b1048ae..91318f3 100644
      }
      for (int i = 0; i < numsectors; i++)
      {
-@@ -935,8 +983,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -935,8 +987,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
          pSector->hitag = B_LITTLE16(pSector->hitag);
          pSector->extra = B_LITTLE16(pSector->extra);
  #endif
@@ -1529,7 +1541,7 @@ index b1048ae..91318f3 100644
          if (sector[i].extra > 0)
          {
              char pBuffer[nXSectorSize];
-@@ -1143,8 +1193,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -1143,8 +1197,10 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
          InsertSpriteStat(i, sprite[i].statnum);
          Numsprites++;
          sprite[i].index = i;
@@ -1540,7 +1552,7 @@ index b1048ae..91318f3 100644
          if (sprite[i].extra > 0)
          {
              char pBuffer[nXSpriteSize];
-@@ -1360,6 +1412,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
+@@ -1360,6 +1416,7 @@ int dbLoadMap(const char *pPath, int *pX, int *pY, int *pZ, short *pAngle, short
  
  int dbSaveMap(const char *pPath, int nX, int nY, int nZ, short nAngle, short nSector)
  {
@@ -1548,7 +1560,7 @@ index b1048ae..91318f3 100644
      char sMapExt[BMAX_PATH];
      //char sBakExt[BMAX_PATH];
      int16_t tpskyoff[256];
-@@ -1713,6 +1766,7 @@ int dbSaveMap(const char *pPath, int nX, int nY, int nZ, short nAngle, short nSe
+@@ -1713,6 +1770,7 @@ int dbSaveMap(const char *pPath, int nX, int nY, int nZ, short nAngle, short nSe
      }
      Bclose(nHandle);
      Xfree(pData);

@@ -630,6 +630,23 @@ index fcbfd2c..1913695 100644
              if (labs(sector[hitsect].floorz - pp->posz) < Z(50))
                  {
                  if (Distance(pp->posx, pp->posy, hitx, hity) < ((((int)pp->SpriteP->clipdist)<<2) + 256))
+diff --git a/src/reserve.h b/src/reserve.h
+index f51865c..e225d84 100644
+--- a/src/reserve.h
++++ b/src/reserve.h
+@@ -33,7 +33,12 @@ Prepared for public release: 03/28/2005 - Charlie Wiederhold, 3D Realms
+ #define MAXMIRRORS          8
+ // This is just some, high, blank tile number not used
+ // by real graphics to put the MAXMIRRORS mirrors in
++#ifdef EMBEDDED
++// alignment fix: must be divisible by 32 (see JS_DrawMirrors)
++#define MIRRORLABEL         (6000-16)
++#else
+ #define MIRRORLABEL         6000
++#endif
+ 
+ #define TILT_TILE           6016
+ 
 diff --git a/src/rooms.c b/src/rooms.c
 index dbffcaa..3667ff4 100644
 --- a/src/rooms.c
