@@ -788,7 +788,6 @@ void sys_framebuffer(void *base) {
 			lcd_refresh_mono = fn;
 		}
 		if (sys_data.mac & 1) {
-			setup_int_vectors();
 			lcd_start_timer();
 		}
 		return;
@@ -938,6 +937,101 @@ static void init_charger(void) {
 	}
 }
 
+static void irq_handler(void) {
+	uint32_t timer = LCD_TIMER_ADDR;
+	if (MEM4(timer + 0xc) & 4) {
+		MEM4(timer + 0xc) = 9;
+		lcd_refresh_mono(sys_data.framebuf);
+	}
+}
+
+extern uint8_t int_vectors[], int_vectors_end[];
+void set_mode_sp(int mode, uint32_t sp);
+void invalidate_tlb(void);
+void invalidate_tlb_mva(uint32_t);
+
+void sys_prep_vectors(uint32_t *ttb) {
+	uint8_t *p = (uint8_t*)CHIPRAM_ADDR + 0x19000;
+	intptr_t sp = (intptr_t)(p + 0x9000);
+	uint32_t cb = 3 << 2; // write-back cachable
+	uint32_t domain = 1 << 5;
+
+	memcpy(p, int_vectors, int_vectors_end - int_vectors);
+	set_mode_sp(0xd2, sp); // sp_IRQ
+	set_mode_sp(0xd3, sp); // sp_SVC
+	set_mode_sp(0xd7, sp); // sp_ABT
+	set_mode_sp(0xdb, sp); // sp_UND
+#if 1 // 4K coarse page
+	memset(p + 0x400, 0, 0x400);
+#if 0 // vectors at 0
+	MEM4(p + 0x400) = (intptr_t)p | cb | 2;
+	ttb[0] = ((intptr_t)p + 0x400) | domain | 0x11;
+#else // vectors at 0xffff0000
+	MEM4(p + 0x7c0) = (intptr_t)p | cb | 2;
+	ttb[0xfff] = ((intptr_t)p + 0x400) | domain | 0x11;
+#endif
+#else // 1M section
+	ttb[0] = (intptr_t)p | domain | cb | 0x12;
+#endif
+	clean_invalidate_dcache();
+	invalidate_tlb_mva(0xffff0000);
+}
+
+// restrict access to memory that shouldn't be used
+static void restrict_mem(void) {
+	uint32_t ram_addr = (uint32_t)&int_vectors & 0xfc000000;
+	uint32_t ram_size = MEM4(ram_addr);
+	uint32_t ttb = ram_addr + ram_size - 0x4000;
+	unsigned i;
+	for (i = 0; i < 0x40 * 4; i += 4)
+		MEM4(ttb + i) = 0;
+	clean_invalidate_dcache();
+	invalidate_tlb();
+}
+
+void _debug_msg(const char *msg);
+
+void def_data_except(uint32_t fsr, uint32_t far, uint32_t pc) {
+#if LIBC_SDIO >= 3
+	(void)fsr; (void)far; (void)pc;
+#else
+	char buf[80];
+	sprintf(buf, "exception: FSR=0x%03x, FAR=0x%08x, PC=0x%08x",
+			fsr & 0x1ff, far, pc);
+	_debug_msg(buf);
+#endif
+	for (;;);
+}
+
+#if LIBC_SDIO < 3
+static void undef_handler(uint32_t pc) {
+	char buf[80];
+	sprintf(buf, "undefined instruction: PC=0x%08x", pc);
+	_debug_msg(buf);
+	for (;;);
+}
+#endif
+
+void app_data_except(uint32_t fsr, uint32_t far, uint32_t pc);
+
+void sys_set_handlers(void) {
+	uint8_t *p = (uint8_t*)CHIPRAM_ADDR + 0x19000;
+
+	MEM4(p + 0x20) = (intptr_t)&irq_handler;
+#ifdef APP_DATA_EXCEPT
+	MEM4(p + 0x24) = (intptr_t)&app_data_except;
+#else
+#if LIBC_SDIO < 3
+	MEM4(p + 0x24) = (intptr_t)&def_data_except;
+#endif
+#endif
+#if LIBC_SDIO < 3
+	MEM4(p + 0x28) = (intptr_t)&undef_handler;
+#endif
+	clean_invalidate_dcache();
+	clean_icache();
+}
+
 void sys_init(void) {
 	init_charger();
 	init_chip_id();
@@ -949,6 +1043,7 @@ void sys_init(void) {
 		keypad_init();
 		keytrn_init();
 	}
+	restrict_mem();
 	sys_data.init_done = 1;
 }
 

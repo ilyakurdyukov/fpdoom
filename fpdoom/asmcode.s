@@ -34,27 +34,49 @@ CODE32_FN set_mode_sp
 
 CODE32_FN int_vectors
 1:	b	1b // reset
-1:	b	1b // undefined
-1:	b	1b // swi
-1:	b	1b // prefetch
+1:	b	6f // undefined
+1:	b	6f // swi
+1:	b	5f // prefetch
 1:	b	4f // data
 1:	b	1b // reserved
 	b	2f // irq
 1:	b	1b // fiq
-3:	.long 0
-5:	.long 0
+
+3:	.long 0xffff0000
+	.long 0xffff0000
+	.long 0xffff0000
 
 2:	sub	lr, #4
-	push	{r0-r4,r12,lr}
+	push	{r0-r3,r12,lr}
 	ldr	lr, 3b
 	blx	lr
-	ldm	sp!, {r0-r4,r12,pc}^
+	ldm	sp!, {r0-r3,r12,pc}^
 
 4:	sub	lr, #8
-	push	{r0-r4,r12,lr}
-	ldr	lr, 5b
+	push	{r0-r3,r12,lr}
+	mov	r2, lr
+	ldr	lr, 3b + 4
+	mrc	p15, #0, r0, c5, c0, #0 // read DFSR
+	mrc	p15, #0, r1, c6, c0, #0 // read FAR
+	// r0 bit 8 is always zero
 	blx	lr
-	ldm	sp!, {r0-r4,r12,pc}^
+	ldm	sp!, {r0-r3,r12,pc}^
+
+5:	sub	lr, #4
+	push	{r0-r3,r12,lr}
+	mov	r2, lr
+	ldr	lr, 3b + 4
+	mrc	p15, #0, r0, c5, c0, #1 // read IFSR
+	orr	r0, #0x100
+	mov	r1, r2
+	blx	lr
+	ldm	sp!, {r0-r3,r12,pc}^
+
+6:	push	{r0-r3,r12,lr}
+	sub	r0, lr, #4
+	ldr	lr, 3b + 8
+	blx	lr
+	ldm	sp!, {r0-r3,r12,pc}^
 
 	.global int_vectors_end
 int_vectors_end:
@@ -63,7 +85,7 @@ CODE32_FN enable_mmu
 	mcr	p15, #0, r0, c2, c0, #0
 	mcr	p15, #0, r1, c3, c0, #0 // Domain Access Control Register
 	mov	r0, #0
-	mcr	p15, #0, r0, c7, c6, #0	// Invalidate DCache
+	mcr	p15, #0, r0, c7, c6, #0 // Invalidate DCache
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
 	orr	r0, #5
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register

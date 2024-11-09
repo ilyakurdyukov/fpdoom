@@ -321,39 +321,6 @@ static void lcd_setup_timer(int i, uint32_t load) {
 
 static void (*lcd_refresh_mono)(uint8_t*);
 
-static void irq_handler(void) {
-	uint32_t timer = LCD_TIMER_ADDR;
-	if (MEM4(timer + 0xc) & 4) {
-		MEM4(timer + 0xc) = 9;
-		lcd_refresh_mono(sys_data.framebuf);
-	}
-}
-
-static void data_exception(void) { for (;;); }
-
-extern uint8_t int_vectors[], int_vectors_end[];
-void set_mode_sp(int mode, uint32_t sp);
-void invalidate_tlb_mva(uint32_t);
-
-static void setup_int_vectors(void) {
-	uint8_t *p = (uint8_t*)CHIPRAM_ADDR;
-
-	memcpy(p, int_vectors, int_vectors_end - int_vectors);
-	set_mode_sp(0xd2, (intptr_t)(p + 0x400)); // sp_IRQ
-	set_mode_sp(0xd7, (intptr_t)(p + 0x400)); // sp_ABT
-	MEM4(p + 0x20) = (intptr_t)&irq_handler;
-	MEM4(p + 0x24) = (intptr_t)&data_exception;
-	{
-		uint32_t ram_addr = (uint32_t)&int_vectors & 0xfc000000;
-		uint32_t ram_size = *(volatile uint32_t*)ram_addr;
-		MEM4(ram_addr + ram_size - 0x4000) =
-				CHIPRAM_ADDR | 1 << 5 | 0x12; // domain = 1
-		clean_invalidate_dcache();
-		clean_icache();
-		invalidate_tlb_mva(0);
-	}
-}
-
 static void lcd_start_timer(void) {
 	uint32_t timer = LCD_TIMER_ADDR;
 	MEM4(timer + 8) = 0xc0;

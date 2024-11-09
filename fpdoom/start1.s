@@ -14,18 +14,21 @@
 CODE32_FN _start
 
 //  0 : MMU enable
+//  1 : Alignment fault enable
 //  2 : Level 1 Data Cache enable
 //  8 : System protection
 //  9 : ROM protection
 // 12 : Instruction Cache enable
+// 13 : Location of exception vectors
 
 	mov	r1, #0
 	mcr	p15, #0, r1, c7, c5, #0	// Invalidate ICache
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
-	bic	r0, #5
+	bic	r0, #5 // 2 + 0
 	// SR=01, read-only
 	bic	r0, #0x100 // 8
-	orr	r0, #0x1200 // 12 + 9
+	orr	r0, #2 // 1
+	orr	r0, #0x3200 // 13 + 12 + 9
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
 	msr	cpsr_c, #0xdf // SYS mode
 	ldr	sp, 1f

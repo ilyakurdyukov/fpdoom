@@ -75,6 +75,9 @@ void _stdio_init(void);
 int _argv_init(char ***argvp, int skip);
 int _argv_copy(char ***argvp, int argc, char *src);
 
+size_t app_mem_reserve(void *start, size_t size);
+void sys_prep_vectors(uint32_t *ttb);
+void sys_set_handlers(void);
 int main(int argc, char **argv);
 
 /* dcache must be disabled for this function */
@@ -174,23 +177,31 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	_debug_msg("entry");
 #endif
 
+	MEM4(0x8b0001a0) |= 7 << 19; // iram(1..3) enable
+
 	ram_size = get_ram_size(ram_addr);
 #if INIT_MMU
 	{
 		volatile uint32_t *tab = (volatile uint32_t*)(ram_addr + ram_size - 0x4000);
+		uint32_t ro_domain = 1 << 5;
+		uint32_t cb = 3 << 2; // cached=1, buffered=1
 		unsigned i;
-		for (i = 0; i < 0x1000; i++)
-			tab[i] = i << 20 | 3 << 10 | 0x12; // section descriptor
-		tab[0] = 0 | 1 << 5 | 0x12; // domain = 1
-		// cached=1, buffered=1
-		tab[CHIPRAM_ADDR >> 20] |= 3 << 2;
+		for (i = 0; i < 0x40; i++)
+			tab[i] = i << 20 | ro_domain | 0x12;
+		for (; i < 0x901; i++)
+			tab[i] = i << 20 | 3 << 10 | 0x12;
+		for (; i < 0x1000; i++) tab[i] = 0; // no access
+		tab[CHIPRAM_ADDR >> 20] |= cb;
 		for (i = 0; i < (ram_size >> 20); i++)
-			tab[ram_addr >> 20 | i] |= 3 << 2;
+			tab[ram_addr >> 20 | i] |= cb;
 		// for faster search
-		for (i = 0; i < 16; i++)
-			tab[fw_addr >> 20 | i] |= 1 << 5 | 3 << 2; // domain = 1
-		// domains: 0 - manager, 1 - client, 2..15 - no access
-		enable_mmu((uint32_t*)tab, 7);
+		for (i = 0; i < 16; i++) {
+			uint32_t j = (fw_addr >> 20) + i;
+			tab[j] = j << 20 | ro_domain | cb | 0x12;
+		}
+		// domains: 0 - manager, 1..3 - client, 4..15 - no access
+		enable_mmu((uint32_t*)tab, 0x57);
+		sys_prep_vectors((uint32_t*)tab);
 	}
 	ram_size -= 0x4000; // MMU table
 #endif
@@ -208,6 +219,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		size -= sizeof(fatdata_t);
 #endif
 		data_copy = addr + size;
+#else
+#ifdef APP_MEM_RESERVE
+		size = app_mem_reserve(addr, size);
+#endif
 #endif
 		_malloc_init(addr, size);
 		_stdio_init();
@@ -399,6 +414,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	return argc1 - argc;
 #endif
 #else
+	sys_set_handlers();
 #ifdef CXX_SUPPORT
 	cxx_init(argc, argv);
 #endif

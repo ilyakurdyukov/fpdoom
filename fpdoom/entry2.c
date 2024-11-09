@@ -18,6 +18,8 @@ void _stdio_init(void);
 int _argv_init(char ***argvp, int skip);
 int _argv_copy(char ***argvp, int argc, char *src);
 
+size_t app_mem_reserve(void *start, size_t size);
+void sys_set_handlers(void);
 int main(int argc, char **argv);
 
 #ifdef CXX_SUPPORT
@@ -68,6 +70,9 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 		// load sys_data
 		p -= sizeof(sys_data);
 		memcpy(&sys_data, p, sizeof(sys_data));
+#ifdef APP_MEM_RESERVE
+		size = app_mem_reserve(addr, size);
+#endif
 		_malloc_init(addr, size);
 	}
 	_stdio_init();
@@ -80,6 +85,7 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #else
 	argc = _argv_init(&argv, arg_skip);
 #endif
+	sys_set_handlers();
 #ifdef CXX_SUPPORT
 	cxx_init(argc, argv);
 #endif
