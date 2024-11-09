@@ -12,7 +12,8 @@ $(error ZIPDIR must not contain spaces in the name)
 endif
 
 FPBIN = $(BINDIR)/sdcard/fpbin
-APPS = fpdoom fpduke3d fpsw fpblood infones wolf3d wolf3d_sw
+APPS = fpdoom fpduke3d fpsw fpblood infones \
+	wolf3d wolf3d_sw snes9x snes9x_16bit
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
@@ -41,6 +42,9 @@ infones/InfoNES:
 
 wolf3d/Wolf4SDL:
 	$(call getsrc,wolf3d)
+
+snes9x/snes9x_src:
+	$(call getsrc,snes9x)
 
 define makebin
 	cd $(1) && $(MAKE) clean $(2)
@@ -75,6 +79,12 @@ $(BINDIR)/usb/wolf3d.bin: wolf3d/Wolf4SDL
 
 $(BINDIR)/usb/wolf3d_sw.bin: wolf3d/Wolf4SDL
 	$(call makebin,wolf3d,LIBC_SDIO=0 NAME=wolf3d_sw)
+
+$(BINDIR)/usb/snes9x.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,LIBC_SDIO=0)
+
+$(BINDIR)/usb/snes9x_16bit.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,LIBC_SDIO=0 NAME=snes9x_16bit)
 
 # SD card mode
 
@@ -117,4 +127,10 @@ $(FPBIN)/wolf3d.bin: wolf3d/Wolf4SDL
 
 $(FPBIN)/wolf3d_sw.bin: wolf3d/Wolf4SDL
 	$(call makebin,wolf3d,LIBC_SDIO=3 NAME=wolf3d_sw)
+
+$(FPBIN)/snes9x.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,LIBC_SDIO=3)
+
+$(FPBIN)/snes9x_16bit.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,LIBC_SDIO=3 NAME=snes9x_16bit)
 

@@ -11,6 +11,7 @@ There are other ports that reuse code written for FPDoom:
 [fpbuild](fpbuild): Duke 3D, Shadow Warrior, Blood  
 [infones](infones): NES emulator  
 [wolf3d](wolf3d): Wolfenstein 3D  
+[snes9x](snes9x): SNES emulator  
 
 ### Installation on SD card
 

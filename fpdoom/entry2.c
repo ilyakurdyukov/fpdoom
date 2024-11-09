@@ -58,9 +58,6 @@ void entry_main2(char *image_addr, uint32_t image_size, uint32_t bss_size, int a
 #if INIT_MMU
 		size -= 0x4000; // MMU table
 #endif
-#if LIBC_SDIO
-		size -= 1024;
-#endif
 		p = addr + size;
 #if LIBC_SDIO
 		p -= sizeof(fatdata_t);

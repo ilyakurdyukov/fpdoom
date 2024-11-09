@@ -15,11 +15,16 @@
 $@ = $@ --rotate 3
 
 $nes_args = --dir games/nes infones
-$nes = fpbin/infones.bin $@ $nes_args
+# "--scaler 49" means auto resolution + widescreen scaler
+$nes = fpbin/infones.bin $@ --scaler 49 $nes_args
 # Workaround for some games to display correctly.
 $nes2 = $nes --scanline_step 113
 # This crops the top and bottom tiles, there is garbage in some games.
-$nes_crop = fpbin/infones.bin $@ --scaler 99 $nes_args
+$nes_crop = fpbin/infones.bin $@ --scaler 149 $nes_args
+
+$snes_args = --dir games/snes snes9x
+$snes = fpbin/snes9x.bin $@ --scaler 49 $nes_args
+$snes16 = fpbin/snes9x_16bit.bin $@ --scaler 49 $nes_args
 
 $doom = fpbin/fpdoom.bin $@
 
@@ -35,6 +40,10 @@ $doom = fpbin/fpdoom.bin $@
 #1234567890123456# 128px = 16 chars
 #12345678901234567890# 160px = 20 chars
 #123456789012345678901234567890# 240px = 30 chars
+
+|=== SNES ===|
+|SNES Example 1| $snes "Example 1.smc"
+|SNES Example 2| $snes16 "Example 2.smc"
 
 |=== NES ===|
 |NES Example 1| $nes "Example 1.nes"

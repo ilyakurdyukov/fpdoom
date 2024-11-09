@@ -1,0 +1,1511 @@
+diff --git a/apu.cpp b/apu.cpp
+index a82c3e5..bd57369 100644
+--- a/apu.cpp
++++ b/apu.cpp
+@@ -115,6 +115,15 @@ void S9xTraceSoundDSP (const char *s, int i1 = 0, int i2 = 0, int i3 = 0,
+ 
+ bool8 S9xInitAPU ()
+ {
++#ifdef NOSOUND
++    IAPU.RAM = (uint8 *) malloc (0x10000);
++    if (!IAPU.RAM)
++    {
++		S9xDeinitAPU ();
++		return (FALSE);
++    }
++	memset(IAPU.RAM, 0, 0x10000);
++#else
+     IAPU.RAM = (uint8 *) malloc (0x10000);
+     IAPU.ShadowRAM = (uint8 *) malloc (0x10000);
+     IAPU.CachedSamples = (uint8 *) malloc (0x40000);
+@@ -128,6 +137,7 @@ bool8 S9xInitAPU ()
+ 	memset(IAPU.RAM, 0, 0x10000);
+ 	memset(IAPU.ShadowRAM, 0, 0x10000);
+ 	memset(IAPU.CachedSamples, 0, 0x40000);
++#endif
+ 	
+     return (TRUE);
+ }
+@@ -172,9 +182,11 @@ void S9xResetAPU ()
+ 		memcpy(IAPU.RAM+(i<<8), IAPU.RAM, 0x100);
+ 	}
+ 
++#ifndef NOSOUND
+     memcpy (IAPU.ShadowRAM, IAPU.RAM, 0x10000);
+ 	
+     ZeroMemory (IAPU.CachedSamples, 0x40000);
++#endif
+     ZeroMemory (APU.OutPorts, 4);
+     IAPU.DirectPage = IAPU.RAM;
+     memmove (&IAPU.RAM [0xffc0], APUROM, sizeof (APUROM));
+@@ -220,7 +232,9 @@ void S9xResetAPU ()
+     APU.KeyedChannels = 0;
+ 	
+     S9xResetSound (TRUE);
++#ifndef NOSOUND
+     S9xSetEchoEnable (0);
++#endif
+ }
+ 
+ void S9xSetAPUDSP (uint8 byte)
+@@ -915,10 +929,11 @@ void S9xSetAPUTimer (uint16 Address, uint8 byte)
+     }
+ }
+ 
++#ifndef USE_ASM
+ void S9xUpdateAPUTimer (void)
+ {
+-	while (CPU.Cycles * 10000L >= IAPU.NextAPUTimerPos)
+-	//if (CPU.Cycles * 10000L >= IAPU.NextAPUTimerPos)
++	while (CPU.Cycles * SNES_APUTIMER2_MULT >= IAPU.NextAPUTimerPos)
++	//if (CPU.Cycles * SNES_APUTIMER2_MULT >= IAPU.NextAPUTimerPos)
+ 	{
+ 		//APU_EXECUTE();
+ 		
+@@ -972,6 +987,7 @@ void S9xUpdateAPUTimer (void)
+ 		}
+ 	}
+ }
++#endif
+ 
+ uint8 S9xGetAPUDSP ()
+ {
+diff --git a/apu.h b/apu.h
+index e623071..a7c9211 100644
+--- a/apu.h
++++ b/apu.h
+@@ -97,7 +97,15 @@ struct SIAPU
+     uint8  *PC;
+     uint8  *RAM;
+     uint8  *DirectPage;
++#ifdef NOSOUND
++    struct {
++        bool8 dummy;
++        bool8 operator=(bool8 x) { return x; }
++        operator bool8() const { return 0; }
++    } APUExecuting;
++#else
+     bool8  APUExecuting;
++#endif
+     uint8  Bit;
+     uint32 Address;
+     uint8  *WaitAddress1;
+diff --git a/cheats.h b/cheats.h
+index b69f720..51234a3 100644
+--- a/cheats.h
++++ b/cheats.h
+@@ -99,21 +99,29 @@ struct SCheat
+     char    name [22];
+ };
+ 
++#ifdef EMBEDDED
++#define MAX_CHEATS 25
++#else
+ #define MAX_CHEATS 75
++#endif
+ 
+ struct SCheatData
+ {
+     struct SCheat   c [MAX_CHEATS];
+     uint32	    num_cheats;
++#ifndef EMBEDDED
+     uint8	    CWRAM [0x20000];
+     uint8	    CSRAM [0x10000];
+     uint8	    CIRAM [0x2000];
++#endif
+     uint8           *RAM;
+     uint8           *FillRAM;
+     uint8           *SRAM;
++#ifndef EMBEDDED
+     uint32	    WRAM_BITS [0x20000 >> 3];
+     uint32	    SRAM_BITS [0x10000 >> 3];
+     uint32	    IRAM_BITS [0x2000 >> 3];
++#endif
+ };
+ 
+ typedef enum
+diff --git a/cheats2.cpp b/cheats2.cpp
+index 6b103ee..a0eb6e1 100644
+--- a/cheats2.cpp
++++ b/cheats2.cpp
+@@ -235,8 +235,10 @@ bool8 S9xSaveCheatFile (const char *filename)
+ {
+     if (Cheat.num_cheats == 0)
+     {
++#ifndef EMBEDDED
+ 	(void) remove (filename);
+ 	return (TRUE);
++#endif
+     }
+ 
+     FILE *fs = fopen (filename, "wb");
+diff --git a/cpuexec.cpp b/cpuexec.cpp
+index a4d986a..26a52d9 100644
+--- a/cpuexec.cpp
++++ b/cpuexec.cpp
+@@ -102,6 +102,10 @@
+ #include "sa1.h"
+ #include "spc7110.h"
+ 
++#ifdef USE_ASM
++extern "C" void S9xMainLoop_asm();
++void S9xMainLoop() { S9xMainLoop_asm();
++#else
+ void S9xMainLoop (void)
+ {
+     for (;;)
+@@ -200,10 +204,13 @@ void S9xMainLoop (void)
+ 	
+ 	S9xUpdateAPUTimer();
+ 	
++#if !NO_SA1
+ 	if (SA1.Executing)
+ 	    S9xSA1MainLoop ();
++#endif
+ 	DO_HBLANK_CHECK();
+     }
++#endif
+     Registers.PC = CPU.PC - CPU.PCBase;
+     S9xPackStatus ();
+     APURegisters.PC = IAPU.PC - IAPU.RAM;
+@@ -268,7 +275,7 @@ void S9xDoHBlankProcessing ()
+ #endif
+ 
+ 	CPU.Cycles -= Settings.H_Max;
+-	IAPU.NextAPUTimerPos -= (Settings.H_Max * 10000L);
++	IAPU.NextAPUTimerPos -= (Settings.H_Max * SNES_APUTIMER2_MULT);
+ 	if (IAPU.APUExecuting)
+ 	{
+ 	    APU.Cycles -= Settings.H_Max;
+diff --git a/dma.cpp b/dma.cpp
+index d6f8943..4434be0 100644
+--- a/dma.cpp
++++ b/dma.cpp
+@@ -262,11 +262,11 @@ void S9xDoDMA (uint8 Channel)
+ 				for (uint32 i = 0; i < Memory.SDD1LoggedDataCount; i++, p += 8)
+ 				{
+ 					if (*p == d->ABank ||
+-						*(p + 1) == (d->AAddress >> 8) &&
++						(*(p + 1) == (d->AAddress >> 8) &&
+ 						*(p + 2) == (d->AAddress & 0xff) &&
+ 						*(p + 3) == (count >> 8) &&
+ 						*(p + 4) == (count & 0xff) &&
+-						*(p + 7) == SDD1Bank)
++						*(p + 7) == SDD1Bank))
+ 					{
+ 						found = TRUE;
+ 						break;
+@@ -323,6 +323,9 @@ void S9xDoDMA (uint8 Channel)
+ 		inc=1;
+ 		d->AAddress-=count;
+ 	}
++#if NO_SA1
++    if (0)
++#endif
+     if (d->BAddress == 0x18 && SA1.in_char_dma && (d->ABank & 0xf0) == 0x40)
+     {
+ 		// Perform packed bitmap to PPU character format conversion on the
+diff --git a/dsp1.cpp b/dsp1.cpp
+index 65ca899..9456156 100644
+--- a/dsp1.cpp
++++ b/dsp1.cpp
+@@ -92,7 +92,11 @@
+ #include "memmap.h"
+ #include <math.h>
+ 
++#if NO_DSP1
++static void InitDSP() {}
++#else
+ #include "dsp1emu.c"
++#endif
+ #include "dsp2emu.c"
+ #include "dsp3emu.cpp"
+ 
+@@ -153,6 +157,7 @@ void S9xSetDSP (uint8 byte, uint16 address)
+ 	//DSP1SetByte(byte, address);
+ }
+ 
++#if !NO_DSP1
+ void DSP1SetByte(uint8 byte, uint16 address)
+ {
+     if( (address & 0xf000) == 0x6000 || (address & 0x7fff) < 0x4000 )
+@@ -789,6 +794,7 @@ uint8 DSP1GetByte(uint16 address)
+     else t = 0x80;
+ 	return t;
+ }
++#endif
+ 
+ void DSP2SetByte(uint8 byte, uint16 address)
+ {
+@@ -940,6 +946,7 @@ uint8 DSP2GetByte(uint16 address)
+ 	return t;
+ }
+ 
++#if !NO_DSP4
+ struct SDSP4 {
+     bool8 waiting4command;
+     bool8 half_command;
+@@ -1192,3 +1199,4 @@ uint8 DSP4GetByte(uint16 address)
+ 
+ 	return t;
+ }
++#endif
+diff --git a/dsp1.h b/dsp1.h
+index 93bc86b..a222d61 100644
+--- a/dsp1.h
++++ b/dsp1.h
+@@ -123,8 +123,8 @@ START_EXTERN_C
+ void S9xResetDSP1 ();
+ uint8 S9xGetDSP (uint16 Address);
+ void S9xSetDSP (uint8 Byte, uint16 Address);
+-END_EXTERN_C
+ 
+ extern struct SDSP1 DSP1;
++END_EXTERN_C
+ 
+ #endif
+diff --git a/font.h b/font.h
+index f2edfd2..5720fbd 100644
+--- a/font.h
++++ b/font.h
+@@ -86,7 +86,7 @@
+   Super NES and Super Nintendo Entertainment System are trademarks of
+   Nintendo Co., Limited and its subsidiary companies.
+ *******************************************************************************/
+-static char *font[] = {
++static const char *font[] = {
+ "           .      . .                    .                ..       .      .                                                     ",
+ "          .#.    .#.#.    . .     ...   .#. .     .      .##.     .#.    .#.     . .       .                                .   ",
+ "          .#.    .#.#.   .#.#.   .###.  .#..#.   .#.     .#.     .#.      .#.   .#.#.     .#.                              .#.  ",
+diff --git a/getset.h b/getset.h
+index 9969a2d..c4dabad 100644
+--- a/getset.h
++++ b/getset.h
+@@ -120,7 +120,7 @@ INLINE uint8 S9xGetByte (uint32 Address)
+ 		return (*(GetAddress + (Address & 0xffff)));
+     }
+ 	
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 		return (S9xGetPPU (Address & 0xffff));
+@@ -222,7 +222,7 @@ INLINE uint16 S9xGetWord (uint32 Address)
+ #endif	
+     }
+ 
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 		return (S9xGetPPU (Address & 0xffff) |
+@@ -333,12 +333,14 @@ INLINE void S9xSetByte (uint8 Byte, uint32 Address)
+     {
+ #ifdef CPU_SHUTDOWN
+ 		SetAddress += Address & 0xffff;
++#if !NO_SA1
+ 		if (SetAddress == SA1.WaitByteAddress1 ||
+ 			SetAddress == SA1.WaitByteAddress2)
+ 		{
+ 			SA1.Executing = SA1.S9xOpcodes != NULL;
+ 			SA1.WaitCounter = 0;
+ 		}
++#endif
+ 		*SetAddress = Byte;
+ #else
+ 		*(SetAddress + (Address & 0xffff)) = Byte;
+@@ -346,7 +348,7 @@ INLINE void S9xSetByte (uint8 Byte, uint32 Address)
+ 		return;
+     }
+ 	
+-    switch ((int) SetAddress)
++    switch ((long) SetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 		S9xSetPPU (Byte, Address & 0xffff);
+@@ -393,7 +395,9 @@ INLINE void S9xSetByte (uint8 Byte, uint32 Address)
+ 		
+     case CMemory::MAP_SA1RAM:
+ 		*(Memory.SRAM + (Address & 0xffff)) = Byte;
++#if !NO_SA1
+ 		SA1.Executing = !SA1.Waiting;
++#endif
+ 		break;
+ 		
+     case CMemory::MAP_C4:
+@@ -456,12 +460,14 @@ INLINE void S9xSetWord (uint16 Word, uint32 Address)
+     {
+ #ifdef CPU_SHUTDOWN
+ 		SetAddress += Address & 0xffff;
++#if !NO_SA1
+ 		if (SetAddress == SA1.WaitByteAddress1 ||
+ 			SetAddress == SA1.WaitByteAddress2)
+ 		{
+ 			SA1.Executing = SA1.S9xOpcodes != NULL;
+ 			SA1.WaitCounter = 0;
+ 		}
++#endif
+ #ifdef FAST_LSB_WORD_ACCESS
+ 		*(uint16 *) SetAddress = Word;
+ #else
+@@ -479,7 +485,7 @@ INLINE void S9xSetWord (uint16 Word, uint32 Address)
+ 		return;
+     }
+ 	
+-    switch ((int) SetAddress)
++    switch ((long) SetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 		S9xSetPPU ((uint8) Word, Address & 0xffff);
+@@ -520,10 +526,10 @@ INLINE void S9xSetWord (uint16 Word, uint32 Address)
+ 			 * then the high byte doesn't follow the low byte. */
+ 			*(Memory.SRAM + 
+ 				(((Address & 0x7fff) - 0x6000 +
+-				((Address & 0xf0000) >> 3) & Memory.SRAMMask))) = (uint8) Word;
++				((Address & 0xf0000) >> 3)) & Memory.SRAMMask)) = (uint8) Word;
+ 			*(Memory.SRAM + 
+ 				((((Address + 1) & 0x7fff) - 0x6000 +
+-				(((Address + 1) & 0xf0000) >> 3) & Memory.SRAMMask))) = (uint8) (Word >> 8);
++				(((Address + 1) & 0xf0000) >> 3)) & Memory.SRAMMask)) = (uint8) (Word >> 8);
+ 			CPU.SRAMModified = TRUE;
+ 		}
+ 		return;
+@@ -551,9 +557,11 @@ INLINE void S9xSetWord (uint16 Word, uint32 Address)
+ 		s7r.bank50[((Address + 1) & 0xffff)]= (uint8) Word;
+ 		break;
+     case CMemory::MAP_SA1RAM:
++#if !NO_SA1
+ 		*(Memory.SRAM + (Address & 0xffff)) = (uint8) Word;
+ 		*(Memory.SRAM + ((Address + 1) & 0xffff)) = (uint8) (Word >> 8);
+ 		SA1.Executing = !SA1.Waiting;
++#endif
+ 		break;
+ 		
+     case CMemory::MAP_C4:
+@@ -600,7 +608,7 @@ INLINE uint8 *GetBasePointer (uint32 Address)
+ 	{
+ 		return s7r.bank50;
+ 	}
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+ 	case CMemory::MAP_SPC7110_DRAM:
+ #ifdef SPC7110_DEBUG
+@@ -666,7 +674,7 @@ INLINE uint8 *S9xGetMemPointer (uint32 Address)
+ 	if(Settings.SPC7110&&((Address&0x7FFFFF)==0x4800))
+ 		return s7r.bank50;
+ 
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+ 	case CMemory::MAP_SPC7110_DRAM:
+ #ifdef SPC7110_DEBUG
+@@ -726,7 +734,7 @@ INLINE void S9xSetPCBase (uint32 Address)
+ 		return;
+     }
+ 	
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 		CPU.PCBase = Memory.FillRAM;
+diff --git a/gfx.cpp b/gfx.cpp
+index d86fa01..f2dd4f1 100644
+--- a/gfx.cpp
++++ b/gfx.cpp
+@@ -98,6 +98,8 @@
+ #include "cheats.h"
+ #include "screenshot.h"
+ 
++extern "C" void scr_clear16_asm(void *buf, int starty, int endy, int val);
++
+ #define M7 19
+ #define M8 19
+ 
+@@ -273,6 +275,9 @@ bool8 S9xGraphicsInit ()
+ 	S9xSetRenderPixelFormat (RGB565);
+ #endif
+ 
++#ifdef EMBEDDED
++    if (0)
++#endif
+     for (uint8 bitshift = 0; bitshift < 4; bitshift++)
+     {
+ 	for (register int i = 0; i < 16; i++)
+@@ -401,7 +406,11 @@ bool8 S9xGraphicsInit ()
+     }
+     S9xFixColourBrightness ();
+ 
++#ifdef NO_COLOR_LUT
++    if (0)
++#else
+     if (Settings.SixteenBit)
++#endif
+     {
+ 	if (!(GFX.X2 = (uint16 *) malloc (sizeof (uint16) * 0x10000)))
+ 	    return (FALSE);
+@@ -4050,6 +4059,10 @@ void S9xUpdateScreen ()
+ 			else
+ 				SelectTileRenderer (TRUE);
+ 			
++#ifdef USE_ASM
++			scr_clear16_asm(GFX.Screen, starty, endy, back);
++			if (0)
++#endif
+ 			for (uint32 y = starty; y <= endy; y++)
+ 			{
+ 				uint32 *p = (uint32 *) (GFX.Screen + y * GFX.Pitch2);
+@@ -4083,10 +4096,14 @@ void S9xUpdateScreen ()
+ 			GFX.pCurrentClip = &IPPU.Clip [1]
+ 			
+ 			
++#if 1
++#define DISPLAY(n) ((GFX.r212c & ~PPU.BG_Forced) & n)
++#else
+ #define DISPLAY(n)\
+     (!(PPU.BG_Forced & n) && \
+ 	(GFX.r212c & n) || \
+ 			((GFX.r212d & n) && subadd))
++#endif
+ 			
+ 			uint8 subadd = GFX.r2131 & 0x3f;
+ 			
+diff --git a/gfx.h b/gfx.h
+index 81b07af..ac26de1 100644
+--- a/gfx.h
++++ b/gfx.h
+@@ -226,6 +226,45 @@ extern uint8 mul_brightness [16][32];
+ #define SUB_SCREEN_DEPTH 0
+ #define MAIN_SCREEN_DEPTH 32
+ 
++#ifdef EMBEDDED
++#define NO_COLOR_LUT
++
++static inline uint16 COLOR_ADD(uint32 a, uint32 b) {
++	uint32 m = 0x07c0f81f;
++	a = (a | a << 16) & m;
++	a += (b | b << 16) & m;
++	b = (a >> 5) + m;
++	a = m & ~(b & ~a);
++	return a | a >> 16;
++}
++
++static inline uint16 COLOR_ADD1_2(uint32 a, uint32 b) {
++	uint32 m = 0x07c0f81f;
++	a = (a | a << 16) & m;
++	a += (b | b << 16) & m;
++	a = a >> 1 & m;
++	return a | a >> 16;
++}
++
++static inline uint16 COLOR_SUB(uint32 a, uint32 b) {
++	uint32 m = 0x07c0f81f;
++	a = (a | a << 16) | m << 5;
++	a -= (b | b << 16) & m;
++	b = (a | m) - (m << 5);
++	a &= m & ~(b >> 5);
++	return a | a >> 16;
++}
++
++static inline uint16 COLOR_SUB1_2(uint32 a, uint32 b) {
++	uint32 m = 0x07c0f81f;
++	a = (a | a << 16) | m << 5;
++	a -= (b | b << 16) & m;
++	b = (a | m) - (m << 5);
++	a &= m & ~(b >> 5);
++	a = a >> 1 & m;
++	return a | a >> 16;
++}
++#else
+ #if defined(OLD_COLOUR_BLENDING)
+ #define COLOR_ADD(C1, C2) \
+ GFX.X2 [((((C1) & RGB_REMOVE_LOW_BITS_MASK) + \
+@@ -240,9 +279,9 @@ GFX.X2 [((((C1) & RGB_REMOVE_LOW_BITS_MASK) + \
+ #endif
+ 
+ #define COLOR_ADD1_2(C1, C2) \
+-(((((C1) & RGB_REMOVE_LOW_BITS_MASK) + \
++((((((C1) & RGB_REMOVE_LOW_BITS_MASK) + \
+           ((C2) & RGB_REMOVE_LOW_BITS_MASK)) >> 1) + \
+-         ((C1) & (C2) & RGB_LOW_BITS_MASK) | ALPHA_BITS_MASK)
++         ((C1) & (C2) & RGB_LOW_BITS_MASK)) | ALPHA_BITS_MASK)
+ 
+ #if defined(OLD_COLOUR_BLENDING)
+ #define COLOR_SUB(C1, C2) \
+@@ -279,6 +318,7 @@ inline uint16 COLOR_SUB(uint16 C1, uint16 C2)
+ #define COLOR_SUB1_2(C1, C2) \
+ GFX.ZERO [(((C1) | RGB_HI_BITS_MASKx2) - \
+ 	   ((C2) & RGB_REMOVE_LOW_BITS_MASK)) >> 1]
++#endif
+ 
+ typedef void (*NormalTileRenderer) (uint32 Tile, uint32 Offset, 
+ 				    uint32 StartLine, uint32 LineCount);
+diff --git a/memmap.cpp b/memmap.cpp
+index 09d447c..c09a2f3 100644
+--- a/memmap.cpp
++++ b/memmap.cpp
+@@ -397,12 +397,66 @@ char *CMemory::Safe (const char *s)
+     return (safe);
+ }
+ 
++static void* malloc_aligned(size_t n) {
++	uint8 *p = (uint8*)malloc(n + 32);
++	if (!p) return p;
++	uint8 *p2 = p + sizeof(void*);
++	p2 += -(intptr_t)p2 & 31;
++	((void**)p2)[-1] = p;
++	return p2;
++}
++static void free_aligned(void *p) {
++	if (p) free(((void**)p)[-1]);
++}
++extern "C" unsigned rommap_size();
++extern "C" void rommap_superfx(void);
++static void Alloc_SRAM() {
++#ifdef EMBEDDED
++	if (Memory.SRAM) return;
++	unsigned size;
++	if (Settings.SuperFX) size = 0x20000;
++	else {
++		size = Memory.SRAMMask + 1 + SRTC_SRAM_PAD;
++		if (size > 0x20000) size = 0x20000;
++	}
++	// Some SA1 code uses this buffer as additional RAM.
++	if (Settings.SA1 && size < 0x10000) size = 0x10000;
++	SuperFX.pvRam = ::SRAM = Memory.SRAM = (uint8*)malloc(size);
++	if (!SRAM) { printf("!!! SRAM malloc failed!\n"); exit(1); }
++	memset(SRAM, SNESGameFixes.SRAMInitialValue, size);
++#endif
++}
++
+ /**********************************************************************************************/
+ /* Init()                                                                                     */
+ /* This function allocates all the memory needed by the emulator                              */
+ /**********************************************************************************************/
+ bool8 CMemory::Init ()
+ {
++#ifdef EMBEDDED
++	uint32 size = 0x20000 + 0x10000 +
++		(MAX_2BIT_TILES + MAX_4BIT_TILES + MAX_8BIT_TILES) * 129;
++	uint8 *p = (uint8*)malloc_aligned(size);
++	memset(p, 0, size);
++	RAM	= p; p += 0x20000; VRAM = p; p += 0x10000;
++	IPPU.TileCache[TILE_2BIT] = p; p += MAX_2BIT_TILES * 128;
++	IPPU.TileCache[TILE_4BIT] = p; p += MAX_4BIT_TILES * 128;
++	IPPU.TileCache[TILE_8BIT] = p; p += MAX_8BIT_TILES * 128;
++	IPPU.TileCached[TILE_2BIT] = p; p += MAX_2BIT_TILES;
++	IPPU.TileCached[TILE_4BIT] = p; p += MAX_4BIT_TILES;
++	IPPU.TileCached[TILE_8BIT] = p; p += MAX_8BIT_TILES;
++
++#ifndef APP_DATA_EXCEPT
++	size = MAX_ROM_SIZE + 0x200 + 0x8000;
++	ROM = (uint8*)malloc_aligned(size);
++	memset(ROM, 0, size);
++#endif
++	BSRAM = NULL;
++	FillRAM = NULL;
++	SRAM = NULL;
++    
++	if (!RAM || !ROM)
++#else
+     RAM	    = (uint8 *) malloc (0x20000);
+     SRAM    = (uint8 *) malloc (0x20000);
+     VRAM    = (uint8 *) malloc (0x10000);
+@@ -429,6 +483,7 @@ bool8 CMemory::Init ()
+         !IPPU.TileCache [TILE_2BIT] || !IPPU.TileCache [TILE_4BIT] ||
+ 		!IPPU.TileCache [TILE_8BIT] || !IPPU.TileCached [TILE_2BIT] ||
+ 		!IPPU.TileCached [TILE_4BIT] ||	!IPPU.TileCached [TILE_8BIT])
++#endif
+     {
+ 		Deinit ();
+ 		return (FALSE);
+@@ -479,6 +534,13 @@ void CMemory::Deinit ()
+ 		MessageBox(GUI.hWnd, "CMemory::Deinit", "Heap Corrupt", MB_OK);
+ #endif
+ 
++#ifdef EMBEDDED
++    if (RAM) { free_aligned(RAM); RAM = NULL; }
++#ifndef APP_DATA_EXCEPT
++    if (ROM) { free_aligned(ROM - 0x8000); ROM = NULL; }
++#endif
++    if (SRAM) { free(SRAM); SRAM = NULL; }
++#else
+     if (RAM)
+     {
+ 		free ((char *) RAM);
+@@ -538,6 +600,7 @@ void CMemory::Deinit ()
+ 		free ((char *) IPPU.TileCached [TILE_8BIT]);
+ 		IPPU.TileCached [TILE_8BIT] = NULL;
+     }
++#endif
+     FreeSDD1Data ();
+ 	Safe(NULL);
+ }
+@@ -641,7 +704,9 @@ again:
+     }
+ 	
+     CalculatedSize = (TotalFileSize / 0x2000) * 0x2000;
++#ifndef EMBEDDED
+     ZeroMemory (ROM + CalculatedSize, MAX_ROM_SIZE - CalculatedSize);
++#endif
+ 	
+ 	if(CalculatedSize >0x400000&&
+ 		!(ROM[0x7FD5]==0x32&&((ROM[0x7FD6]&0xF0)==0x40)) && //exclude S-DD1
+@@ -855,6 +920,28 @@ uint32 CMemory::FileLoader (uint8* buffer, const char* filename, int32 maxsize)
+ 
+  
+ 	STREAM ROMFile;
++#ifdef EMBEDDED
++#ifdef APP_DATA_EXCEPT
++	strcpy (ROMFilename, filename);
++	return rommap_size();
++#else
++	if (!(ROMFile = OPEN_STREAM (filename, "rb"))) return 0;
++	strcpy (ROMFilename, filename);
++	{
++		REVERT_STREAM(ROMFile, 0, 2);
++		size_t size = FIND_STREAM(ROMFile), pos = 0;
++		if (((size & 0x1fff) == 512 && !Settings.ForceNoHeader) ||
++			Settings.ForceHeader) {
++			pos = 512; HeaderCount = 1;
++		}
++		size &= ~0x1fff;
++		REVERT_STREAM(ROMFile, pos, 0);
++		pos = READ_STREAM(buffer, size, ROMFile);
++		CLOSE_STREAM(ROMFile);
++		return pos == size ? size : 0;
++	}
++#endif
++#endif
+ 	int32 TotalFileSize = 0;
+ 	int len = 0;
+ 	int nFormat=FILE_DEFAULT;
+@@ -1257,8 +1344,16 @@ void S9xDeinterleaveType2 (bool8 reset)
+ }
+ 
+ //CRC32 for char arrays
++#if EMBEDDED == 2
++extern "C" {
++  extern uint32 SNES_crc, SNES_hacks;
++}
++#endif
+ inline uint32 caCRC32(uint8 *array, uint32 size, register uint32 crc32)
+ {
++#if EMBEDDED == 2
++  if (SNES_hacks & 1) return SNES_crc;
++#endif
+   for (register uint32 i = 0; i < size; i++)
+   {
+     crc32 = ((crc32 >> 8) & 0x00FFFFFF) ^ crc32Table[(crc32 ^ array[i]) & 0xFF];
+@@ -1297,6 +1392,9 @@ void CMemory::InitROM (bool8 Interleaved)
+ 	if(HiROM)
+ 		RomHeader+=0x8000;
+ 
++#ifdef EMBEDDED
++	if (0)
++#endif
+ 	if(!Settings.BS)
+ 	{
+ 		Settings.BS=(-1!=is_bsx(ROM+0x7FC0));
+@@ -1421,6 +1519,7 @@ void CMemory::InitROM (bool8 Interleaved)
+ 		else if (Settings.SuperFX)
+ 		{
+ 			//::SRAM = ROM + 1024 * 1024 * 4;
++			Alloc_SRAM();
+ 			SuperFXROMMap ();
+ 			Settings.MultiPlayer5Master = FALSE;
+ 			//Settings.MouseMaster = FALSE;
+@@ -1595,6 +1694,7 @@ void CMemory::InitROM (bool8 Interleaved)
+ 
+ 	ResetSpeedMap();
+ 	ApplyROMFixes ();
++	Alloc_SRAM();
+ 	sprintf (ROMName, "%s", Safe (ROMName));
+ 	sprintf (ROMId, "%s", Safe (ROMId));
+ 	sprintf (CompanyId, "%s", Safe (CompanyId));
+@@ -1631,6 +1731,18 @@ void CMemory::InitROM (bool8 Interleaved)
+ 
+ bool8 CMemory::LoadSRAM (const char *filename)
+ {
++#ifdef EMBEDDED
++	if (Memory.SRAMSize) {
++		FILE *f; int size = SRAMMask + 1;
++		memset(SRAM, SNESGameFixes.SRAMInitialValue, size);
++		if ((f = fopen(filename, "rb"))) {
++			fseek(f, 0, SEEK_END);
++			int len = ftell(f), pos = 0;
++			if (len - size == 512) pos = 512;
++			fseek(f, pos, SEEK_SET);
++			len = fread(::SRAM, 1, size + SRTC_SRAM_PAD, f);
++			fclose(f);
++#else
+     int size = Memory.SRAMSize ?
+ 	       (1 << (Memory.SRAMSize + 3)) * 128 : 0;
+ 	
+@@ -1651,6 +1763,7 @@ bool8 CMemory::LoadSRAM (const char *filename)
+ 				// S-RAM file has a header - remove it
+ 				memmove (::SRAM, ::SRAM + 512, size);
+ 			}
++#endif
+ 			if (len == size + SRTC_SRAM_PAD)
+ 			{
+ 				S9xSRTCPostLoadState ();
+@@ -1705,7 +1818,7 @@ bool8 CMemory::SaveSRAM (const char *filename)
+ 		{
+ 			fwrite ((char *) ::SRAM, size, 1, file);
+ 			fclose (file);
+-#if defined(__linux)
++#if 0 && defined(__linux)
+ 			chown (filename, getuid (), getgid ());
+ #endif
+ 			if(Settings.SPC7110RTC)
+@@ -2440,7 +2553,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
+ 
+ 	if((strncmp("TALES",(char*)Map[8]+0xFFC0, 5)==0))
+ 	{
+-		if(((*(Map[8]+0xFFDE))==(*(Map[0x808]+0xFFDE))))
++		if(*(Map[8]+0xFFDE)==*(Map[0x808]+0xFFDE))
+ 		{
+ 			Settings.DisplayColor=BUILD_PIXEL(31,0,0);
+ 			SET_UI_COLOR(255,0,0);
+@@ -2588,11 +2701,15 @@ void CMemory::SuperFXROMMap ()
+ 	
+     // Replicate the first 2Mb of the ROM at ROM + 2MB such that each 32K
+     // block is repeated twice in each 64K block.
++#ifdef APP_DATA_EXCEPT
++    rommap_superfx();
++#else
+     for (c = 0; c < 64; c++)
+     {
+ 		memmove (&ROM [0x200000 + c * 0x10000], &ROM [c * 0x8000], 0x8000);
+ 		memmove (&ROM [0x208000 + c * 0x10000], &ROM [c * 0x8000], 0x8000);
+     }
++#endif
+ 	
+     WriteProtectROM ();
+ }
+@@ -2656,6 +2773,7 @@ void CMemory::SA1ROMMap ()
+     }
+     WriteProtectROM ();
+ 	
++#if !NO_SA1
+     // Now copy the map and correct it for the SA1 CPU.
+     memmove ((void *) SA1.WriteMap, (void *) WriteMap, sizeof (WriteMap));
+     memmove ((void *) SA1.Map, (void *) Map, sizeof (Map));
+@@ -2672,6 +2790,7 @@ void CMemory::SA1ROMMap ()
+     // Banks 60->6f
+     for (c = 0; c < 0x100; c++)
+ 		SA1.Map [c + 0x600] = SA1.WriteMap [c + 0x600] = (uint8 *) MAP_BWRAM_BITMAP;
++#endif
+     
+     BWRAM = SRAM;
+ }
+@@ -3974,6 +4093,7 @@ void CMemory::ApplyROMFixes ()
+ 
+ 
+ 	//SA-1 Speedup settings
++#if !NO_SA1
+     SA1.WaitAddress = NULL;
+     SA1.WaitByteAddress1 = NULL;
+     SA1.WaitByteAddress2 = NULL;
+@@ -4155,6 +4275,7 @@ void CMemory::ApplyROMFixes ()
+ 		SA1.WaitByteAddress1 = SRAM + 0x0806;
+ 		SA1.WaitByteAddress2 = SRAM + 0x0808;
+     }
++#endif
+ 	
+ 
+ 	//Other
+diff --git a/memmap.h b/memmap.h
+index 4a57aaf..b8fa7c9 100644
+--- a/memmap.h
++++ b/memmap.h
+@@ -200,7 +200,11 @@ public:
+ 	MAP_BWRAM_BITMAP2, MAP_SA1RAM, MAP_SPC7110_ROM, MAP_SPC7110_DRAM,
+ 	MAP_RONLY_SRAM, MAP_OBC_RAM, MAP_SETA_DSP, MAP_SETA_RISC, MAP_LAST
+     };
++#ifdef EMBEDDED
++    static int MAX_ROM_SIZE;
++#else
+     enum { MAX_ROM_SIZE = 0x800000 };
++#endif
+     
+     uint8 *RAM;
+     uint8 *ROM;
+diff --git a/port.h b/port.h
+index c51779c..90244a2 100644
+--- a/port.h
++++ b/port.h
+@@ -111,7 +111,11 @@
+ #include <sys/types.h>
+ 
+ /* #define PIXEL_FORMAT RGB565 */
++#ifdef EMBEDDED
++#define PIXEL_FORMAT RGB565
++#else
+ #define GFX_MULTI_FORMAT
++#endif
+ 
+ #if defined(TARGET_OS_MAC) && TARGET_OS_MAC
+ 
+@@ -265,7 +269,10 @@ EXTERN_C void MixSound(void);
+ #define SIG_PF void(*)(int)
+ #endif
+ 
+-#if defined(__i386__) || defined(__i486__) || defined(__i586__) || \
++#ifdef EMBEDDED
++#undef USE_X86_ASM
++#define LSB_FIRST
++#elif defined(__i386__) || defined(__i486__) || defined(__i586__) || \
+     defined(__WIN32__) || defined(__alpha__)
+ #define LSB_FIRST
+ #define FAST_LSB_WORD_ACCESS
+diff --git a/ppu.cpp b/ppu.cpp
+index 1770a57..546303d 100644
+--- a/ppu.cpp
++++ b/ppu.cpp
+@@ -208,11 +208,18 @@ void S9xFixColourBrightness ()
+ 	{
+ 		for (int i = 0; i < 256; i++)
+ 		{
++#ifdef EMBEDDED
++			int r = IPPU.XB[PPU.CGDATA[i] & 0x1f];
++			int g = IPPU.XB[PPU.CGDATA[i] >> 5 & 0x1f];
++			int b = IPPU.XB[PPU.CGDATA[i] >> 10 & 0x1f];
++			IPPU.ScreenColors[i] = BUILD_PIXEL(r, g, b);
++#else
+ 			IPPU.Red [i] = IPPU.XB [PPU.CGDATA [i] & 0x1f];
+ 			IPPU.Green [i] = IPPU.XB [(PPU.CGDATA [i] >> 5) & 0x1f];
+ 			IPPU.Blue [i] = IPPU.XB [(PPU.CGDATA [i] >> 10) & 0x1f];
+ 			IPPU.ScreenColors [i] = BUILD_PIXEL (IPPU.Red [i], IPPU.Green [i],
+ 												 IPPU.Blue [i]);
++#endif
+ 		}
+ 	}
+ }
+@@ -2446,11 +2453,16 @@ void S9xResetPPU ()
+ 	int c;
+ 	for (c = 0; c < 256; c++)
+ 	{
++#ifdef EMBEDDED
++		int r = c & 7, g = c & 0x38, b = c & 0xc0;
++		PPU.CGDATA[c] = r << 2 | g << 4 | b << 7;
++#else
+ 		IPPU.Red [c] = (c & 7) << 2;
+ 		IPPU.Green [c] = ((c >> 3) & 7) << 2;
+ 		IPPU.Blue [c] = ((c >> 6) & 2) << 3;
+ 		PPU.CGDATA [c] = IPPU.Red [c] | (IPPU.Green [c] << 5) |
+ 			(IPPU.Blue [c] << 10);
++#endif
+ 	}
+ 
+ 	PPU.FirstSprite = 0;
+@@ -2642,11 +2654,16 @@ void S9xSoftResetPPU ()
+ 	int c;
+ 	for (c = 0; c < 256; c++)
+ 	{
++#ifdef EMBEDDED
++		int r = c & 7, g = c & 0x38, b = c & 0xc0;
++		PPU.CGDATA[c] = r << 2 | g << 4 | b << 7;
++#else
+ 		IPPU.Red [c] = (c & 7) << 2;
+ 		IPPU.Green [c] = ((c >> 3) & 7) << 2;
+ 		IPPU.Blue [c] = ((c >> 6) & 2) << 3;
+ 		PPU.CGDATA [c] = IPPU.Red [c] | (IPPU.Green [c] << 5) |
+ 			(IPPU.Blue [c] << 10);
++#endif
+ 	}
+ 
+ 	PPU.FirstSprite = 0;
+diff --git a/ppu.h b/ppu.h
+index ccf19c5..b98181d 100644
+--- a/ppu.h
++++ b/ppu.h
+@@ -142,9 +142,11 @@ struct InternalPPU {
+     bool8  DoubleWidthPixels;
+     int    RenderedScreenHeight;
+     int    RenderedScreenWidth;
++#ifndef EMBEDDED
+     uint32 Red [256];
+     uint32 Green [256];
+     uint32 Blue [256];
++#endif
+     uint8  *XB;
+     uint16 ScreenColors [256];
+     int	   PreviousLine;
+@@ -194,7 +196,9 @@ struct SPPU {
+     } BG [4];
+ 
+     bool8  CGFLIP;
+-    uint16 CGDATA [256]; 
++union { int CGDATA_ALIGN;
++    uint16 CGDATA [256];
++};
+     uint8  FirstSprite;
+     uint8  LastSprite;
+     struct SOBJ OBJ [128];
+@@ -332,9 +336,11 @@ typedef struct{
+ 	uint8 _5A22;
+ } SnesModel;
+ 
++START_EXTERN_C
+ extern SnesModel* Model;
+ extern SnesModel M1SNES;
+ extern SnesModel M2SNES;
++END_EXTERN_C
+ 
+ #define MAX_5C77_VERSION 0x01
+ #define MAX_5C78_VERSION 0x03
+@@ -583,11 +589,18 @@ STATIC inline void REGISTER_2122(uint8 Byte)
+ 	    IPPU.ColorsChanged = TRUE;
+ 	    if (Settings.SixteenBit)
+ 	    {
++#ifdef EMBEDDED
++		int b = IPPU.XB[Byte >> 2 & 0x1f];
++		int g = IPPU.XB[PPU.CGDATA[PPU.CGADD] >> 5 & 0x1f];
++		int r = IPPU.ScreenColors[PPU.CGADD] >> 11 & 0x1f;
++		IPPU.ScreenColors [PPU.CGADD] = BUILD_PIXEL(r, g, b);
++#else
+ 		IPPU.Blue [PPU.CGADD] = IPPU.XB [(Byte >> 2) & 0x1f];
+ 		IPPU.Green [PPU.CGADD] = IPPU.XB [(PPU.CGDATA[PPU.CGADD] >> 5) & 0x1f];
+ 		IPPU.ScreenColors [PPU.CGADD] = (uint16) BUILD_PIXEL (IPPU.Red [PPU.CGADD],
+ 							     IPPU.Green [PPU.CGADD],
+ 							     IPPU.Blue [PPU.CGADD]);
++#endif
+ 	    }
+ 	}
+ 	PPU.CGADD++;
+@@ -603,11 +616,18 @@ STATIC inline void REGISTER_2122(uint8 Byte)
+ 	    IPPU.ColorsChanged = TRUE;
+ 	    if (Settings.SixteenBit)
+ 	    {
++#ifdef EMBEDDED
++		int r = IPPU.XB[Byte & 0x1f];
++		int g = IPPU.XB[PPU.CGDATA[PPU.CGADD] >> 5 & 0x1f];
++		int b = IPPU.ScreenColors[PPU.CGADD] & 0x1f;
++		IPPU.ScreenColors [PPU.CGADD] = BUILD_PIXEL(r, g, b);
++#else
+ 		IPPU.Red [PPU.CGADD] = IPPU.XB [Byte & 0x1f];
+ 		IPPU.Green [PPU.CGADD] = IPPU.XB [(PPU.CGDATA[PPU.CGADD] >> 5) & 0x1f];
+ 		IPPU.ScreenColors [PPU.CGADD] = (uint16) BUILD_PIXEL (IPPU.Red [PPU.CGADD],
+ 							     IPPU.Green [PPU.CGADD],
+ 							     IPPU.Blue [PPU.CGADD]);
++#endif
+ 	    }
+ 	}
+     }
+diff --git a/sa1.cpp b/sa1.cpp
+index 39b08bb..421cb59 100644
+--- a/sa1.cpp
++++ b/sa1.cpp
+@@ -201,7 +201,7 @@ uint8 S9xSA1GetByte (uint32 address)
+     if (GetAddress >= (uint8 *) CMemory::MAP_LAST)
+ 	return (*(GetAddress + (address & 0xffff)));
+ 
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 	return (S9xGetSA1 (address & 0xffff));
+@@ -248,7 +248,7 @@ void S9xSA1SetByte (uint8 byte, uint32 address)
+ 	return;
+     }
+ 
+-    switch ((int) Setaddress)
++    switch ((long) Setaddress)
+     {
+     case CMemory::MAP_PPU:
+ 	S9xSetSA1 (byte, address & 0xffff);
+@@ -310,7 +310,7 @@ void S9xSA1SetPCBase (uint32 address)
+ 	return;
+     }
+ 
+-    switch ((int) GetAddress)
++    switch ((long) GetAddress)
+     {
+     case CMemory::MAP_PPU:
+ 	SA1.PCBase = Memory.FillRAM - 0x2000;
+diff --git a/sdd1.cpp b/sdd1.cpp
+index 7dc6f4a..1cc35d4 100644
+--- a/sdd1.cpp
++++ b/sdd1.cpp
+@@ -154,7 +154,7 @@ void S9xSDD1SaveLoggedData ()
+ 	    fwrite (Memory.SDD1LoggedData, 8,
+ 		    Memory.SDD1LoggedDataCount, fs);
+ 	    fclose (fs);
+-#if defined(__linux)
++#if 0 && defined(__linux)
+ 	    chown (S9xGetFilename (".dat"), getuid (), getgid ());
+ #endif
+ 	}
+diff --git a/seta010.cpp b/seta010.cpp
+index 13eab8a..c04a2ad 100644
+--- a/seta010.cpp
++++ b/seta010.cpp
+@@ -574,7 +574,12 @@ void S9xSetST010(uint32 Address, uint8 Byte)
+ 				x=Memory.SRAM[0]|(Memory.SRAM[1]<<8);
+ 				y=Memory.SRAM[2]|(Memory.SRAM[3]<<8);
+ #endif
++#if NO_FLOAT
++				extern unsigned sqrt_u32(unsigned);
++				square=sqrt_u32(y*y+x*x);
++#else
+ 				square=(int16)sqrt((double)(y*y+x*x));
++#endif
+ 				//SETA_Distance( x,y,square );
+ 
+ #ifdef FAST_LSB_WORD_ACCESS
+diff --git a/seta018.cpp b/seta018.cpp
+index f0b00e1..6b538dc 100644
+--- a/seta018.cpp
++++ b/seta018.cpp
+@@ -96,7 +96,7 @@ static int line;	// line counter
+ extern "C"{
+ uint8 S9xGetST018(uint32 Address)
+ {
+-	uint8 t;
++	uint8 t = 0;
+ 	uint16 address = (uint16) Address & 0xFFFF;
+ 
+ 	line++;
+@@ -119,7 +119,9 @@ uint8 S9xGetST018(uint32 Address)
+ 	else if (address == 0x3800)
+ 		t = ST018.status;
+ 	
++#ifdef DEBUGGER
+ 	printf( "ST018 R: %06X %02X\n", Address, t);
++#endif
+ 
+ 	return t;
+ }
+@@ -129,7 +131,9 @@ void S9xSetST018(uint8 Byte, uint32 Address)
+ 	uint16 address = (uint16) Address&0xFFFF;
+ 	static bool reset = false;
+ 
++#ifdef DEBUGGER
+ 	printf( "ST018 W: %06X %02X\n", Address, Byte );
++#endif
+ 
+ 	line++;
+ 
+diff --git a/snapshot.cpp b/snapshot.cpp
+index c3bee85..71ed89c 100644
+--- a/snapshot.cpp
++++ b/snapshot.cpp
+@@ -525,19 +525,19 @@ static FreezeData SnapS7RTC [] = {
+ static char ROMFilename [_MAX_PATH];
+ //static char SnapshotFilename [_MAX_PATH];
+ 
+-void FreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
++void FreezeStruct (STREAM stream, const char *name, void *base, FreezeData *fields,
+ 				   int num_fields);
+-void FreezeBlock (STREAM stream, char *name, uint8 *block, int size);
++void FreezeBlock (STREAM stream, const char *name, uint8 *block, int size);
+ 
+-int UnfreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
++int UnfreezeStruct (STREAM stream, const char *name, void *base, FreezeData *fields,
+ 					int num_fields);
+-int UnfreezeBlock (STREAM stream, char *name, uint8 *block, int size);
++int UnfreezeBlock (STREAM stream, const char *name, uint8 *block, int size);
+ 
+-int UnfreezeStructCopy (STREAM stream, char *name, uint8** block, FreezeData *fields, int num_fields);
++int UnfreezeStructCopy (STREAM stream, const char *name, uint8** block, FreezeData *fields, int num_fields);
+ 
+ void UnfreezeStructFromCopy (void *base, FreezeData *fields, int num_fields, uint8* block);
+ 
+-int UnfreezeBlockCopy (STREAM stream, char *name, uint8** block, int size);
++int UnfreezeBlockCopy (STREAM stream, const char *name, uint8** block, int size);
+ 
+ bool8 Snapshot (const char *filename)
+ {
+@@ -598,12 +598,14 @@ bool8 S9xUnfreezeGame (const char *filename)
+ 				S9xMessage (S9X_ERROR, S9X_WRONG_VERSION,
+ 					"Incompatable Snes9x freeze file format version");
+ 				break;
++#ifndef EMBEDDED
+ 			case WRONG_MOVIE_SNAPSHOT:
+ 				S9xMessage (S9X_ERROR, S9X_WRONG_MOVIE_SNAPSHOT, MOVIE_ERR_SNAPSHOT_WRONG_MOVIE);
+ 				break;
+ 			case NOT_A_MOVIE_SNAPSHOT:
+ 				S9xMessage (S9X_ERROR, S9X_NOT_A_MOVIE_SNAPSHOT, MOVIE_ERR_SNAPSHOT_NOT_MOVIE);
+ 				break;
++#endif
+ 			default:
+ 			case FILE_NOT_FOUND:
+ 				sprintf (String, "ROM image \"%s\" for freeze file not found",
+@@ -931,7 +933,7 @@ int S9xUnfreezeFromStream (STREAM stream)
+ 		if (Settings.SDD1)
+ 			S9xSDD1PostLoadState ();
+ 			
+-		IAPU.NextAPUTimerPos = CPU.Cycles * 10000L;
++		IAPU.NextAPUTimerPos = CPU.Cycles * SNES_APUTIMER2_MULT;
+ 		IAPU.APUTimerCounter = 0; 
+ 	}
+ 
+@@ -969,7 +971,7 @@ int FreezeSize (int size, int type)
+     }
+ }
+ 
+-void FreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
++void FreezeStruct (STREAM stream, const char *name, void *base, FreezeData *fields,
+ 				   int num_fields)
+ {
+     // Work out the size of the required block
+@@ -1056,7 +1058,7 @@ void FreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
+     delete[] block;
+ }
+ 
+-void FreezeBlock (STREAM stream, char *name, uint8 *block, int size)
++void FreezeBlock (STREAM stream, const char *name, uint8 *block, int size)
+ {
+     char buffer [512];
+     sprintf (buffer, "%s:%06d:", name, size);
+@@ -1065,7 +1067,7 @@ void FreezeBlock (STREAM stream, char *name, uint8 *block, int size)
+     
+ }
+ 
+-int UnfreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
++int UnfreezeStruct (STREAM stream, const char *name, void *base, FreezeData *fields,
+ 					int num_fields)
+ {
+     // Work out the size of the required block
+@@ -1090,7 +1092,7 @@ int UnfreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
+ 	
+     if ((result = UnfreezeBlock (stream, name, block, len)) != SUCCESS)
+     {
+-		delete block;
++		delete[] block;
+ 		return (result);
+     }
+ 	
+@@ -1159,7 +1161,7 @@ int UnfreezeStruct (STREAM stream, char *name, void *base, FreezeData *fields,
+     return (result);
+ }
+ 
+-int UnfreezeBlock (STREAM stream, char *name, uint8 *block, int size)
++int UnfreezeBlock (STREAM stream, const char *name, uint8 *block, int size)
+ {
+     char buffer [20];
+     int len = 0;
+@@ -1193,7 +1195,7 @@ int UnfreezeBlock (STREAM stream, char *name, uint8 *block, int size)
+     return (SUCCESS);
+ }
+ 
+-int UnfreezeStructCopy (STREAM stream, char *name, uint8** block, FreezeData *fields, int num_fields)
++int UnfreezeStructCopy (STREAM stream, const char *name, uint8** block, FreezeData *fields, int num_fields)
+ {
+     // Work out the size of the required block
+     int len = 0;
+@@ -1281,7 +1283,7 @@ void UnfreezeStructFromCopy (void *base, FreezeData *fields, int num_fields, uin
+     }
+ }
+ 
+-int UnfreezeBlockCopy (STREAM stream, char *name, uint8** block, int size)
++int UnfreezeBlockCopy (STREAM stream, const char *name, uint8** block, int size)
+ {
+     *block = new uint8 [size];
+     int result;
+diff --git a/snes9x.h b/snes9x.h
+index 26982bb..7c020aa 100755
+--- a/snes9x.h
++++ b/snes9x.h
+@@ -94,12 +94,14 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++#ifndef EMBEDDED
+ #ifdef __WIN32__
+ #include "..\wsnes9x.h"
+ #include "..\zlib\zlib.h"
+ #endif
+ 
+ #include "../language.h"
++#endif
+ 
+ #include "port.h"
+ #include "65c816.h"
+@@ -167,7 +169,12 @@
+ 
+ #define SNES_CYCLES_PER_SCANLINE ((uint32) ((SNES_SCANLINE_TIME / SNES_CLOCK_LEN) * 6 + 0.5))
+ 
+-#define SNES_APUTIMER2_CYCLEx10000 ((uint32) ((SNES_CYCLES_PER_SCANLINE * 10000L) * (1.0 / 64000.0) / SNES_SCANLINE_TIME + 0.5))
++#ifdef EMBEDDED
++#define SNES_APUTIMER2_MULT 0x4000
++#else
++#define SNES_APUTIMER2_MULT 10000L
++#endif
++#define SNES_APUTIMER2_CYCLEx10000 ((uint32) ((SNES_CYCLES_PER_SCANLINE * SNES_APUTIMER2_MULT) * (1.0 / 64000.0) / SNES_SCANLINE_TIME + 0.5))
+ 
+ #define ONE_CYCLE 6
+ #define SLOW_ONE_CYCLE 8
+@@ -248,9 +255,25 @@ struct SCPUState{
+ #define HTIMER_AFTER_EVENT 3
+ #define NO_EVENT 4
+ 
++#if defined(__cplusplus) && defined(EMBEDDED)
++template <typename T, T v>
++struct hardcoded {
++    T dummy;
++    T operator=(T x) { return x; }
++    operator T() const { return v; }
++};
++#define HARDCODED(T, v) hardcoded<T, v>
++#else
++#define HARDCODED(T, v) T
++#endif
++
+ struct SSettings{
+     /* CPU options */
++#ifdef NOSOUND
++    HARDCODED(bool8, 0)  APUEnabled;
++#else
+     bool8  APUEnabled;
++#endif
+     bool8  Shutdown;
+     uint8  SoundSkipMethod;
+     long   H_Max;
+@@ -341,9 +364,14 @@ struct SSettings{
+     bool8  FixFrequency;
+     
+     /* Graphics options */
++#ifdef USE_16BIT
++    HARDCODED(bool8, USE_16BIT)  SixteenBit;
++    HARDCODED(bool8, USE_16BIT)  Transparency;
++#else
+     bool8  SixteenBit;
+     bool8  Transparency;
+-    bool8  SupportHiRes;
++#endif
++    HARDCODED(bool8, 0)  SupportHiRes;
+     bool8  Mode7Interpolate;
+ 
+     /* SNES graphics options */
+@@ -371,7 +399,11 @@ struct SSettings{
+ /* Fixes for individual games */
+     bool8  StarfoxHack;
+     bool8  WinterGold;
++#ifdef EMBEDDED
++    HARDCODED(bool8, 0)  BS;
++#else
+     bool8  BS;	/* Japanese Satellite System games. */
++#endif
+     bool8  DaffyDuck;
+     uint8  APURAMInitialValue;
+     bool8  SampleCatchup;
+diff --git a/soundux.cpp b/soundux.cpp
+index 090759b..067b0e3 100644
+--- a/soundux.cpp
++++ b/soundux.cpp
+@@ -480,7 +480,7 @@ void S9xSetSoundFrequency (int channel, int hertz)
+ 		if (Settings.FixFrequency)
+ 		{
+ 			SoundData.channels[channel].frequency = 
+-				(unsigned long) ((double)  SoundData.channels[channel].frequency * 0.980);
++				SoundData.channels[channel].frequency * 98 / 100;
+ 		}
+     }
+ }
+@@ -1830,9 +1830,11 @@ void S9xResetSound (bool8 full)
+     SoundData.master_volume_left = 127;
+     SoundData.master_volume_right = 127;
+     SoundData.master_volume [0] = SoundData.master_volume [1] = 127;
++#ifndef NOSOUND
+     if (so.playback_rate)
+ 		so.err_rate = (uint32) (FIXED_POINT * SNES_SCANLINE_TIME / (1.0 / so.playback_rate));
+     else
++#endif
+ 		so.err_rate = 0;
+     SoundData.no_filter = TRUE;
+ }
+@@ -1840,7 +1842,11 @@ void S9xResetSound (bool8 full)
+ void S9xSetPlaybackRate (uint32 playback_rate)
+ {
+     so.playback_rate = playback_rate;
++#ifndef NOSOUND
+     so.err_rate = (uint32) (SNES_SCANLINE_TIME * FIXED_POINT / (1.0 / (double) so.playback_rate));
++#else
++    so.err_rate = 0;
++#endif
+     S9xSetEchoDelay (APU.DSP [APU_EDL] & 0xf);
+     for (int i = 0; i < 8; i++)
+ 		S9xSetSoundFrequency (i, SoundData.channels [i].hertz);
+diff --git a/spc700.cpp b/spc700.cpp
+index b9d315e..1f1d391 100644
+--- a/spc700.cpp
++++ b/spc700.cpp
+@@ -251,7 +251,7 @@ APUSetZN8 ((uint8) Int16);
+ #else
+ #define PushW(w)\
+     *(IAPU.RAM + 0xff + APURegisters.S) = w;\
+-    *(IAPU.RAM + 0x100 + APURegisters.S) = (w >> 8);\
++    *(IAPU.RAM + 0x100 + APURegisters.S) = ((w) >> 8);\
+     APURegisters.S -= 2;
+ #define PopW(w)\
+     APURegisters.S += 2; \
+diff --git a/spc7110.cpp b/spc7110.cpp
+index 4400490..b8317eb 100644
+--- a/spc7110.cpp
++++ b/spc7110.cpp
+@@ -110,6 +110,21 @@
+ #include <unistd.h>
+ #define FREEZEFOLDER S9xGetSnapshotDirectory ()
+ #endif
++#ifdef EMBEDDED
++#define getcwd(path, n) (void)0
++#define chdir(path) 0
++#define stat stat_fix
++struct stat { int st_size; };
++static int stat(const char *fn, struct stat *buf) {
++	FILE *f = fopen(fn, "rb");
++	if (f) {
++		fseek(f, 0, SEEK_END);
++		buf->st_size = ftell(f);
++		fclose(f);
++	}
++	return !f;
++}
++#endif
+ 
+ extern "C" const char *S9xGetFilename (const char *);
+ extern "C" char *osd_GetPackDir();
+@@ -1658,7 +1673,7 @@ uint8* Get7110BasePtr(uint32 Address)
+ //loads the index into memory.
+ //index.bin is little-endian
+ //format index (1)-table(3)-file offset(4)-length(4)
+-bool Load7110Index(char* filename)
++bool Load7110Index(const char* filename)
+ {
+ 	FILE* fp;
+ 	uint8 buffer[12];
+@@ -1673,7 +1688,7 @@ bool Load7110Index(char* filename)
+ 	do
+ 	{
+ 		i=0;
+-		fread(buffer, 1, 12,fp);
++		if (fread(buffer, 1, 12,fp)!=12) break;
+ 		table=(buffer[3]<<16)|(buffer[2]<<8)|buffer[1];
+ 		index=buffer[0];
+ 		offset=(buffer[7]<<24)|(buffer[6]<<16)|(buffer[5]<<8)|buffer[4];
+@@ -1691,7 +1706,7 @@ bool Load7110Index(char* filename)
+ 		decompack->tableEnts[i].location[index].used_offset=0;
+ 		
+ 	}
+-	while(!feof(fp));
++	while(1);
+ 	fclose(fp);
+ 	return true;
+ }
+@@ -2110,7 +2125,7 @@ void Do7110Logging()
+ 			{
+ 				int i=0;
+ 				Data7110 *log=NULL;
+-				fread(buffer, 1, 8, flog);
++				if (fread(buffer, 1, 8, flog)!=8) break;
+ 				table=buffer[0]|(buffer[1]<<8)|(buffer[2]<<16);
+ 				offset=buffer[6]|(buffer[7]<<8);
+ 				length=buffer[4]|(buffer[5]<<8);
+@@ -2128,7 +2143,7 @@ void Do7110Logging()
+ 					i++;
+ 				}
+ 			}
+-			while(!feof(flog));
++			while(1);
+ 			fclose(flog);
+ 		}
+ 		
+diff --git a/tile.cpp b/tile.cpp
+index 300e278..9b6726c 100644
+--- a/tile.cpp
++++ b/tile.cpp
+@@ -101,11 +101,35 @@
+ extern uint32 HeadMask [4];
+ extern uint32 TailMask [5];
+ 
++#ifdef USE_ASM
++#define ConvertTile ConvertTile_asm
++extern "C" uint8 ConvertTile(uint8*, uint32);
++#else
+ uint8 ConvertTile (uint8 *pCache, uint32 TileAddr)
+ {
+     register uint8 *tp = &Memory.VRAM[TileAddr];
+     uint32 *p = (uint32 *) pCache;
+     uint32 non_zero = 0;
++#ifdef EMBEDDED
++    uint32 line = 8, m = 0x1010101;
++    int bs = BG.BitShift; // 0, 2, 4, 8
++    if (bs) for (; line; line--, tp += 2) {
++	uint32 p1 = 0, p2 = 0; uint32 pix;
++#define X(i, j) \
++	pix = tp[i]; \
++	if ((pix |= pix << 9)) { \
++	    pix |= pix << 18; \
++	    p1 |= (m & pix >> 7) << j; \
++	    p2 |= (m & pix >> 3) << j; \
++	}
++	X(0, 0) X(1, 1) if (bs == 2) goto skip;
++	X(16, 2) X(17, 3) if (bs == 4) goto skip;
++	X(32, 4) X(33, 5) X(48, 6) X(49, 7)
++#undef X
++skip:
++	*p++ = p1; *p++ = p2;
++	non_zero |= p1 | p2;
++#else
+     uint8 line;
+ 
+     switch (BG.BitShift)
+@@ -216,10 +240,13 @@ uint8 ConvertTile (uint8 *pCache, uint32 TileAddr)
+ 	    non_zero |= p1 | p2;
+ 	}
+ 	break;
++#endif
+     }
+     return (non_zero ? TRUE : BLANK_TILE);
+ }
++#endif
+ 
++#ifndef USE_ASM
+ inline void WRITE_4PIXELS (uint32 Offset, uint8 *Pixels)
+ {
+     uint8 Pixel;
+@@ -961,6 +988,7 @@ void DrawClippedTile16FixedSub1_2 (uint32 Tile, uint32 Offset,
+     RENDER_CLIPPED_TILE(WRITE_4PIXELS16_SUBF1_2, 
+ 			WRITE_4PIXELS16_FLIPPED_SUBF1_2, 4)
+ }
++#endif
+ 
+ void DrawLargePixel (uint32 Tile, uint32 Offset,
+ 		     uint32 StartPixel, uint32 Pixels,
+diff --git a/tile.h b/tile.h
+index 4507e1b..1ef6763 100644
+--- a/tile.h
++++ b/tile.h
+@@ -205,6 +205,21 @@
+ 	} \
+     }
+ 
++#ifdef EMBEDDED
++#define TILE_CLIP_PREAMBLE \
++    uint32 dd, d1 = 0, d2 = 0; \
++    dd = (StartPixel + Width) * 8; \
++    StartPixel *= 8; \
++    if (StartPixel < 32) { \
++	d1 = ~0u << StartPixel; \
++	if (dd < 32) d1 &= ~(~0u << dd); \
++    } \
++    if (dd > 32) { \
++	d2 = ~0u >> (64 - dd); \
++	if (StartPixel > 32) \
++	    d2 &= ~0u << (StartPixel - 32); \
++    }
++#else
+ #define TILE_CLIP_PREAMBLE \
+     uint32 dd; \
+     uint32 d1; \
+@@ -230,6 +245,7 @@
+     } \
+     else \
+ 	d2 = 0;
++#endif
+ 
+ 
+ #define RENDER_CLIPPED_TILE(NORMAL, FLIPPED, N) \

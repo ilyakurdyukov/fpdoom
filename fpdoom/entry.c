@@ -209,8 +209,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		char *addr = image_addr + image_size + bss_size;
 		size_t size = ram_addr + ram_size - (uint32_t)addr;
 #if LIBC_SDIO
-		size -= 1024;
-		fatdata_glob.buf = (uint8_t*)addr + size;
+		fatdata_glob.buf = (uint8_t*)CHIPRAM_ADDR + 0x9000;
 #endif
 #if TWO_STAGE
 		// reserve space to save sys_data
