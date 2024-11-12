@@ -31,7 +31,12 @@ void lcd_appinit(void) {
 	if (h <= 68) {
 #if !USE_16BIT
 		scaler = 2; crop = 1; wide = h == 68;
+#if LIBC_SDIO == 0
+		if (h == 48) scaler++;
+		if (0) {
+#else
 		if (h == 48) {
+#endif
 #else
 		if (1) {
 #endif
@@ -66,7 +71,7 @@ static void framebuf_init(void) {
 	unsigned size = w * h; uint8_t *p;
 	unsigned size2 = 0;
 #if !USE_16BIT
-	static const uint8_t pal_size[] = { 2, 4, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 1, 1 };
 	unsigned scaler = sys_data.scaler;
 	size2 = pal_size[scaler >> 1] << 8;
 	app_pal_update = pal_update_fn[scaler >> 1];
@@ -87,6 +92,9 @@ int main(int argc, char **argv) {
 			SNES_crc = strtol(argv[2], NULL, 0);
 			SNES_hacks |= 1;
 			argc -= 2; argv += 2;
+		} else if (!strcmp(argv[1], "--nocheck")) {
+			SNES_hacks |= 2;
+			argc -= 1; argv += 1;
 		} else if (!strcmp(argv[1], "--")) {
 			argc -= 1; argv += 1;
 			break;

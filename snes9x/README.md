@@ -9,6 +9,15 @@ Port of Snes9x v1.43. This older version is more lightweight and has 8-bit rende
 
 2. Use the same instructions as for `fpdoom`. The `USE_16BIT={0|1}` option selects 8 or 16-bit rendering mode. 8-bit mode is faster, but doesn't handle various graphical effects (that many games don't use). 16-bit mode is slower but provides accurate rendering.
 
+### Usage
+
+`[system options] snes9x [emulator options] romfile.smc`
+
+#### Emulator options
+
+`--crc 0x12345678` replace ROM CRC32 with the value specified, only used for logging and fixing some games. Calculating CRC32 takes significant time for large ROMs.  
+`--nocheck` don't check ROM checksum, which takes significant time for large ROMs.  
+
 ### Game controls
 
 | Key(s)         | Action             |

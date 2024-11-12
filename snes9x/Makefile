@@ -27,11 +27,9 @@ HOSTCC = cc
 NM = nm
 
 NO_SA1 = 1
-ifneq ($(NO_FLOAT), 0)
-NO_C4 = 1
-NO_DSP1 = 1
-NO_DSP4 = 1
-endif
+NO_C4 = $(NO_FLOAT)
+NO_DSP1 = $(NO_FLOAT)
+NO_DSP4 = $(NO_FLOAT)
 
 SRCS += snes9x_fp extra scr_update
 ifneq ($(USE_ASM), 0)

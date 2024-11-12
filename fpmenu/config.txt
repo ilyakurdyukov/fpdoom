@@ -23,8 +23,8 @@ $nes2 = $nes --scanline_step 113
 $nes_crop = fpbin/infones.bin $@ --scaler 149 $nes_args
 
 $snes_args = --dir games/snes snes9x
-$snes = fpbin/snes9x.bin $@ --scaler 49 $nes_args
-$snes16 = fpbin/snes9x_16bit.bin $@ --scaler 49 $nes_args
+$snes = fpbin/snes9x.bin $@ --scaler 49 $snes_args
+$snes16 = fpbin/snes9x_16bit.bin $@ --scaler 49 $snes_args
 
 $doom = fpbin/fpdoom.bin $@
 

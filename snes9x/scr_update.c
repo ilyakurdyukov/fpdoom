@@ -157,7 +157,8 @@ DEF(void, pal_update32, (uint16_t *s, uint16_t *d)) {
 typedef void (*pal_update_t)(uint16_t *s, uint16_t *d);
 
 const pal_update_t pal_update_fn[] = {
-	pal_update16, pal_update32, pal_update8,
+	pal_update16, pal_update32,
+	pal_update8, pal_update8,
 };
 
 DEF(void, scr_update_1d1, (uint16_t *dst, const uint8_t *s, uint16_t *c16, unsigned h)) {
@@ -305,6 +306,31 @@ DEF(void, scr_update_96x68, (uint16_t *dst, const uint8_t *s, uint16_t *c16, uns
 	} while ((h -= 56));
 }
 
+#if LIBC_SDIO == 0
+DEF(void, scr_update_64x48, (uint16_t *dst, const uint8_t *s, uint16_t *c16, unsigned h)) {
+	uint8_t *d = (uint8_t*)dst, *c8 = (uint8_t*)c16 + 256;
+	unsigned x, y = 0;
+	do {
+		for (x = 0; x < 64; x++, s += 4, d++) {
+			const uint8_t *s2 = s;
+			uint32_t a0 = 0, t0;
+			do {
+				y += 14;
+				do {
+					t0 = c8[s2[0]] + c8[s2[1]] + c8[s2[2]] + c8[s2[3]];
+					a0 += t0 + (t0 << 1); s2 += 256;
+				} while ((int)(y -= 3) > 0);
+				a0 += t0 *= y;
+				a0 = (a0 * 0x4925 + (3 << 18)) >> 20; /* div56 */
+				*d = a0; a0 = -t0; d += 64;
+			} while (y);
+			d -= 64 * 3;
+		}
+		s += 256 * (14 - 1); d += 64 * (3 - 1);
+	} while ((h -= 14));
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 #define scr_update_1d1 scr_update_1d1_asm
@@ -319,6 +345,9 @@ const scr_update_t scr_update_fn[] = {
 	scr_update_1d1, scr_update_5x4d4,
 	scr_update_1d2, scr_update_5x4d8,
 	scr_update_128x64, scr_update_96x68,
+#if LIBC_SDIO == 0
+	scr_update_64x48, scr_update_64x48,
+#endif
 };
 
 #endif

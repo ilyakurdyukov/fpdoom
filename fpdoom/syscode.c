@@ -172,8 +172,8 @@ static void pin_init(void) {
 		sc6530_fix = 0x8c000290; // SPI0 pin
 		// workaround for Samsung B310E
 		// hangs shortly after 0x8c0002a4 is set to 0x231
-		// this pin belongs to UART TX
-		MEM4(0x8b0000a4) = 0xc00; // disable UART
+		if (MEM4(0x205003fc) << 16) // SC6530C
+			sc6530_fix += 0x2a4 - 0x290; // UART TX pin
 	}
 
 	for (;;) {
@@ -1033,6 +1033,8 @@ void sys_set_handlers(void) {
 }
 
 void sys_init(void) {
+	// Disable UART to save some power.
+	APB_PWR_OFF(0xc00);	// disable UART
 	init_charger();
 	init_chip_id();
 	pin_init();

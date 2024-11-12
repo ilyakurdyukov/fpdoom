@@ -410,19 +410,22 @@ index 9969a2d..c4dabad 100644
      case CMemory::MAP_PPU:
  		CPU.PCBase = Memory.FillRAM;
 diff --git a/gfx.cpp b/gfx.cpp
-index d86fa01..f2dd4f1 100644
+index d86fa01..7dce4e6 100644
 --- a/gfx.cpp
 +++ b/gfx.cpp
-@@ -98,6 +98,8 @@
+@@ -98,6 +98,11 @@
  #include "cheats.h"
  #include "screenshot.h"
  
-+extern "C" void scr_clear16_asm(void *buf, int starty, int endy, int val);
++extern "C" {
++	void scr_clear16_asm(void *buf, int starty, int endy, int val);
++  extern uint32 SNES_hacks;
++}
 +
  #define M7 19
  #define M8 19
  
-@@ -273,6 +275,9 @@ bool8 S9xGraphicsInit ()
+@@ -273,6 +278,9 @@ bool8 S9xGraphicsInit ()
  	S9xSetRenderPixelFormat (RGB565);
  #endif
  
@@ -432,7 +435,7 @@ index d86fa01..f2dd4f1 100644
      for (uint8 bitshift = 0; bitshift < 4; bitshift++)
      {
  	for (register int i = 0; i < 16; i++)
-@@ -401,7 +406,11 @@ bool8 S9xGraphicsInit ()
+@@ -401,7 +409,11 @@ bool8 S9xGraphicsInit ()
      }
      S9xFixColourBrightness ();
  
@@ -444,7 +447,7 @@ index d86fa01..f2dd4f1 100644
      {
  	if (!(GFX.X2 = (uint16 *) malloc (sizeof (uint16) * 0x10000)))
  	    return (FALSE);
-@@ -4050,6 +4059,10 @@ void S9xUpdateScreen ()
+@@ -4050,6 +4062,10 @@ void S9xUpdateScreen ()
  			else
  				SelectTileRenderer (TRUE);
  			
@@ -455,21 +458,21 @@ index d86fa01..f2dd4f1 100644
  			for (uint32 y = starty; y <= endy; y++)
  			{
  				uint32 *p = (uint32 *) (GFX.Screen + y * GFX.Pitch2);
-@@ -4083,10 +4096,14 @@ void S9xUpdateScreen ()
- 			GFX.pCurrentClip = &IPPU.Clip [1]
- 			
- 			
-+#if 1
-+#define DISPLAY(n) ((GFX.r212c & ~PPU.BG_Forced) & n)
-+#else
- #define DISPLAY(n)\
-     (!(PPU.BG_Forced & n) && \
- 	(GFX.r212c & n) || \
+@@ -4089,6 +4105,14 @@ void S9xUpdateScreen ()
  			((GFX.r212d & n) && subadd))
-+#endif
  			
  			uint8 subadd = GFX.r2131 & 0x3f;
++#if 1
++			uint8 disp_mask = GFX.r212c;
++			if (!(SNES_hacks & 4) && subadd)
++				disp_mask |= GFX.r212d;
++			disp_mask &= ~PPU.BG_Forced;
++#undef DISPLAY
++#define DISPLAY(n) (disp_mask & (n))
++#endif
  			
+ 			bool8 BG0 = DISPLAY(1);
+ 			bool8 BG1 = DISPLAY(2);
 diff --git a/gfx.h b/gfx.h
 index 81b07af..ac26de1 100644
 --- a/gfx.h
@@ -541,10 +544,10 @@ index 81b07af..ac26de1 100644
  typedef void (*NormalTileRenderer) (uint32 Tile, uint32 Offset, 
  				    uint32 StartLine, uint32 LineCount);
 diff --git a/memmap.cpp b/memmap.cpp
-index 09d447c..c09a2f3 100644
+index 09d447c..d4c92c7 100644
 --- a/memmap.cpp
 +++ b/memmap.cpp
-@@ -397,12 +397,66 @@ char *CMemory::Safe (const char *s)
+@@ -397,12 +397,74 @@ char *CMemory::Safe (const char *s)
      return (safe);
  }
  
@@ -559,8 +562,16 @@ index 09d447c..c09a2f3 100644
 +static void free_aligned(void *p) {
 +	if (p) free(((void**)p)[-1]);
 +}
-+extern "C" unsigned rommap_size();
-+extern "C" void rommap_superfx(void);
++extern "C" {
++	unsigned rommap_size();
++	void rommap_superfx(void);
++	extern uint32 SNES_crc, SNES_hacks;
++}
++#ifdef EMBEDDED
++#define IF_CHECKSUM_ENABLED if (!(SNES_hacks & 2))
++#else
++#define IF_CHECKSUM_ENABLED
++#endif
 +static void Alloc_SRAM() {
 +#ifdef EMBEDDED
 +	if (Memory.SRAM) return;
@@ -611,7 +622,7 @@ index 09d447c..c09a2f3 100644
      RAM	    = (uint8 *) malloc (0x20000);
      SRAM    = (uint8 *) malloc (0x20000);
      VRAM    = (uint8 *) malloc (0x10000);
-@@ -429,6 +483,7 @@ bool8 CMemory::Init ()
+@@ -429,6 +491,7 @@ bool8 CMemory::Init ()
          !IPPU.TileCache [TILE_2BIT] || !IPPU.TileCache [TILE_4BIT] ||
  		!IPPU.TileCache [TILE_8BIT] || !IPPU.TileCached [TILE_2BIT] ||
  		!IPPU.TileCached [TILE_4BIT] ||	!IPPU.TileCached [TILE_8BIT])
@@ -619,7 +630,7 @@ index 09d447c..c09a2f3 100644
      {
  		Deinit ();
  		return (FALSE);
-@@ -479,6 +534,13 @@ void CMemory::Deinit ()
+@@ -479,6 +542,13 @@ void CMemory::Deinit ()
  		MessageBox(GUI.hWnd, "CMemory::Deinit", "Heap Corrupt", MB_OK);
  #endif
  
@@ -633,7 +644,7 @@ index 09d447c..c09a2f3 100644
      if (RAM)
      {
  		free ((char *) RAM);
-@@ -538,6 +600,7 @@ void CMemory::Deinit ()
+@@ -538,6 +608,7 @@ void CMemory::Deinit ()
  		free ((char *) IPPU.TileCached [TILE_8BIT]);
  		IPPU.TileCached [TILE_8BIT] = NULL;
      }
@@ -641,7 +652,7 @@ index 09d447c..c09a2f3 100644
      FreeSDD1Data ();
  	Safe(NULL);
  }
-@@ -641,7 +704,9 @@ again:
+@@ -641,7 +712,9 @@ again:
      }
  	
      CalculatedSize = (TotalFileSize / 0x2000) * 0x2000;
@@ -651,7 +662,7 @@ index 09d447c..c09a2f3 100644
  	
  	if(CalculatedSize >0x400000&&
  		!(ROM[0x7FD5]==0x32&&((ROM[0x7FD6]&0xF0)==0x40)) && //exclude S-DD1
-@@ -855,6 +920,28 @@ uint32 CMemory::FileLoader (uint8* buffer, const char* filename, int32 maxsize)
+@@ -855,6 +928,28 @@ uint32 CMemory::FileLoader (uint8* buffer, const char* filename, int32 maxsize)
  
   
  	STREAM ROMFile;
@@ -680,15 +691,8 @@ index 09d447c..c09a2f3 100644
  	int32 TotalFileSize = 0;
  	int len = 0;
  	int nFormat=FILE_DEFAULT;
-@@ -1257,8 +1344,16 @@ void S9xDeinterleaveType2 (bool8 reset)
- }
- 
+@@ -1259,6 +1354,9 @@ void S9xDeinterleaveType2 (bool8 reset)
  //CRC32 for char arrays
-+#if EMBEDDED == 2
-+extern "C" {
-+  extern uint32 SNES_crc, SNES_hacks;
-+}
-+#endif
  inline uint32 caCRC32(uint8 *array, uint32 size, register uint32 crc32)
  {
 +#if EMBEDDED == 2
@@ -697,7 +701,7 @@ index 09d447c..c09a2f3 100644
    for (register uint32 i = 0; i < size; i++)
    {
      crc32 = ((crc32 >> 8) & 0x00FFFFFF) ^ crc32Table[(crc32 ^ array[i]) & 0xFF];
-@@ -1297,6 +1392,9 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1297,6 +1395,9 @@ void CMemory::InitROM (bool8 Interleaved)
  	if(HiROM)
  		RomHeader+=0x8000;
  
@@ -707,7 +711,7 @@ index 09d447c..c09a2f3 100644
  	if(!Settings.BS)
  	{
  		Settings.BS=(-1!=is_bsx(ROM+0x7FC0));
-@@ -1421,6 +1519,7 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1421,6 +1522,7 @@ void CMemory::InitROM (bool8 Interleaved)
  		else if (Settings.SuperFX)
  		{
  			//::SRAM = ROM + 1024 * 1024 * 4;
@@ -715,15 +719,32 @@ index 09d447c..c09a2f3 100644
  			SuperFXROMMap ();
  			Settings.MultiPlayer5Master = FALSE;
  			//Settings.MouseMaster = FALSE;
-@@ -1595,6 +1694,7 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1486,6 +1588,11 @@ void CMemory::InitROM (bool8 Interleaved)
+ 
+ 	uint32 sum1 = 0;
+ 	uint32 sum2 = 0;
++#ifdef EMBEDDED
++	if (SNES_hacks & 2)
++		CalculatedChecksum = ROMChecksum;
++	else
++#endif
+ 	if(0==CalculatedChecksum)
+ 	{
+ 		int power2 = 0;
+@@ -1595,6 +1702,12 @@ void CMemory::InitROM (bool8 Interleaved)
  
  	ResetSpeedMap();
  	ApplyROMFixes ();
++#if !USE_16BIT
++	/* fix graphics */
++	if (!strcmp(ROMName, "THE LEGEND OF ZELDA"))
++		SNES_hacks ^= 4;
++#endif
 +	Alloc_SRAM();
  	sprintf (ROMName, "%s", Safe (ROMName));
  	sprintf (ROMId, "%s", Safe (ROMId));
  	sprintf (CompanyId, "%s", Safe (CompanyId));
-@@ -1631,6 +1731,18 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1631,6 +1744,18 @@ void CMemory::InitROM (bool8 Interleaved)
  
  bool8 CMemory::LoadSRAM (const char *filename)
  {
@@ -742,7 +763,7 @@ index 09d447c..c09a2f3 100644
      int size = Memory.SRAMSize ?
  	       (1 << (Memory.SRAMSize + 3)) * 128 : 0;
  	
-@@ -1651,6 +1763,7 @@ bool8 CMemory::LoadSRAM (const char *filename)
+@@ -1651,6 +1776,7 @@ bool8 CMemory::LoadSRAM (const char *filename)
  				// S-RAM file has a header - remove it
  				memmove (::SRAM, ::SRAM + 512, size);
  			}
@@ -750,7 +771,7 @@ index 09d447c..c09a2f3 100644
  			if (len == size + SRTC_SRAM_PAD)
  			{
  				S9xSRTCPostLoadState ();
-@@ -1705,7 +1818,7 @@ bool8 CMemory::SaveSRAM (const char *filename)
+@@ -1705,7 +1831,7 @@ bool8 CMemory::SaveSRAM (const char *filename)
  		{
  			fwrite ((char *) ::SRAM, size, 1, file);
  			fclose (file);
@@ -759,7 +780,31 @@ index 09d447c..c09a2f3 100644
  			chown (filename, getuid (), getgid ());
  #endif
  			if(Settings.SPC7110RTC)
-@@ -2440,7 +2553,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
+@@ -1982,6 +2108,7 @@ void CMemory::LoROMMap ()
+ 	bankcount*=4;//to banks
+ 	bankcount<<=4;//Map banks
+ 	bankcount+=0x800;//normalize
++	IF_CHECKSUM_ENABLED
+ 	for(k=0x800;k<(bankcount);k+=16)
+ 	{
+ 		uint8* bank=0x8000+Map[k+8];
+@@ -2116,6 +2243,7 @@ void CMemory::SetaDSPMap ()
+ 	bankcount*=4;//to banks
+ 	bankcount<<=4;//Map banks
+ 	bankcount+=0x800;//normalize
++	IF_CHECKSUM_ENABLED
+ 	for(k=0x800;k<(bankcount);k+=16)
+ 	{
+ 		uint8* bank=0x8000+Map[k+8];
+@@ -2347,6 +2475,7 @@ void CMemory::HiROMMap ()
+ 	if(bankmax > 128)
+ 		bankmax = 0x80;
+ 	int sum=0;
++	IF_CHECKSUM_ENABLED
+ 	for(i=0x40;i<bankmax; i++)
+ 	{
+ 		uint8 * bank_low=(uint8*)Map[i<<4];
+@@ -2440,7 +2569,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
  
  	if((strncmp("TALES",(char*)Map[8]+0xFFC0, 5)==0))
  	{
@@ -768,7 +813,15 @@ index 09d447c..c09a2f3 100644
  		{
  			Settings.DisplayColor=BUILD_PIXEL(31,0,0);
  			SET_UI_COLOR(255,0,0);
-@@ -2588,11 +2701,15 @@ void CMemory::SuperFXROMMap ()
+@@ -2451,6 +2580,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
+ 	ROMComplementChecksum = *(Map[8]+0xFFDC) + (*(Map[8]+0xFFDD) << 8);
+ 
+ int sum=0;
++IF_CHECKSUM_ENABLED
+ for(i=0x40;i<0x80; i++)
+ {
+ 	uint8 * bank_low=(uint8*)Map[i<<4];
+@@ -2588,11 +2718,15 @@ void CMemory::SuperFXROMMap ()
  	
      // Replicate the first 2Mb of the ROM at ROM + 2MB such that each 32K
      // block is repeated twice in each 64K block.
@@ -784,7 +837,7 @@ index 09d447c..c09a2f3 100644
  	
      WriteProtectROM ();
  }
-@@ -2656,6 +2773,7 @@ void CMemory::SA1ROMMap ()
+@@ -2656,6 +2790,7 @@ void CMemory::SA1ROMMap ()
      }
      WriteProtectROM ();
  	
@@ -792,7 +845,7 @@ index 09d447c..c09a2f3 100644
      // Now copy the map and correct it for the SA1 CPU.
      memmove ((void *) SA1.WriteMap, (void *) WriteMap, sizeof (WriteMap));
      memmove ((void *) SA1.Map, (void *) Map, sizeof (Map));
-@@ -2672,6 +2790,7 @@ void CMemory::SA1ROMMap ()
+@@ -2672,6 +2807,7 @@ void CMemory::SA1ROMMap ()
      // Banks 60->6f
      for (c = 0; c < 0x100; c++)
  		SA1.Map [c + 0x600] = SA1.WriteMap [c + 0x600] = (uint8 *) MAP_BWRAM_BITMAP;
@@ -800,7 +853,23 @@ index 09d447c..c09a2f3 100644
      
      BWRAM = SRAM;
  }
-@@ -3974,6 +4093,7 @@ void CMemory::ApplyROMFixes ()
+@@ -3429,6 +3565,7 @@ void CMemory::JumboLoROMMap (bool8 Interleaved)
+ 
+ 	//ROM type has to be 64 Mbit header!
+ 	int sum=0, k,l;
++	IF_CHECKSUM_ENABLED
+ 	for(k=0;k<256;k++)
+ 	{
+ 		uint8* bank=0x8000+Map[8+(k<<4)];//use upper half of the banks, and adjust for LoROM.
+@@ -3510,6 +3647,7 @@ void CMemory::SPC7110HiROMMap ()
+ 	S9xSpc7110Init();
+ 
+ int sum=0;
++IF_CHECKSUM_ENABLED
+ for(i=0;i<(int)CalculatedSize; i++)
+ {
+ 	sum+=ROM[i];
+@@ -3974,6 +4112,7 @@ void CMemory::ApplyROMFixes ()
  
  
  	//SA-1 Speedup settings
@@ -808,7 +877,7 @@ index 09d447c..c09a2f3 100644
      SA1.WaitAddress = NULL;
      SA1.WaitByteAddress1 = NULL;
      SA1.WaitByteAddress2 = NULL;
-@@ -4155,6 +4275,7 @@ void CMemory::ApplyROMFixes ()
+@@ -4155,6 +4294,7 @@ void CMemory::ApplyROMFixes ()
  		SA1.WaitByteAddress1 = SRAM + 0x0806;
  		SA1.WaitByteAddress2 = SRAM + 0x0808;
      }

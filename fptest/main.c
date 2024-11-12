@@ -298,6 +298,24 @@ int main(int argc, char **argv) {
 	}
 
 	if (1) {
+		uint32_t id0, id1;
+		__asm__ __volatile__(
+#ifdef __thumb__
+			".p2align 2\nbx pc\n.p2align 2\n.code 32\n"
+#endif
+			"mrc p15, #0, %0, c0, c0, #0\n"
+			"mrc p15, #0, %1, c0, c0, #1\n"
+#ifdef __thumb__
+			"blx 1f\n.code 16\n1:\n"
+#endif
+			: "=r"(id0), "=r"(id1) :: "lr");
+		printf("ARM: id = 0x%08x, cache = 0x%08x\n", id0, id1);
+		// id = 0x41069265
+		// SC6530C/SC6531: cache = 0x1d152152 (16+16KB)
+		// SC6531E: cache = 0x1d112112 (8+8KB)
+	}
+
+	if (1) {
 		struct sys_display *disp = &sys_data.display;
 		unsigned w = disp->w2, h = disp->h2;
 		framebuf_alloc();
