@@ -341,15 +341,15 @@ size_t app_mem_reserve(void *start, size_t size) {
 unsigned rommap_size(void) { return rommap.rompages << 12; }
 void rommap_superfx(void) {
 	uint32_t *tab2 = rommap.tab2;
-	unsigned i, n = rommap.rompages;
+	unsigned i, j, n = rommap.rompages;
 	if (n > 0x200) n = 0x200;
 	for (i = 0; i < n; i++) {
 		uint32_t val = tab2[8 + i];
-		i = 0x208 + (i << 1) - (i & 7);
-		tab2[i] = val;
-		tab2[i + 8] = val;
+		j = 0x208 + (i << 1) - (i & 7);
+		tab2[j] = val;
+		tab2[j + 8] = val;
 	}
-	clean_dcache();
+	clean_invalidate_dcache();
 	invalidate_tlb();
 	rommap.superfx = 1;
 }
