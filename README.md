@@ -107,6 +107,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 52 | LONG-CZ J9              | SC6531E  |  64x48  SSD1306   | right soft |
 | 53 | Digma Linx A106         | SC6530C  |  96x68  HX1230    | up         |
 | 54 | Prestigio Wize J1       | SC6531E  | 128x160 GC9106    | 9          |
+| 55 | Texet TM-B322           | SC6531   | 128x64  ST7567A   | 0          |
 
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
@@ -126,6 +127,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 * Joy's S19: use `--lcd 0x7565`
 * LONG-CZ J9: use `--lcd 0x1306`
 * Prestigio Wize J1: use `--lcd 0x80009106`, 0 and # keys not present in the keymap and implemented differently
+* Texet TM-B322: use `--lcd 0x7567`, dial key is mapped to left soft key
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 

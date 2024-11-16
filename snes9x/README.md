@@ -1,6 +1,6 @@
 ## Snes9x port
 
-Port of Snes9x v1.43. This older version is more lightweight and has 8-bit rendering mode.
+Port of Snes9x v1.43. This older version is more lightweight and has 8-bit rendering mode. The DSP1 emulation [code](https://github.com/snes9xgit/snes9x/blob/96059dd45aed03859bff5a3e30f1d1b13136a8f9/dsp1.cpp) is taken from the upstream Snes9x, where it has been rewritten to integer calculations.
 
 ### Build
 
@@ -31,7 +31,7 @@ Port of Snes9x v1.43. This older version is more lightweight and has 8-bit rende
 | 1, 3           | TL, TR             |
 | *, 0, #        | A, B, A            |
 | 7, 8, 9        | X, Y, X            |
-| Power + LSoft  | reset              |
+| Power + LSoft  | start              |
 | Power + Dial   | exit               |
 | Power + Up     | reset              |
 | Power + Down   | exit               |
@@ -48,9 +48,9 @@ Port of Snes9x v1.43. This older version is more lightweight and has 8-bit rende
 
 * SA1 - disabled.
 
-* SuperFX works, but very slow.
+* DSP1 games run at half speed. SuperFX works, but very slow.
 
-* C4/DSP1/DSP4 - disabled, because emulation uses floating point operations that are not supported by the phone's CPU. This can be solved by rewriting to integer calculations or using floating point emulation.
+* C4/DSP4 - disabled, because emulation uses floating point operations that are not supported by the phone's CPU. This can be solved by rewriting to integer calculations or using floating point emulation.
 
 * Some game cartridges have SRAM for saves, this memory is saved on exit or if you force save SRAM. If the device is turned off, the SRAM changes will be lost.
 

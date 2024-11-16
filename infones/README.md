@@ -23,7 +23,7 @@ I hope that the author of InfoNES will pay attention to the huge number of bugs 
 | 2, 4, 5, 6     | up/left/down/right |
 | *, 0, #        | A                  |
 | 1, 3, 7, 8, 9  | B                  |
-| Power + LSoft  | reset              |
+| Power + LSoft  | start              |
 | Power + Dial   | exit               |
 | Power + Up     | reset              |
 | Power + Down   | exit               |

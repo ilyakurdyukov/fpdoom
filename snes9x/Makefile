@@ -26,9 +26,14 @@ FPDOOM = ../fpdoom
 HOSTCC = cc
 NM = nm
 
+DSP1_NEW = 1
 NO_SA1 = 1
 NO_C4 = $(NO_FLOAT)
+ifeq ($(DSP1_NEW), 1)
+NO_DSP1 = 0
+else
 NO_DSP1 = $(NO_FLOAT)
+endif
 NO_DSP4 = $(NO_FLOAT)
 
 SRCS += snes9x_fp extra scr_update
@@ -141,6 +146,8 @@ CFLAGS += -DNO_C4=1
 endif
 ifneq ($(NO_DSP1), 0)
 CFLAGS += -DNO_DSP1=1
+else ifneq ($(DSP1_NEW), 0)
+CFLAGS += -DDSP1_NEW=1
 endif
 ifneq ($(NO_DSP4), 0)
 CFLAGS += -DNO_DSP4=1

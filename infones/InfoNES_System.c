@@ -365,7 +365,7 @@ void keytrn_init(void) {
 		KEY(PLUS, KEY_START)
 	};
 	static const uint8_t keys_power[] = {
-		KEY(LSOFT, KEY_RESET)
+		KEY(LSOFT, KEY_START)
 		KEY(DIAL, KEY_EXIT)
 		KEY(UP, KEY_RESET)
 		KEY(DOWN, KEY_EXIT)

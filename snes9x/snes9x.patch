@@ -206,30 +206,36 @@ index d6f8943..4434be0 100644
      {
  		// Perform packed bitmap to PPU character format conversion on the
 diff --git a/dsp1.cpp b/dsp1.cpp
-index 65ca899..9456156 100644
+index 65ca899..bbf7a20 100644
 --- a/dsp1.cpp
 +++ b/dsp1.cpp
-@@ -92,7 +92,11 @@
+@@ -92,7 +92,17 @@
  #include "memmap.h"
  #include <math.h>
  
 +#if NO_DSP1
 +static void InitDSP() {}
 +#else
++#if DSP1_NEW
++static void InitDSP() {}
++struct SDSP0 DSP0;
++#include "dsp1new.cpp"
++#else
  #include "dsp1emu.c"
++#endif
 +#endif
  #include "dsp2emu.c"
  #include "dsp3emu.cpp"
  
-@@ -153,6 +157,7 @@ void S9xSetDSP (uint8 byte, uint16 address)
+@@ -153,6 +163,7 @@ void S9xSetDSP (uint8 byte, uint16 address)
  	//DSP1SetByte(byte, address);
  }
  
-+#if !NO_DSP1
++#if !DSP1_NEW && !NO_DSP1
  void DSP1SetByte(uint8 byte, uint16 address)
  {
      if( (address & 0xf000) == 0x6000 || (address & 0x7fff) < 0x4000 )
-@@ -789,6 +794,7 @@ uint8 DSP1GetByte(uint16 address)
+@@ -789,6 +800,7 @@ uint8 DSP1GetByte(uint16 address)
      else t = 0x80;
  	return t;
  }
@@ -237,7 +243,7 @@ index 65ca899..9456156 100644
  
  void DSP2SetByte(uint8 byte, uint16 address)
  {
-@@ -940,6 +946,7 @@ uint8 DSP2GetByte(uint16 address)
+@@ -940,6 +952,7 @@ uint8 DSP2GetByte(uint16 address)
  	return t;
  }
  
@@ -245,16 +251,70 @@ index 65ca899..9456156 100644
  struct SDSP4 {
      bool8 waiting4command;
      bool8 half_command;
-@@ -1192,3 +1199,4 @@ uint8 DSP4GetByte(uint16 address)
+@@ -1192,3 +1205,4 @@ uint8 DSP4GetByte(uint16 address)
  
  	return t;
  }
 +#endif
 diff --git a/dsp1.h b/dsp1.h
-index 93bc86b..a222d61 100644
+index 93bc86b..12d48f2 100644
 --- a/dsp1.h
 +++ b/dsp1.h
-@@ -123,8 +123,8 @@ START_EXTERN_C
+@@ -117,14 +117,62 @@ struct SDSP1 {
+     uint32 out_index;
+     uint8 parameters [512];
+     uint8 output [512];
++
++#if DSP1_NEW
++	int16 CentreX, CentreY, VOffset, VPlane_C, VPlane_E;
++	// Azimuth and Zenith angles
++	int16 SinAas, CosAas, SinAzs, CosAzs;
++	// Clipped Zenith angle
++	int16 SinAZS, CosAZS, SecAZS_C1, SecAZS_E1, SecAZS_C2, SecAZS_E2;
++	int16 Nx, Ny, Nz, Gx, Gy, Gz, C_Les, E_Les, G_Les;
++	int16 matrixA[3][3], matrixB[3][3], matrixC[3][3];
++	int16 Op00Multiplicand, Op00Multiplier, Op00Result;
++	int16 Op20Multiplicand, Op20Multiplier, Op20Result;
++	int16 Op10Coefficient, Op10Exponent;
++	int16 Op10CoefficientR, Op10ExponentR;
++	int16 Op04Angle, Op04Radius, Op04Sin, Op04Cos;
++	int16 Op0CA, Op0CX1, Op0CY1, Op0CX2, Op0CY2;
++	int16 Op02FX, Op02FY, Op02FZ;
++	int16 Op02LFE, Op02LES, Op02AAS, Op02AZS;
++	int16 Op02VOF, Op02VVA, Op02CX, Op02CY;
++	int16 Op0AVS, Op0AA, Op0AB, Op0AC, Op0AD;
++	int16 Op06X, Op06Y, Op06Z, Op06H, Op06V, Op06M;
++	int16 Op01m, Op01Zr, Op01Xr, Op01Yr;
++	int16 Op11m, Op11Zr, Op11Xr, Op11Yr;
++	int16 Op21m, Op21Zr, Op21Xr, Op21Yr;
++	int16 Op0DX, Op0DY, Op0DZ, Op0DF, Op0DL, Op0DU;
++	int16 Op1DX, Op1DY, Op1DZ, Op1DF, Op1DL, Op1DU;
++	int16 Op2DX, Op2DY, Op2DZ, Op2DF, Op2DL, Op2DU;
++	int16 Op03F, Op03L, Op03U, Op03X, Op03Y, Op03Z;
++	int16 Op13F, Op13L, Op13U, Op13X, Op13Y, Op13Z;
++	int16 Op23F, Op23L, Op23U, Op23X, Op23Y, Op23Z;
++	int16 Op14Zr, Op14Xr, Op14Yr, Op14U;
++	int16 Op14F, Op14L, Op14Zrr, Op14Xrr, Op14Yrr;
++	int16 Op0EH, Op0EV, Op0EX, Op0EY;
++	int16 Op0BX, Op0BY, Op0BZ, Op0BS;
++	int16 Op1BX, Op1BY, Op1BZ, Op1BS;
++	int16 Op2BX, Op2BY, Op2BZ, Op2BS;
++	int16 Op28X, Op28Y, Op28Z, Op28R;
++	int16 Op1CX, Op1CY, Op1CZ;
++	int16 Op1CXBR, Op1CYBR, Op1CZBR;
++	int16 Op1CXAR, Op1CYAR, Op1CZAR;
++	int16 Op1CX1, Op1CY1, Op1CZ1;
++	int16 Op1CX2, Op1CY2, Op1CZ2;
++	uint16 Op0FRamsize, Op0FPass;
++	int16 Op2FUnknown, Op2FSize;
++	int16 Op08X, Op08Y, Op08Z, Op08Ll, Op08Lh;
++	int16 Op18X, Op18Y, Op18Z, Op18R, Op18D;
++	int16 Op38X, Op38Y, Op38Z, Op38R, Op38D;
++#endif
+ };
++extern struct SDSP0 { uint32 boundary; } DSP0;
+ 
+ START_EXTERN_C
  void S9xResetDSP1 ();
  uint8 S9xGetDSP (uint16 Address);
  void S9xSetDSP (uint8 Byte, uint16 Address);
@@ -410,7 +470,7 @@ index 9969a2d..c4dabad 100644
      case CMemory::MAP_PPU:
  		CPU.PCBase = Memory.FillRAM;
 diff --git a/gfx.cpp b/gfx.cpp
-index d86fa01..7dce4e6 100644
+index d86fa01..eec2d6e 100644
 --- a/gfx.cpp
 +++ b/gfx.cpp
 @@ -98,6 +98,11 @@
@@ -419,7 +479,7 @@ index d86fa01..7dce4e6 100644
  
 +extern "C" {
 +	void scr_clear16_asm(void *buf, int starty, int endy, int val);
-+  extern uint32 SNES_hacks;
++	extern uint32 SNES_hacks;
 +}
 +
  #define M7 19
@@ -544,7 +604,7 @@ index 81b07af..ac26de1 100644
  typedef void (*NormalTileRenderer) (uint32 Tile, uint32 Offset, 
  				    uint32 StartLine, uint32 LineCount);
 diff --git a/memmap.cpp b/memmap.cpp
-index 09d447c..d4c92c7 100644
+index 09d447c..f2b01f3 100644
 --- a/memmap.cpp
 +++ b/memmap.cpp
 @@ -397,12 +397,74 @@ char *CMemory::Safe (const char *s)
@@ -731,7 +791,20 @@ index 09d447c..d4c92c7 100644
  	if(0==CalculatedChecksum)
  	{
  		int power2 = 0;
-@@ -1595,6 +1702,12 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1590,11 +1697,25 @@ void CMemory::InitROM (bool8 Interleaved)
+ 	IAPU.OneCycle = ONE_APU_CYCLE;
+ 	Settings.Shutdown = Settings.ShutdownMaster;
+ 	
++#if DSP1_NEW
++	if (Settings.DSP1Master) {
++		unsigned x = 0xc;
++		if (CalculatedSize > 0x100000) x = 4;
++		if (HiROM) x = 7;
++		DSP0.boundary = x << 12;
++	}
++#endif
+ 	SetDSP=&DSP1SetByte;
+ 	GetDSP=&DSP1GetByte;
  
  	ResetSpeedMap();
  	ApplyROMFixes ();
@@ -744,7 +817,7 @@ index 09d447c..d4c92c7 100644
  	sprintf (ROMName, "%s", Safe (ROMName));
  	sprintf (ROMId, "%s", Safe (ROMId));
  	sprintf (CompanyId, "%s", Safe (CompanyId));
-@@ -1631,6 +1744,18 @@ void CMemory::InitROM (bool8 Interleaved)
+@@ -1631,6 +1752,18 @@ void CMemory::InitROM (bool8 Interleaved)
  
  bool8 CMemory::LoadSRAM (const char *filename)
  {
@@ -763,7 +836,7 @@ index 09d447c..d4c92c7 100644
      int size = Memory.SRAMSize ?
  	       (1 << (Memory.SRAMSize + 3)) * 128 : 0;
  	
-@@ -1651,6 +1776,7 @@ bool8 CMemory::LoadSRAM (const char *filename)
+@@ -1651,6 +1784,7 @@ bool8 CMemory::LoadSRAM (const char *filename)
  				// S-RAM file has a header - remove it
  				memmove (::SRAM, ::SRAM + 512, size);
  			}
@@ -771,7 +844,7 @@ index 09d447c..d4c92c7 100644
  			if (len == size + SRTC_SRAM_PAD)
  			{
  				S9xSRTCPostLoadState ();
-@@ -1705,7 +1831,7 @@ bool8 CMemory::SaveSRAM (const char *filename)
+@@ -1705,7 +1839,7 @@ bool8 CMemory::SaveSRAM (const char *filename)
  		{
  			fwrite ((char *) ::SRAM, size, 1, file);
  			fclose (file);
@@ -780,7 +853,7 @@ index 09d447c..d4c92c7 100644
  			chown (filename, getuid (), getgid ());
  #endif
  			if(Settings.SPC7110RTC)
-@@ -1982,6 +2108,7 @@ void CMemory::LoROMMap ()
+@@ -1982,6 +2116,7 @@ void CMemory::LoROMMap ()
  	bankcount*=4;//to banks
  	bankcount<<=4;//Map banks
  	bankcount+=0x800;//normalize
@@ -788,7 +861,7 @@ index 09d447c..d4c92c7 100644
  	for(k=0x800;k<(bankcount);k+=16)
  	{
  		uint8* bank=0x8000+Map[k+8];
-@@ -2116,6 +2243,7 @@ void CMemory::SetaDSPMap ()
+@@ -2116,6 +2251,7 @@ void CMemory::SetaDSPMap ()
  	bankcount*=4;//to banks
  	bankcount<<=4;//Map banks
  	bankcount+=0x800;//normalize
@@ -796,7 +869,7 @@ index 09d447c..d4c92c7 100644
  	for(k=0x800;k<(bankcount);k+=16)
  	{
  		uint8* bank=0x8000+Map[k+8];
-@@ -2347,6 +2475,7 @@ void CMemory::HiROMMap ()
+@@ -2347,6 +2483,7 @@ void CMemory::HiROMMap ()
  	if(bankmax > 128)
  		bankmax = 0x80;
  	int sum=0;
@@ -804,7 +877,7 @@ index 09d447c..d4c92c7 100644
  	for(i=0x40;i<bankmax; i++)
  	{
  		uint8 * bank_low=(uint8*)Map[i<<4];
-@@ -2440,7 +2569,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
+@@ -2440,7 +2577,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
  
  	if((strncmp("TALES",(char*)Map[8]+0xFFC0, 5)==0))
  	{
@@ -813,7 +886,7 @@ index 09d447c..d4c92c7 100644
  		{
  			Settings.DisplayColor=BUILD_PIXEL(31,0,0);
  			SET_UI_COLOR(255,0,0);
-@@ -2451,6 +2580,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
+@@ -2451,6 +2588,7 @@ void CMemory::TalesROMMap (bool8 Interleaved)
  	ROMComplementChecksum = *(Map[8]+0xFFDC) + (*(Map[8]+0xFFDD) << 8);
  
  int sum=0;
@@ -821,7 +894,7 @@ index 09d447c..d4c92c7 100644
  for(i=0x40;i<0x80; i++)
  {
  	uint8 * bank_low=(uint8*)Map[i<<4];
-@@ -2588,11 +2718,15 @@ void CMemory::SuperFXROMMap ()
+@@ -2588,11 +2726,15 @@ void CMemory::SuperFXROMMap ()
  	
      // Replicate the first 2Mb of the ROM at ROM + 2MB such that each 32K
      // block is repeated twice in each 64K block.
@@ -837,7 +910,7 @@ index 09d447c..d4c92c7 100644
  	
      WriteProtectROM ();
  }
-@@ -2656,6 +2790,7 @@ void CMemory::SA1ROMMap ()
+@@ -2656,6 +2798,7 @@ void CMemory::SA1ROMMap ()
      }
      WriteProtectROM ();
  	
@@ -845,7 +918,7 @@ index 09d447c..d4c92c7 100644
      // Now copy the map and correct it for the SA1 CPU.
      memmove ((void *) SA1.WriteMap, (void *) WriteMap, sizeof (WriteMap));
      memmove ((void *) SA1.Map, (void *) Map, sizeof (Map));
-@@ -2672,6 +2807,7 @@ void CMemory::SA1ROMMap ()
+@@ -2672,6 +2815,7 @@ void CMemory::SA1ROMMap ()
      // Banks 60->6f
      for (c = 0; c < 0x100; c++)
  		SA1.Map [c + 0x600] = SA1.WriteMap [c + 0x600] = (uint8 *) MAP_BWRAM_BITMAP;
@@ -853,7 +926,7 @@ index 09d447c..d4c92c7 100644
      
      BWRAM = SRAM;
  }
-@@ -3429,6 +3565,7 @@ void CMemory::JumboLoROMMap (bool8 Interleaved)
+@@ -3429,6 +3573,7 @@ void CMemory::JumboLoROMMap (bool8 Interleaved)
  
  	//ROM type has to be 64 Mbit header!
  	int sum=0, k,l;
@@ -861,7 +934,7 @@ index 09d447c..d4c92c7 100644
  	for(k=0;k<256;k++)
  	{
  		uint8* bank=0x8000+Map[8+(k<<4)];//use upper half of the banks, and adjust for LoROM.
-@@ -3510,6 +3647,7 @@ void CMemory::SPC7110HiROMMap ()
+@@ -3510,6 +3655,7 @@ void CMemory::SPC7110HiROMMap ()
  	S9xSpc7110Init();
  
  int sum=0;
@@ -869,7 +942,7 @@ index 09d447c..d4c92c7 100644
  for(i=0;i<(int)CalculatedSize; i++)
  {
  	sum+=ROM[i];
-@@ -3974,6 +4112,7 @@ void CMemory::ApplyROMFixes ()
+@@ -3974,6 +4120,7 @@ void CMemory::ApplyROMFixes ()
  
  
  	//SA-1 Speedup settings
@@ -877,7 +950,7 @@ index 09d447c..d4c92c7 100644
      SA1.WaitAddress = NULL;
      SA1.WaitByteAddress1 = NULL;
      SA1.WaitByteAddress2 = NULL;
-@@ -4155,6 +4294,7 @@ void CMemory::ApplyROMFixes ()
+@@ -4155,6 +4302,7 @@ void CMemory::ApplyROMFixes ()
  		SA1.WaitByteAddress1 = SRAM + 0x0806;
  		SA1.WaitByteAddress2 = SRAM + 0x0808;
      }
