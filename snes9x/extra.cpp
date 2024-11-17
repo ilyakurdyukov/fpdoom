@@ -167,7 +167,8 @@ void S9xAutoSaveSRAM() {
 extern "C"
 void emu_save(int type) {
 	if (type == -1) {
-		if (CPU.SRAMModified) {
+		// Yoshi's Island somehow modifies SRAM without activating this flag
+		if (1 /* CPU.SRAMModified */) {
 			CPU.SRAMModified = FALSE;
 			CPU.AutoSaveTimer = 0;
 			S9xAutoSaveSRAM();
@@ -289,7 +290,7 @@ static int wait_frame60(void) {
 }
 
 void S9xSyncSpeed() {
-#if 0 && EMBEDDED == 2 && LIBC_SDIO < 3
+#if 1 && EMBEDDED == 2 && LIBC_SDIO < 3
 	static int cnt = 0;
 	int render = 0;
 	if (++cnt >= Memory.ROMFramesPerSecond) {
