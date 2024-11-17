@@ -290,7 +290,7 @@ static int wait_frame60(void) {
 }
 
 void S9xSyncSpeed() {
-#if 1 && EMBEDDED == 2 && LIBC_SDIO < 3
+#if PERF_LOG && EMBEDDED == 2 && LIBC_SDIO < 3
 	static int cnt = 0;
 	int render = 0;
 	if (++cnt >= Memory.ROMFramesPerSecond) {
