@@ -456,6 +456,7 @@ scr_update_1d2_asm:
 	sub	r2, r1, #256 * 4
 	ldr	r12, scr_update_data
 	ldr	r3, scr_update_data + 4
+	lsl	r12, #1
 	ldr	lr, =0x00400802
 	ldr	r5, =0xf81f07e0
 	mov	r4, #0x3fc
@@ -497,7 +498,7 @@ scr_update_1d2_asm:
 	orr	r6, r6, r6, lsr #16
 	orr	r6, r11, r6, lsl #16
 	str	r6, [r1], #4
-	adds	r3, #2 << 16
+	adds	r3, #4 << 16
 	bmi	2b
 	add	r0, r12
 	subs	r3, #1
