@@ -162,6 +162,7 @@ static short* scan_drps(uint32_t *drps) {
 						keymap = NULL; break;
 					}
 					keymap = (short*)(p + 3);
+					ret = (ret + 1) & ~1; // keep 32-bit alignment
 					p = (uint32_t*)(keymap + ret) - 1;
 					continue;
 				}
