@@ -108,6 +108,8 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 53 | Digma Linx A106         | SC6530C  |  96x68  HX1230    | up         |
 | 54 | Prestigio Wize J1       | SC6531E  | 128x160 GC9106    | 9          |
 | 55 | Texet TM-B322           | SC6531   | 128x64  ST7567A   | 0          |
+| 56 | Itel it5615             | SC6531   | 240x320 ST7789    | left soft  |
+| 57 | Jinga Simple F200n      | SC6531   | 128x160 GC9102    | left soft  |
 
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
