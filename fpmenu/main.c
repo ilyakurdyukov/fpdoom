@@ -163,8 +163,9 @@ static int run_binary(draw_t *draw) {
 	int argc;
 
 	args = menu_file(draw->menu, draw->sel - draw->msel);
-	if (!args) return 0;
+	if (!args) return 0; // should never happen
 	name = get_first_arg(args);
+	if (!name) return 0; // caption/separator
 	if (!strcmp(name, "exit")) return 1;
 
 	DBG_LOG("bin: \"%s\"\n", name);
