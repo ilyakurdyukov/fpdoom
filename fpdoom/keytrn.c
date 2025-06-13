@@ -24,17 +24,17 @@ void keytrn_init(void) {
 		KEY(DIAL, KEY_RSHIFT) /* run toggle */
 		KEY(1, ',') /* strafe left */
 		KEY(3, '.') /* strafe right */
-		//KEY(8, ' ') /* use */
-		KEY(7, '[') /* prev weapon */
-		KEY(9, ']') /* next weapon */
+		KEY(8, ' ') /* unused */
+		KEY(7, ';') /* prev weapon */
+		KEY(9, '\'') /* next weapon */
 		KEY(VOLUP, KEY_EQUALS)
 		KEY(VOLDOWN, KEY_MINUS)
 		KEY(PLUS, KEY_TAB) /* map */
 	};
 	static const uint8_t keys_power[] = {
 		KEY(UP, KEY_RSHIFT)
-		KEY(LEFT, '[')
-		KEY(RIGHT, ']')
+		KEY(LEFT, ';')
+		KEY(RIGHT, '\'')
 		KEY(DOWN, KEY_ESCAPE)
 		KEY(CENTER, KEY_ENTER)
 
