@@ -60,9 +60,9 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 |  5 | Vertex M115             | SC6531   | 128x128 ST7735S   | up         |
 |  6 | Vertex С323             | SC6531   | 128x160 GC9106    | 0          |
 |  7 | Nobby 170B              | SC6531E  | 128x160 GC9106    | #          |
-|  8 | SW DZ09                 | SC6531   | 240x240 GC9307    | none       |
+|  8 | Smart Watch DZ09        | SC6531   | 240x240 GC9307    | none       |
 |  9 | Nokia TA-1174           | SC6531E  | 128x160 ST7735    | 7          |
-| 10 | BQ 3586                 | SC6531E  | 320x480 R61529    | #          |
+| 10 | BQ 3586 Tank Max        | SC6531E  | 320x480 R61529    | #          |
 | 11 | Samsung B310E           | SC6530C  | 128x160 ST7735    | center     |
 | 12 | Fontel FP200            | SC6531   | 128x160 GC9106    | left soft  |
 | 13 | Vertex D514             | SC6531E  | 240x320 ???       | center     |

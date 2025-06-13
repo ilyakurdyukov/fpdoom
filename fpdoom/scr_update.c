@@ -1,16 +1,16 @@
-
-#include "common.h"
-#include "syscode.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SCREENWIDTH 320
-#define SCREENHEIGHT 200
+#include "syscode.h"
+
+#if EMBEDDED == 2
 #define USE_ASM
+#endif
 
 void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
+
+uint16_t *framebuf;
 
 #define DEF(ret, name, args) \
 ret name##_asm args; ret name args
@@ -358,7 +358,7 @@ DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
 #define scr_update_96x68 scr_update_96x68_asm
 #endif
 
-uint8_t* framebuffer_init(void) {
+void* framebuffer_init(unsigned size1) {
 	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4, 1, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
@@ -377,16 +377,19 @@ uint8_t* framebuffer_init(void) {
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
-	uint8_t *dest;
+	uint8_t *p;
 
-	size = sys_data.display.w2 * sys_data.display.h2;
-	dest = malloc(size * 2 + size2 + 28);
-	dest = (void*)(dest + (-(intptr_t)dest & 31));
-	dest += size2;
+	size = sys_data.display.w2 * sys_data.display.h2 * 2;
+	p = malloc(size + size1 + size2 + 28);
+	p = (void*)(p + (-(intptr_t)p & 31));
+	p += size2;
+	framebuf = (uint16_t*)p;
+	p += size;
+	sys_framebuffer(framebuf);
 
 	app_pal_update = fn[mode].pal_update;
 	app_scr_update = fn[mode].scr_update;
-	return dest;
+	return p;
 }
 
 /* replaces "i_main.c" */
@@ -395,10 +398,15 @@ extern char** myargv;
 void D_DoomMain(void);
 extern int screenheight;
 
+#if EMBEDDED == 1
+int app_main(int argc, char **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
 	myargc = argc; myargv = argv;
 	screenheight = *(int32_t*)sys_data.user;
 	D_DoomMain();
+	return 0;
 }
 
 void lcd_appinit(void) {

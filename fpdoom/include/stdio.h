@@ -28,6 +28,8 @@ extern FILE *stdin, *stdout, *stderr;
 int getchar(void);
 int putchar(int);
 int fgetc(FILE*);
+int ungetc(int, FILE*);
+int feof(FILE*);
 int fputc(int, FILE*);
 int puts(const char*);
 int fputs(const char*, FILE*);

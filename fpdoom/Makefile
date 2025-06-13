@@ -74,7 +74,7 @@ CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DCHIPRAM_ARGS=1
 endif
 
-DOOM_CFLAGS = -DEMBEDDED -DNORMALUNIX -DLINUX -DUSEASM
+DOOM_CFLAGS = -DEMBEDDED=2 -DNORMALUNIX -DLINUX -DUSEASM
 DOOM_CFLAGS += -Wno-unused-parameter -Wno-unused -Wno-missing-field-initializers
 DOOM_CFLAGS += -Wno-strict-prototypes
 

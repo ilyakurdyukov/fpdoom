@@ -88,8 +88,3 @@ int *__errno(void) { return &sys_errno; }
 
 char *strerror(int errnum) { return "<unknown>"; }
 
-void __assert2(const char *file, int line, const char *func, const char *msg) {
-	fprintf(stderr, "!!! %s:%i %s: assert(%s) failed\n", file, line, func, msg);
-	exit(255);
-}
-

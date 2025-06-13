@@ -97,6 +97,13 @@ char *strncpy(char *dst, const char *src, size_t len) {
 	return dst;
 }
 
+char *strncat(char *dst, const char *src, size_t len) {
+	char *d = dst;
+	while (*d++);
+	strncpy(d, src, len);
+	return dst;
+}
+
 int strcmp(const char *src1, const char *src2) {
 	const uint8_t *s1, *s2;
 	int a, b;
@@ -236,11 +243,11 @@ unsigned long strtoul(const char *s, char **end, int base) {
 }
 
 int atoi(const char *s) {
-	return strtol(s, 0, 10);
+	return strtol(s, NULL, 10);
 }
 
 long atol(const char *s) {
-	return strtol(s, 0, 10);
+	return strtol(s, NULL, 10);
 }
 
 char* strdup(const char *str) {

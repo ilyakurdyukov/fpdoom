@@ -148,15 +148,3 @@ void keytrn_init(void) {
 #undef FILL_RKEYMAP
 #undef FILL_KEYTRN
 }
-
-char *strncat(char *dst, const char *src, size_t len) {
-	char *d = dst;
-	while (*d++);
-	strncpy(d, src, len);
-	return dst;
-}
-
-void __assert2(const char *file, int line, const char *func, const char *msg) {
-	fprintf(stderr, "!!! %s:%i %s: assert(%s) failed\n", file, line, func, msg);
-	exit(255);
-}

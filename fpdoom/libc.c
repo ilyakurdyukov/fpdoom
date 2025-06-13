@@ -40,6 +40,11 @@ void exit(int code) {
 	sys_exit();
 }
 
+void __assert2(const char *file, int line, const char *func, const char *msg) {
+	fprintf(stderr, "!!! %s:%i %s: assert(%s) failed\n", file, line, func, msg);
+	exit(255);
+}
+
 int atexit(void (*func)(void)) {
 	(void)func;
 	return -1;

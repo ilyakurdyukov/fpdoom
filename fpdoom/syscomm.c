@@ -298,7 +298,7 @@ int sys_getkeymap(uint8_t *dest) {
 	if (sys_data.lcd_id == 0x1306) rotate = 4;
 #endif
 
-	memset(dest, 0, 64);
+	memset(dest, -1, 64);
 
 	for (i = 0; i < ncol; i++)
 	for (j = 0; j < nrow; j++) {

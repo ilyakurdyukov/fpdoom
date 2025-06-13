@@ -43,7 +43,7 @@ index 999e455..2241dee 100644
      // For debugging only
      if (      fl->a.x < 0 || fl->a.x >= f_w
 diff --git a/d_main.c b/d_main.c
-index 23427e8..c3c6c44 100644
+index 23427e8..8d5a49f 100644
 --- a/d_main.c
 +++ b/d_main.c
 @@ -32,12 +32,9 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
@@ -101,10 +101,10 @@ index 23427e8..c3c6c44 100644
 -	ST_Drawer (viewheight == 200, redrawsbar );
 -	fullscreen = viewheight == 200;
 +	{   /* height fix */
-+            int fullscreen2 = viewheight == SCREENHEIGHT;
++	     int fullscreen2 = viewheight == SCREENHEIGHT;
 +	    if (wipe || (!fullscreen2 && fullscreen) ||
-+	        (inhelpscreensstate && !inhelpscreens)) // just put away the help screen
-+	        redrawsbar = true;
++		(inhelpscreensstate && !inhelpscreens)) // just put away the help screen
++		redrawsbar = true;
 +	    ST_Drawer (fullscreen2, redrawsbar );
 +	    fullscreen = fullscreen2;
 +	}
@@ -446,7 +446,7 @@ index bab5e00..f9b3926 100644
  
  
 diff --git a/doomdef.h b/doomdef.h
-index 1850477..b3bb4b0 100644
+index 1850477..6ace803 100644
 --- a/doomdef.h
 +++ b/doomdef.h
 @@ -25,6 +25,7 @@
@@ -466,7 +466,7 @@ index 1850477..b3bb4b0 100644
  //#define SNDINTR  1
  
  
-@@ -109,8 +110,12 @@ typedef enum
+@@ -109,8 +110,13 @@ typedef enum
  // So there.
  #define SCREENWIDTH  320
  //SCREEN_MUL*BASE_WIDTH //320
@@ -476,7 +476,8 @@ index 1850477..b3bb4b0 100644
 +#define SCREENHEIGHTMAX 240
 +extern int screenheight, patch_yadd;
 +#define SCREENHEIGHT screenheight
-+#define SCREENHEIGHTFIX2 ((SCREENHEIGHT-SCREENHEIGHTOLD)/2u)
++#define SCREENHEIGHTFIX (SCREENHEIGHT-SCREENHEIGHTOLD)
++#define SCREENHEIGHTFIX2 (SCREENHEIGHTFIX/2u)
  
  
  
@@ -595,7 +596,7 @@ index e8596f3..2ebcb10 100644
      for (i=1;i<width;i++)
      {
 diff --git a/g_game.c b/g_game.c
-index 30ac33c..f84bb03 100644
+index 30ac33c..650763f 100644
 --- a/g_game.c
 +++ b/g_game.c
 @@ -24,6 +24,7 @@
@@ -634,7 +635,17 @@ index 30ac33c..f84bb03 100644
  } 
   
   
-@@ -1133,9 +1133,6 @@ void G_DoCompleted (void)
+@@ -541,6 +541,9 @@ boolean G_Responder (event_t* ev)
+ 	    return true; 
+ 	} 
+ #endif 
++#if EMBEDDED
++	if (0)
++#endif
+ 	if (HU_Responder (ev)) 
+ 	    return true;	// chat ate the event 
+ 	if (ST_Responder (ev)) 
+@@ -1133,9 +1136,6 @@ void G_DoCompleted (void)
      gamestate = GS_INTERMISSION; 
      viewactive = false; 
      automapactive = false; 
@@ -644,7 +655,7 @@ index 30ac33c..f84bb03 100644
  	
      WI_Start (&wminfo); 
  } 
-@@ -1197,13 +1194,13 @@ void G_LoadGame (char* name)
+@@ -1197,13 +1197,13 @@ void G_LoadGame (char* name)
   
  #define VERSIONSIZE		16 
  
@@ -659,7 +670,7 @@ index 30ac33c..f84bb03 100644
  	 
      gameaction = ga_nothing; 
  	 
-@@ -1211,10 +1208,8 @@ void G_DoLoadGame (void)
+@@ -1211,10 +1211,8 @@ void G_DoLoadGame (void)
      save_p = savebuffer + SAVESTRINGSIZE;
      
      // skip the description field 
@@ -672,7 +683,7 @@ index 30ac33c..f84bb03 100644
      save_p += VERSIONSIZE; 
  			 
      gameskill = *save_p++; 
-@@ -1275,7 +1270,11 @@ void G_DoSaveGame (void)
+@@ -1275,7 +1273,11 @@ void G_DoSaveGame (void)
      int		length; 
      int		i; 
  	
@@ -684,7 +695,7 @@ index 30ac33c..f84bb03 100644
  	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
      else
  	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
-@@ -1286,7 +1285,7 @@ void G_DoSaveGame (void)
+@@ -1286,7 +1288,7 @@ void G_DoSaveGame (void)
      memcpy (save_p, description, SAVESTRINGSIZE); 
      save_p += SAVESTRINGSIZE; 
      memset (name2,0,sizeof(name2)); 
@@ -693,7 +704,7 @@ index 30ac33c..f84bb03 100644
      memcpy (save_p, name2, VERSIONSIZE); 
      save_p += VERSIONSIZE; 
  	 
-@@ -1586,9 +1585,10 @@ void G_DoPlayDemo (void)
+@@ -1586,9 +1588,10 @@ void G_DoPlayDemo (void)
  	 
      gameaction = ga_nothing; 
      demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
@@ -826,7 +837,7 @@ index a327bfa..89ae9a0 100644
  }
 +#endif
 diff --git a/i_system.c b/i_system.c
-index 1b67d51..dd9d5d1 100644
+index 1b67d51..d80ff66 100644
 --- a/i_system.c
 +++ b/i_system.c
 @@ -30,7 +30,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -853,7 +864,39 @@ index 1b67d51..dd9d5d1 100644
  
  
  void
-@@ -87,16 +95,41 @@ byte* I_ZoneBase (int*	size)
+@@ -68,6 +76,23 @@ ticcmd_t*	I_BaseTiccmd(void)
+ }
+ 
+ 
++#ifdef EMBEDDED
++#include "m_argv.h"
++byte* I_ZoneBase(int *size) {
++    int default_ram = mb_used << 10;
++    int p = M_CheckParm("-mb");
++    if (p && p + 1 < myargc) {
++	char *end, *end2;
++	default_ram = strtol(myargv[p+1], &end, 10) << 10;
++	if (*end == '.') {
++	    unsigned extra = strtoul(end + 1, &end2, 10), div = 1;
++	    while (++end != end2) div *= 10;
++	    default_ram += (1024 * extra + div / 2) / div;
++	}
++    }
++    return (byte*)malloc(*size = default_ram << 10);
++}
++#else
+ int  I_GetHeapSize (void)
+ {
+     return mb_used*1024*1024;
+@@ -78,6 +103,7 @@ byte* I_ZoneBase (int*	size)
+     *size = mb_used*1024*1024;
+     return (byte *) malloc (*size);
+ }
++#endif
+ 
+ 
+ 
+@@ -87,16 +113,41 @@ byte* I_ZoneBase (int*	size)
  //
  int  I_GetTime (void)
  {
@@ -897,7 +940,7 @@ index 1b67d51..dd9d5d1 100644
  }
  
  
-@@ -125,15 +158,11 @@ void I_Quit (void)
+@@ -125,15 +176,11 @@ void I_Quit (void)
  
  void I_WaitVBL(int count)
  {
@@ -928,7 +971,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..6900dc7 100644
+index 9b311b3..c53cb63 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -947,23 +990,21 @@ index 9b311b3..6900dc7 100644
  #include <signal.h>
  
  #include "doomstat.h"
-@@ -59,6 +61,15 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
+@@ -59,6 +61,13 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
  
  #define POINTER_WARP_COUNTDOWN	1
  
 +int screenheight = 200, patch_yadd = 0;
 +#ifdef EMBEDDED
 +#include "../syscode.h"
-+uint8_t* framebuffer_init(void);
 +extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 +extern void (*app_scr_update)(uint8_t *src, void *dest);
-+
-+byte*	imagedata=NULL;
++extern uint16_t *framebuf;
 +#else
  Display*	X_display=0;
  Window		X_mainWindow;
  Colormap	X_cmap;
-@@ -82,6 +93,7 @@ int		X_shmeventtype;
+@@ -82,6 +91,7 @@ int		X_shmeventtype;
  // Needs an invisible mouse cursor at least.
  boolean		grabMouse;
  int		doPointerWarp = POINTER_WARP_COUNTDOWN;
@@ -971,7 +1012,7 @@ index 9b311b3..6900dc7 100644
  
  // Blocky mode,
  // replace each 320x200 pixel with multiply*multiply pixels.
-@@ -89,6 +101,94 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
+@@ -89,6 +99,92 @@ int		doPointerWarp = POINTER_WARP_COUNTDOWN;
  // to use ....
  static int	multiply=1;
  
@@ -1034,24 +1075,22 @@ index 9b311b3..6900dc7 100644
 +	type = sys_event(&key);
 +	switch (type) {
 +	case EVENT_KEYDOWN:
-+	    if (key == KEY_ENTER && !menuactive) key = ' ';
 +	    if (key == KEY_RSHIFT) {
 +		player_t* p = &players[consoleplayer];
 +		if (gamekeydown[KEY_RSHIFT]) {
-+		    p->message = "Auto run OFF.";
++		    p->message = "AUTO RUN OFF.";
 +		    goto keyup;
 +		}
-+		p->message = "Auto run ON.";
++		p->message = "AUTO RUN ON.";
 +	    }
 +	    if (keyup);
-+	    else if (key == '[') keyup = key = I_CycleWeapon(0);
-+	    else if (key == ']') keyup = key = I_CycleWeapon(1);
++	    else if (key == ';') keyup = key = I_CycleWeapon(0);
++	    else if (key == '\'') keyup = key = I_CycleWeapon(1);
 +	    event.type = ev_keydown;
 +	    event.data1 = key;
 +	    D_PostEvent(&event);
 +	    break;
 +	case EVENT_KEYUP:
-+	    if (key == KEY_ENTER && !menuactive) key = ' ';
 +	    if (key == KEY_RSHIFT) break;
 +keyup:	    event.type = ev_keyup;
 +	    event.data1 = key;
@@ -1066,7 +1105,7 @@ index 9b311b3..6900dc7 100644
  
  //
  //  Translates the key currently in X_event
-@@ -272,7 +372,7 @@ void I_GetEvent(void)
+@@ -272,7 +368,7 @@ void I_GetEvent(void)
  	break;
  	
        default:
@@ -1075,7 +1114,7 @@ index 9b311b3..6900dc7 100644
  	break;
      }
  
-@@ -336,6 +436,7 @@ void I_StartTic (void)
+@@ -336,6 +432,7 @@ void I_StartTic (void)
      mousemoved = false;
  
  }
@@ -1083,19 +1122,19 @@ index 9b311b3..6900dc7 100644
  
  
  //
-@@ -373,6 +474,11 @@ void I_FinishUpdate (void)
+@@ -373,6 +470,11 @@ void I_FinishUpdate (void)
      
      }
  
 +#ifdef EMBEDDED
 +    sys_wait_refresh();
-+    app_scr_update(screens[0], imagedata);
++    app_scr_update(screens[0], framebuf);
 +    sys_start_refresh();
 +#else
      // scales the screen size before blitting it
      if (multiply == 2)
      {
-@@ -518,6 +624,7 @@ void I_FinishUpdate (void)
+@@ -518,6 +620,7 @@ void I_FinishUpdate (void)
  
      }
  
@@ -1103,20 +1142,20 @@ index 9b311b3..6900dc7 100644
  }
  
  
-@@ -533,6 +640,12 @@ void I_ReadScreen (byte* scr)
+@@ -533,6 +636,12 @@ void I_ReadScreen (byte* scr)
  //
  // Palette stuff.
  //
 +#ifdef EMBEDDED
 +void I_SetPalette (byte* palette) {
 +    byte *tab = gammatable[usegamma];
-+    app_pal_update(palette, imagedata, usegamma ? tab : NULL);
++    app_pal_update(palette, framebuf, usegamma ? tab : NULL);
 +}
 +#else
  static XColor	colors[256];
  
  void UploadNewPalette(Colormap cmap, byte *palette)
-@@ -688,6 +801,7 @@ void grabsharedmemory(int size)
+@@ -688,6 +797,7 @@ void grabsharedmemory(int size)
    fprintf(stderr, "shared memory id=%d, addr=0x%x\n", id,
  	  (int) (image->data));
  }
@@ -1124,7 +1163,7 @@ index 9b311b3..6900dc7 100644
  
  void I_InitGraphics(void)
  {
-@@ -699,6 +813,7 @@ void I_InitGraphics(void)
+@@ -699,6 +809,7 @@ void I_InitGraphics(void)
      int			x=0;
      int			y=0;
      
@@ -1132,7 +1171,7 @@ index 9b311b3..6900dc7 100644
      // warning: char format, different type arg
      char		xsign=' ';
      char		ysign=' ';
-@@ -708,6 +823,7 @@ void I_InitGraphics(void)
+@@ -708,6 +819,7 @@ void I_InitGraphics(void)
      XSetWindowAttributes attribs;
      XGCValues		xgcvalues;
      int			valuemask;
@@ -1140,19 +1179,17 @@ index 9b311b3..6900dc7 100644
      static int		firsttime=1;
  
      if (!firsttime)
-@@ -716,6 +832,11 @@ void I_InitGraphics(void)
+@@ -716,6 +828,9 @@ void I_InitGraphics(void)
  
      signal(SIGINT, (void (*)(int)) I_Quit);
  
 +#ifdef EMBEDDED
-+    imagedata = framebuffer_init();
-+    sys_framebuffer(imagedata);
 +    sys_start();
 +#else
      if (M_CheckParm("-2"))
  	multiply = 2;
  
-@@ -912,9 +1033,11 @@ void I_InitGraphics(void)
+@@ -912,9 +1027,11 @@ void I_InitGraphics(void)
      else
  	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);
  
@@ -1164,7 +1201,7 @@ index 9b311b3..6900dc7 100644
  unsigned	exptable[256];
  
  void InitExpand (void)
-@@ -1046,5 +1169,6 @@ Expand4
+@@ -1046,5 +1163,6 @@ Expand4
  	xline += step;
      } while (y--);
  }
@@ -1284,7 +1321,7 @@ index 7cd7c66..e0e54cf 100644
  fixed_t FixedDiv	(fixed_t a, fixed_t b);
  fixed_t FixedDiv2	(fixed_t a, fixed_t b);
 diff --git a/m_menu.c b/m_menu.c
-index 4d415ae..b7ac3ef 100644
+index 4d415ae..e386dfc 100644
 --- a/m_menu.c
 +++ b/m_menu.c
 @@ -25,10 +25,6 @@
@@ -1347,7 +1384,17 @@ index 4d415ae..b7ac3ef 100644
      G_LoadGame (name);
      M_ClearMenus ();
  }
-@@ -1100,9 +1089,11 @@ void M_QuitDOOM(int choice)
+@@ -1087,7 +1076,9 @@ void M_QuitResponse(int ch)
+ 	    S_StartSound(NULL,quitsounds2[(gametic>>2)&7]);
+ 	else
+ 	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
++#ifndef EMBEDDED
+ 	I_WaitVBL(105);
++#endif
+     }
+     I_Quit ();
+ }
+@@ -1100,9 +1091,11 @@ void M_QuitDOOM(int choice)
    // We pick index 0 which is language sensitive,
    //  or one at random, between 1 and maximum number.
    if (language != english )
@@ -1361,7 +1408,7 @@ index 4d415ae..b7ac3ef 100644
    
    M_StartMessage(endstring,M_QuitResponse,true);
  }
-@@ -1133,17 +1124,11 @@ void M_ChangeDetail(int choice)
+@@ -1133,17 +1126,11 @@ void M_ChangeDetail(int choice)
      choice = 0;
      detailLevel = 1 - detailLevel;
  
@@ -1381,7 +1428,31 @@ index 4d415ae..b7ac3ef 100644
  }
  
  
-@@ -1494,6 +1479,9 @@ boolean M_Responder (event_t* ev)
+@@ -1359,7 +1346,11 @@ boolean M_Responder (event_t* ev)
+ 	
+     ch = -1;
+ 	
++#ifdef EMBEDDED
++    if (0)
++#else
+     if (ev->type == ev_joystick && joywait < I_GetTime())
++#endif
+     {
+ 	if (ev->data3 == -1)
+ 	{
+@@ -1396,7 +1387,11 @@ boolean M_Responder (event_t* ev)
+     }
+     else
+     {
++#ifdef EMBEDDED
++        if (0)
++#else
+ 	if (ev->type == ev_mouse && mousewait < I_GetTime())
++#endif
+ 	{
+ 	    mousey += ev->data3;
+ 	    if (mousey < lasty-30)
+@@ -1494,6 +1489,9 @@ boolean M_Responder (event_t* ev)
      // Take care of any messages that need input
      if (messageToPrint)
      {
@@ -1391,7 +1462,7 @@ index 4d415ae..b7ac3ef 100644
  	if (messageNeedsInput == true &&
  	    !(ch == ' ' || ch == 'n' || ch == 'y' || ch == KEY_ESCAPE))
  	    return false;
-@@ -1753,7 +1741,7 @@ void M_Drawer (void)
+@@ -1753,7 +1751,7 @@ void M_Drawer (void)
      if (messageToPrint)
      {
  	start = 0;
@@ -1400,7 +1471,7 @@ index 4d415ae..b7ac3ef 100644
  	while(*(messageString+start))
  	{
  	    for (i = 0;i < strlen(messageString+start);i++)
-@@ -1781,6 +1769,7 @@ void M_Drawer (void)
+@@ -1781,6 +1779,7 @@ void M_Drawer (void)
      if (!menuactive)
  	return;
  
@@ -1408,7 +1479,7 @@ index 4d415ae..b7ac3ef 100644
      if (currentMenu->routine)
  	currentMenu->routine();         // call Draw routine
      
-@@ -1801,6 +1790,7 @@ void M_Drawer (void)
+@@ -1801,6 +1800,7 @@ void M_Drawer (void)
      // DRAW SKULL
      V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
  		      W_CacheLumpName(skullName[whichSkull],PU_CACHE));
@@ -1417,7 +1488,7 @@ index 4d415ae..b7ac3ef 100644
  }
  
 diff --git a/m_misc.c b/m_misc.c
-index 0df4fe5..1444611 100644
+index 0df4fe5..67a7066 100644
 --- a/m_misc.c
 +++ b/m_misc.c
 @@ -27,12 +27,7 @@
@@ -1519,7 +1590,19 @@ index 0df4fe5..1444611 100644
  } default_t;
  
  default_t	defaults[] =
-@@ -260,6 +243,7 @@ default_t	defaults[] =
+@@ -248,7 +231,11 @@ default_t	defaults[] =
+     {"key_straferight",&key_straferight, '.'},
+ 
+     {"key_fire",&key_fire, KEY_RCTRL},
++#ifdef EMBEDDED
++    {"key_use",&key_use, KEY_ENTER},
++#else
+     {"key_use",&key_use, ' '},
++#endif
+     {"key_strafe",&key_strafe, KEY_RALT},
+     {"key_speed",&key_speed, KEY_RSHIFT},
+ 
+@@ -260,6 +247,7 @@ default_t	defaults[] =
      
  #endif
  
@@ -1527,7 +1610,7 @@ index 0df4fe5..1444611 100644
  #ifdef LINUX
      {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
      {"mousetype", (int*)&mousetype, (int)"microsoft"},
-@@ -275,8 +259,9 @@ default_t	defaults[] =
+@@ -275,8 +263,9 @@ default_t	defaults[] =
      {"joyb_strafe",&joybstrafe,1},
      {"joyb_use",&joybuse,3},
      {"joyb_speed",&joybspeed,2},
@@ -1538,7 +1621,7 @@ index 0df4fe5..1444611 100644
      {"detaillevel",&detailLevel, 0},
  
      {"snd_channels",&numChannels, 3},
-@@ -285,6 +270,7 @@ default_t	defaults[] =
+@@ -285,6 +274,7 @@ default_t	defaults[] =
  
      {"usegamma",&usegamma, 0},
  
@@ -1546,7 +1629,7 @@ index 0df4fe5..1444611 100644
      {"chatmacro0", (int *) &chat_macros[0], (int) HUSTR_CHATMACRO0 },
      {"chatmacro1", (int *) &chat_macros[1], (int) HUSTR_CHATMACRO1 },
      {"chatmacro2", (int *) &chat_macros[2], (int) HUSTR_CHATMACRO2 },
-@@ -295,12 +281,11 @@ default_t	defaults[] =
+@@ -295,12 +285,11 @@ default_t	defaults[] =
      {"chatmacro7", (int *) &chat_macros[7], (int) HUSTR_CHATMACRO7 },
      {"chatmacro8", (int *) &chat_macros[8], (int) HUSTR_CHATMACRO8 },
      {"chatmacro9", (int *) &chat_macros[9], (int) HUSTR_CHATMACRO9 }
@@ -1562,7 +1645,7 @@ index 0df4fe5..1444611 100644
  
  //
  // M_SaveDefaults
-@@ -315,12 +300,11 @@ void M_SaveDefaults (void)
+@@ -315,12 +304,11 @@ void M_SaveDefaults (void)
      if (!f)
  	return; // can't write the file, but don't complain
  		
@@ -1578,7 +1661,7 @@ index 0df4fe5..1444611 100644
  	    fprintf (f,"%s\t\t%i\n",defaults[i].name,v);
  	} else {
  	    fprintf (f,"%s\t\t\"%s\"\n",defaults[i].name,
-@@ -335,24 +319,23 @@ void M_SaveDefaults (void)
+@@ -335,24 +323,23 @@ void M_SaveDefaults (void)
  //
  // M_LoadDefaults
  //
@@ -1610,7 +1693,7 @@ index 0df4fe5..1444611 100644
      // check for a custom default file
      i = M_CheckParm ("-config");
      if (i && i<myargc-1)
-@@ -360,46 +343,45 @@ void M_LoadDefaults (void)
+@@ -360,46 +347,45 @@ void M_LoadDefaults (void)
  	defaultfile = myargv[i+1];
  	printf ("	default file: %s\n",defaultfile);
      }
@@ -1679,7 +1762,7 @@ index 0df4fe5..1444611 100644
  }
  
  
-@@ -432,7 +414,7 @@ typedef struct
+@@ -432,7 +418,7 @@ typedef struct
      
      char		filler[58];
      unsigned char	data;		// unbounded
@@ -1688,7 +1771,7 @@ index 0df4fe5..1444611 100644
  
  
  //
-@@ -505,6 +487,7 @@ void M_ScreenShot (void)
+@@ -505,6 +491,7 @@ void M_ScreenShot (void)
      int		i;
      byte*	linear;
      char	lbmname[12];
@@ -1696,7 +1779,7 @@ index 0df4fe5..1444611 100644
      
      // munge planar buffer to linear
      linear = screens[2];
-@@ -517,8 +500,9 @@ void M_ScreenShot (void)
+@@ -517,8 +504,9 @@ void M_ScreenShot (void)
      {
  	lbmname[4] = i/10 + '0';
  	lbmname[5] = i%10 + '0';
@@ -1707,7 +1790,7 @@ index 0df4fe5..1444611 100644
      }
      if (i==100)
  	I_Error ("M_ScreenShot: Couldn't create a PCX");
-@@ -531,4 +515,3 @@ void M_ScreenShot (void)
+@@ -531,4 +519,3 @@ void M_ScreenShot (void)
      players[consoleplayer].message = "screen shot";
  }
  
@@ -3032,14 +3115,14 @@ index bcfb538..8a5bb27 100644
    if (!sfx->data)
    {
 diff --git a/st_lib.c b/st_lib.c
-index 1f060cf..60ca374 100644
+index 1f060cf..b8aabc0 100644
 --- a/st_lib.c
 +++ b/st_lib.c
 @@ -72,6 +72,7 @@ STlib_initNum
    boolean*		on,
    int			width )
  {
-+    y += SCREENHEIGHT - SCREENHEIGHTOLD;
++    y += SCREENHEIGHTFIX;
      n->x	= x;
      n->y	= y;
      n->oldnum	= 0;
@@ -3047,7 +3130,7 @@ index 1f060cf..60ca374 100644
    int*			inum,
    boolean*		on )
  {
-+    y += SCREENHEIGHT - SCREENHEIGHTOLD;
++    y += SCREENHEIGHTFIX;
      i->x	= x;
      i->y	= y;
      i->oldinum 	= -1;
@@ -3055,12 +3138,12 @@ index 1f060cf..60ca374 100644
    boolean*		val,
    boolean*		on )
  {
-+    y += SCREENHEIGHT - SCREENHEIGHTOLD;
++    y += SCREENHEIGHTFIX;
      b->x	= x;
      b->y	= y;
      b->oldval	= 0;
 diff --git a/v_video.c b/v_video.c
-index 9b30e64..c3bdbc9 100644
+index 9b30e64..0fb5971 100644
 --- a/v_video.c
 +++ b/v_video.c
 @@ -216,6 +216,16 @@ V_DrawPatch
@@ -3088,13 +3171,25 @@ index 9b30e64..c3bdbc9 100644
      y -= SHORT(patch->topoffset); 
      x -= SHORT(patch->leftoffset); 
  #ifdef RANGECHECK 
-@@ -486,7 +497,8 @@ void V_Init (void)
+@@ -479,6 +490,9 @@ V_GetBlock
+ //
+ // V_Init
+ // 
++#ifdef EMBEDDED
++void* framebuffer_init(unsigned);
++#endif
+ void V_Init (void) 
+ { 
+     int		i;
+@@ -486,7 +500,11 @@ void V_Init (void)
  		
      // stick these in low dos memory on PCs
  
--    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4);
-+    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4 + 15);
-+    base += -(intptr_t)base & 15;
++#ifdef EMBEDDED
++    base = framebuffer_init(SCREENWIDTH*SCREENHEIGHT*4);
++#else
+     base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4);
++#endif
  
      for (i=0 ; i<4 ; i++)
  	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
