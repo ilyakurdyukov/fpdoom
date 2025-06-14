@@ -169,6 +169,24 @@ index f8969fe..d51d4d3 100644
      InitConnectData(&connect_data);
      netgame = D_InitNetGame(&connect_data);
  
+diff --git a/src/doom/deh_misc.c b/src/doom/deh_misc.c
+index 9b76a42..3b2a24e 100644
+--- a/src/doom/deh_misc.c
++++ b/src/doom/deh_misc.c
+@@ -216,6 +216,7 @@ static void DEH_MiscSHA1Sum(sha1_context_t *context)
+     }
+ }
+ 
++#if !NO_DEH
+ deh_section_t deh_section_misc =
+ {
+     "Misc",
+@@ -225,4 +226,5 @@ deh_section_t deh_section_misc =
+     NULL,
+     DEH_MiscSHA1Sum,
+ };
++#endif
+ 
 diff --git a/src/doom/doomdef.h b/src/doom/doomdef.h
 index 62d729d..3d31a9a 100644
 --- a/src/doom/doomdef.h
@@ -295,7 +313,7 @@ index bb20029..111b4db 100644
  #define HU_INPUTTOGGLE	't'
  #define HU_INPUTX	HU_MSGX
 diff --git a/src/doom/m_menu.c b/src/doom/m_menu.c
-index 71b47cb..a993b51 100644
+index 71b47cb..1d95b6f 100644
 --- a/src/doom/m_menu.c
 +++ b/src/doom/m_menu.c
 @@ -73,7 +73,11 @@ int			showMessages = 1;
@@ -310,7 +328,20 @@ index 71b47cb..a993b51 100644
  
  // temp for screenblocks (0-9)
  int			screenSize;
-@@ -1101,7 +1105,9 @@ void M_QuitResponse(int key)
+@@ -676,6 +680,12 @@ void M_SaveSelect(int choice)
+     {
+         savegamestrings[choice][0] = 0;
+ 
++#if EMBEDDED
++        M_snprintf(savegamestrings[choice], SAVESTRINGSIZE,
++            "SAVE%u: %s", choice, maplumpinfo->name);
++        M_ForceUppercase(savegamestrings[choice]);
++        if (0)
++#endif
+         if (joypadSave)
+         {
+             SetDefaultSaveName(choice);
+@@ -1101,7 +1111,9 @@ void M_QuitResponse(int key)
  	    S_StartSound(NULL,quitsounds2[(gametic>>2)&7]);
  	else
  	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
@@ -320,7 +351,7 @@ index 71b47cb..a993b51 100644
      }
      I_Quit ();
  }
-@@ -1400,7 +1406,11 @@ boolean M_Responder (event_t* ev)
+@@ -1400,7 +1412,11 @@ boolean M_Responder (event_t* ev)
      ch = 0;
      key = -1;
  	
@@ -332,7 +363,7 @@ index 71b47cb..a993b51 100644
      {
          // Simulate key presses from joystick events to interact with the menu.
  
-@@ -1493,7 +1503,11 @@ boolean M_Responder (event_t* ev)
+@@ -1493,7 +1509,11 @@ boolean M_Responder (event_t* ev)
      }
      else
      {
@@ -344,7 +375,7 @@ index 71b47cb..a993b51 100644
  	{
  	    mousey += ev->data3;
  	    if (mousey < lasty-30)
-@@ -1958,7 +1972,7 @@ void M_Drawer (void)
+@@ -1958,7 +1978,7 @@ void M_Drawer (void)
      if (messageToPrint)
      {
  	start = 0;
@@ -353,7 +384,7 @@ index 71b47cb..a993b51 100644
  	while (messageString[start] != '\0')
  	{
  	    boolean foundnewline = false;
-@@ -1994,6 +2008,9 @@ void M_Drawer (void)
+@@ -1994,6 +2014,9 @@ void M_Drawer (void)
  	return;
      }
  
@@ -363,7 +394,7 @@ index 71b47cb..a993b51 100644
      if (opldev)
      {
          M_DrawOPLDev();
-@@ -2002,6 +2019,9 @@ void M_Drawer (void)
+@@ -2002,6 +2025,9 @@ void M_Drawer (void)
      if (!menuactive)
  	return;
  
@@ -373,7 +404,7 @@ index 71b47cb..a993b51 100644
      if (currentMenu->routine)
  	currentMenu->routine();         // call Draw routine
      
-@@ -2026,6 +2046,9 @@ void M_Drawer (void)
+@@ -2026,6 +2052,9 @@ void M_Drawer (void)
      V_DrawPatchDirect(x + SKULLXOFF, currentMenu->y - 5 + itemOn*LINEHEIGHT,
  		      W_CacheLumpName(DEH_String(skullName[whichSkull]),
  				      PU_CACHE));
@@ -586,6 +617,36 @@ index 5533fd9..18fbd50 100644
  
  //void R_DrawColumn (void);
  //void R_DrawFuzzColumn (void);
+diff --git a/src/doom/s_sound.c b/src/doom/s_sound.c
+index 7674889..ceb6505 100644
+--- a/src/doom/s_sound.c
++++ b/src/doom/s_sound.c
+@@ -111,6 +111,19 @@ int snd_channels = 8;
+ //  allocates channel buffer, sets S_sfx lookup.
+ //
+ 
++#if NO_SOUND
++void S_Init(int sfxVolume, int musicVolume) {}
++void S_Start(void) {}
++void S_StartSound(void *origin, int sfx_id) {}
++void S_StopSound(mobj_t *origin) {}
++void S_PauseSound(void) {}
++void S_ResumeSound(void) {}
++void S_UpdateSounds(mobj_t* listener) {}
++void S_SetMusicVolume(int volume) {}
++void S_SetSfxVolume(int volume) {}
++void S_StartMusic(int m_id) {}
++void S_ChangeMusic(int musicnum, int looping) {}
++#else
+ void S_Init(int sfxVolume, int musicVolume)
+ {
+     int i;
+@@ -721,4 +734,5 @@ void S_StopMusic(void)
+         mus_playing = NULL;
+     }
+ }
++#endif
+ 
 diff --git a/src/doom/st_lib.c b/src/doom/st_lib.c
 index 832bb66..bc6bf11 100644
 --- a/src/doom/st_lib.c
@@ -860,7 +921,7 @@ index 01bcc4a..1806edc 100644
  
      if (demoplayback)
 diff --git a/src/heretic/mn_menu.c b/src/heretic/mn_menu.c
-index 95cb62c..5862d38 100644
+index 95cb62c..64a6762 100644
 --- a/src/heretic/mn_menu.c
 +++ b/src/heretic/mn_menu.c
 @@ -479,6 +479,9 @@ void MN_Drawer(void)
@@ -903,18 +964,20 @@ index 95cb62c..5862d38 100644
      }
  }
  
-@@ -892,6 +904,10 @@ static boolean SCSaveGame(int option)
+@@ -892,6 +904,12 @@ static boolean SCSaveGame(int option)
          M_StringCopy(oldSlotText, SlotText[option], sizeof(oldSlotText));
          ptr = SlotText[option];
  
 +#if EMBEDDED
-+        M_snprintf(SlotText[option], SLOTTEXTLEN, "SAVE%u", option);
++        M_snprintf(SlotText[option], SLOTTEXTLEN,
++            "SAVE%u: %s", option, maplumpinfo->name);
++        M_ForceUppercase(SlotText[option]);
 +        if (0)
 +#endif
          if (!strcmp(ptr, "") && joypadsave)
          {
              SetDefaultSaveName(option);
-@@ -1122,6 +1138,9 @@ boolean MN_Responder(event_t * event)
+@@ -1122,6 +1140,9 @@ boolean MN_Responder(event_t * event)
      charTyped = 0;
      key = -1;
  
@@ -1137,8 +1200,38 @@ index 88e35b9..5958d36 100644
      vis->x1 = x1 < 0 ? 0 : x1;
      vis->x2 = x2 >= viewwidth ? viewwidth - 1 : x2;
      vis->scale = pspritescale << detailshift;
+diff --git a/src/heretic/s_sound.c b/src/heretic/s_sound.c
+index 8292789..a922a2c 100644
+--- a/src/heretic/s_sound.c
++++ b/src/heretic/s_sound.c
+@@ -55,6 +55,19 @@ int snd_Channels = 16;
+ 
+ int AmbChan;
+ 
++#if NO_SOUND
++void S_Start(void) {}
++void S_StartSong(int song, boolean loop) {}
++void S_StartSound(void *_origin, int sound_id) {}
++void S_StartSoundAtVolume(void *_origin, int sound_id, int volume) {}
++void S_StopSound(void *_origin) {}
++void S_PauseSound(void) {}
++void S_ResumeSound(void) {}
++void S_UpdateSounds(mobj_t *listener) {}
++void S_Init(void) {}
++void S_SetMaxVolume(boolean fullprocess) {}
++void S_SetMusicVolume(void) {}
++#else
+ void S_Start(void)
+ {
+     int i;
+@@ -604,4 +617,5 @@ void S_ShutDown(void)
+     I_UnRegisterSong(rs);
+     I_ShutdownSound();
+ }
++#endif
+ 
 diff --git a/src/heretic/sb_bar.c b/src/heretic/sb_bar.c
-index bcc5d76..66d638f 100644
+index bcc5d76..75a3ad4 100644
 --- a/src/heretic/sb_bar.c
 +++ b/src/heretic/sb_bar.c
 @@ -407,6 +407,9 @@ static void ShadeLine(int x, int y, int height, int shade)
@@ -1151,9 +1244,13 @@ index bcc5d76..66d638f 100644
      shades = colormaps + 9 * 256 + shade * 2 * 256;
      dest = I_VideoBuffer + y * SCREENWIDTH + x;
      while (height--)
-@@ -551,6 +554,9 @@ void SB_Drawer(void)
+@@ -549,8 +552,13 @@ void SB_Drawer(void)
+     // Sound info debug stuff
+     if (DebugSound == true)
      {
++#if !NO_SOUND
          DrawSoundInfo();
++#endif
      }
 +#if HEIGHT_HACK
 +    patch_yadd = SCREENHEIGHTFIX;
@@ -1161,7 +1258,7 @@ index bcc5d76..66d638f 100644
      CPlayer = &players[consoleplayer];
      if (viewheight == SCREENHEIGHT && !automapactive)
      {
-@@ -599,6 +605,9 @@ void SB_Drawer(void)
+@@ -599,6 +607,9 @@ void SB_Drawer(void)
              SB_state = 1;
          }
      }
@@ -1171,7 +1268,7 @@ index bcc5d76..66d638f 100644
      SB_PaletteFlash();
  
      // Flight icons
-@@ -1183,9 +1192,13 @@ static void CheatArtifact3Func(player_t * player, Cheat_t * cheat)
+@@ -1183,9 +1194,13 @@ static void CheatArtifact3Func(player_t * player, Cheat_t * cheat)
      int type;
      int count;
  
@@ -1185,7 +1282,7 @@ index bcc5d76..66d638f 100644
      if (type == 26 && count == 0)
      {                           // All artifacts
          for (i = arti_none + 1; i < NUMARTIFACTS; i++)
-@@ -1261,6 +1274,16 @@ static void CheatMassacreFunc(player_t * player, Cheat_t * cheat)
+@@ -1261,6 +1276,16 @@ static void CheatMassacreFunc(player_t * player, Cheat_t * cheat)
      P_SetMessage(player, DEH_String(TXT_CHEATMASSACRE), false);
  }
  
@@ -1202,7 +1299,7 @@ index bcc5d76..66d638f 100644
  static void CheatIDKFAFunc(player_t * player, Cheat_t * cheat)
  {
      int i;
-@@ -1281,3 +1304,4 @@ static void CheatIDDQDFunc(player_t * player, Cheat_t * cheat)
+@@ -1281,3 +1306,4 @@ static void CheatIDDQDFunc(player_t * player, Cheat_t * cheat)
      P_DamageMobj(player->mo, NULL, player->mo, 10000);
      P_SetMessage(player, DEH_String(TXT_CHEATIDDQD), true);
  }
@@ -1330,17 +1427,20 @@ index ecfb383..57799ec 100644
  
      if (demoplayback)
 diff --git a/src/hexen/h2_main.c b/src/hexen/h2_main.c
-index e84ee33..bd4279d 100644
+index e84ee33..6584e86 100644
 --- a/src/hexen/h2_main.c
 +++ b/src/hexen/h2_main.c
-@@ -484,12 +484,16 @@ void D_DoomMain(void)
-     M_SetConfigFilenames("hexen.cfg", PROGRAM_PREFIX "hexen.cfg");
-     M_LoadDefaults();
- 
-+#if !EMBEDDED
-     D_SetDefaultSavePath();
+@@ -197,6 +197,9 @@ void D_BindVariables(void)
+ static void D_SetDefaultSavePath(void)
+ {
+     SavePath = M_GetSaveGameDir("hexen.wad");
++#if EMBEDDED
++    return;
 +#endif
  
+     if (!strcmp(SavePath, ""))
+     {
+@@ -489,7 +492,9 @@ void D_DoomMain(void)
      I_AtExit(M_SaveDefaults, false);
  
      // Now that the savedir is loaded, make sure it exists
@@ -1350,7 +1450,7 @@ index e84ee33..bd4279d 100644
  
      ST_Message("Z_Init: Init zone memory allocation daemon.\n");
      Z_Init();
-@@ -990,10 +994,22 @@ static void DrawAndBlit(void)
+@@ -990,10 +995,22 @@ static void DrawAndBlit(void)
              SB_Drawer();
              break;
          case GS_INTERMISSION:
@@ -1373,7 +1473,7 @@ index e84ee33..bd4279d 100644
              break;
          case GS_DEMOSCREEN:
              PageDrawer();
-@@ -1014,7 +1030,12 @@ static void DrawAndBlit(void)
+@@ -1014,7 +1031,12 @@ static void DrawAndBlit(void)
          }
          else
          {
@@ -1386,7 +1486,7 @@ index e84ee33..bd4279d 100644
          }
      }
  
-@@ -1083,7 +1104,12 @@ static void PageDrawer(void)
+@@ -1083,7 +1105,12 @@ static void PageDrawer(void)
      V_DrawRawScreen(W_CacheLumpName(pagename, PU_CACHE));
      if (demosequence == 1)
      {
@@ -1416,7 +1516,7 @@ index 2bfdfb5..6c926ea 100644
  
  //-------
 diff --git a/src/hexen/mn_menu.c b/src/hexen/mn_menu.c
-index 57be51c..7d1e9b4 100644
+index 57be51c..46eef18 100644
 --- a/src/hexen/mn_menu.c
 +++ b/src/hexen/mn_menu.c
 @@ -516,6 +516,9 @@ void MN_Drawer(void)
@@ -1459,18 +1559,20 @@ index 57be51c..7d1e9b4 100644
      }
  }
  
-@@ -973,6 +985,10 @@ static void SCSaveGame(int option)
+@@ -973,6 +985,12 @@ static void SCSaveGame(int option)
          M_StringCopy(oldSlotText, SlotText[option], sizeof(oldSlotText));
          ptr = SlotText[option];
  
 +#if EMBEDDED
-+        M_snprintf(SlotText[option], SLOTTEXTLEN, "SAVE%u", option);
++        M_snprintf(SlotText[option], SLOTTEXTLEN,
++            "SAVE%u: %s", option, maplumpinfo->name);
++        M_ForceUppercase(SlotText[option]);
 +        if (0)
 +#endif
          if (!strcmp(ptr, "") && joypadsave)
          {
              SetDefaultSaveName(option);
-@@ -1229,6 +1245,9 @@ boolean MN_Responder(event_t * event)
+@@ -1229,6 +1247,9 @@ boolean MN_Responder(event_t * event)
      charTyped = 0;
      key = -1;
  
@@ -1694,13 +1796,53 @@ index e9cfecc..ceaee7b 100644
      vis->x1 = x1 < 0 ? 0 : x1;
      vis->x2 = x2 >= viewwidth ? viewwidth - 1 : x2;
      vis->scale = pspritescale << detailshift;
+diff --git a/src/hexen/s_sound.c b/src/hexen/s_sound.c
+index eadba47..1cb99f2 100644
+--- a/src/hexen/s_sound.c
++++ b/src/hexen/s_sound.c
+@@ -85,6 +85,25 @@ int snd_Channels = 16;
+ //
+ //==========================================================================
+ 
++#if NO_SOUND
++void S_Start(void) {}
++void S_StartSong(int song, boolean loop) {}
++boolean S_StartCustomCDTrack(int tracknum) { return false; }
++int S_GetCurrentCDTrack(void) { return -1; }
++void S_StartSongName(const char *songLump, boolean loop) {}
++int S_GetSoundID(char *name) { return 0; }
++void S_StartSound(mobj_t * origin, int sound_id) {}
++void S_StartSoundAtVolume(mobj_t * origin, int sound_id, int volume) {}
++void S_StopSound(mobj_t * origin) {}
++void S_StopAllSound(void) {}
++void S_PauseSound(void) {}
++void S_ResumeSound(void) {}
++void S_UpdateSounds(mobj_t * listener) {}
++void S_Init(void) {}
++boolean S_GetSoundPlayingInfo(mobj_t * mobj, int sound_id) { return false; }
++void S_SetMusicVolume(void) {}
++void S_InitScript(void) {}
++#else
+ void S_Start(void)
+ {
+     S_StopAllSound();
+@@ -1007,4 +1026,5 @@ void S_InitScript(void)
+         }
+     }
+ }
++#endif
+ 
 diff --git a/src/hexen/sb_bar.c b/src/hexen/sb_bar.c
-index fa94d59..35c200e 100644
+index fa94d59..55bd364 100644
 --- a/src/hexen/sb_bar.c
 +++ b/src/hexen/sb_bar.c
-@@ -747,6 +747,9 @@ void SB_Drawer(void)
+@@ -745,8 +745,13 @@ void SB_Drawer(void)
+     // Sound info debug stuff
+     if (DebugSound == true)
      {
++#if !NO_SOUND
          DrawSoundInfo();
++#endif
      }
 +#if HEIGHT_HACK
 +    patch_yadd = SCREENHEIGHTFIX;
@@ -1708,7 +1850,7 @@ index fa94d59..35c200e 100644
      CPlayer = &players[consoleplayer];
      if (viewheight == SCREENHEIGHT && !automapactive)
      {
-@@ -800,6 +803,9 @@ void SB_Drawer(void)
+@@ -800,6 +805,9 @@ void SB_Drawer(void)
              SB_state = 1;
          }
      }
@@ -1741,6 +1883,34 @@ index aa10435..5633b7f 100644
  }
  
  void ST_Done(void)
+diff --git a/src/hexen/sv_save.c b/src/hexen/sv_save.c
+index 007e633..4e5d042 100644
+--- a/src/hexen/sv_save.c
++++ b/src/hexen/sv_save.c
+@@ -138,7 +138,11 @@ static void SV_WritePtr(void *ptr);
+ 
+ // PUBLIC DATA DEFINITIONS -------------------------------------------------
+ 
++#if EMBEDDED
++#define DEFAULT_SAVEPATH                ""
++#else
+ #define DEFAULT_SAVEPATH                "hexndata/"
++#endif
+ 
+ char *SavePath = DEFAULT_SAVEPATH;
+ 
+@@ -3408,6 +3412,11 @@ static void SV_OpenRead(char *fileName)
+ static void SV_OpenWrite(char *fileName)
+ {
+     SavingFP = M_fopen(fileName, "wb");
++
++#if EMBEDDED
++    if (SavingFP == NULL)
++        I_Error("Could not write savegame %s", fileName);
++#endif
+ }
+ 
+ //==========================================================================
 diff --git a/src/i_endoom.c b/src/i_endoom.c
 index 9beacc9..f233f75 100644
 --- a/src/i_endoom.c
@@ -1892,7 +2062,7 @@ index a6be584..af43242 100644
  #include "doomtype.h"
  #include "d_iwad.h"
 diff --git a/src/m_config.c b/src/m_config.c
-index 0ef35ac..3afcdec 100644
+index 0ef35ac..6d16ea4 100644
 --- a/src/m_config.c
 +++ b/src/m_config.c
 @@ -26,7 +26,9 @@
@@ -2000,7 +2170,7 @@ index 0ef35ac..3afcdec 100644
  float M_GetFloatVariable(const char *name)
  {
      default_t *variable;
-@@ -2611,10 +2638,17 @@ float M_GetFloatVariable(const char *name)
+@@ -2611,10 +2638,21 @@ float M_GetFloatVariable(const char *name)
  
      return *variable->location.f;
  }
@@ -2012,13 +2182,17 @@ index 0ef35ac..3afcdec 100644
 +#if EMBEDDED
 +void M_SetConfigDir(const char *dir) { configdir = ""; }
 +void M_SetMusicPackDir(void) {}
-+char *M_GetSaveGameDir(const char *iwadname) { return ""; }
++char *M_GetSaveGameDir(const char *iwadname) {
++    int p = M_CheckParmWithArgs("-savedir", 1);
++    if (p) return myargv[p + 1];
++    return "";
++}
 +char *M_GetAutoloadDir(const char *iwadname) { return NULL; }
 +#else
  static char *GetDefaultConfigDir(void)
  {
  #if !defined(_WIN32) || defined(_WIN32_WCE)
-@@ -2808,4 +2842,5 @@ char *M_GetAutoloadDir(const char *iwadname)
+@@ -2808,4 +2846,5 @@ char *M_GetAutoloadDir(const char *iwadname)
      // TODO: Add README file
  
      return result;

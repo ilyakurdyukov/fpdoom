@@ -1322,7 +1322,7 @@ index 7cd7c66..9acd608 100644
  fixed_t FixedDiv	(fixed_t a, fixed_t b);
  fixed_t FixedDiv2	(fixed_t a, fixed_t b);
 diff --git a/m_menu.c b/m_menu.c
-index 4d415ae..e386dfc 100644
+index 4d415ae..e8df96e 100644
 --- a/m_menu.c
 +++ b/m_menu.c
 @@ -25,10 +25,6 @@
@@ -1385,7 +1385,30 @@ index 4d415ae..e386dfc 100644
      G_LoadGame (name);
      M_ClearMenus ();
  }
-@@ -1087,7 +1076,9 @@ void M_QuitResponse(int ch)
+@@ -641,6 +630,9 @@ void M_DoSave(int slot)
+ //
+ // User wants to save. Start string input for M_Responder
+ //
++#ifdef EMBEDDED
++#include "p_setup.h"
++#endif
+ void M_SaveSelect(int choice)
+ {
+     // we are going to be intercepting all chars
+@@ -650,6 +642,12 @@ void M_SaveSelect(int choice)
+     strcpy(saveOldString,savegamestrings[choice]);
+     if (!strcmp(savegamestrings[choice],EMPTYSTRING))
+ 	savegamestrings[choice][0] = 0;
++#ifdef EMBEDDED
++    snprintf(savegamestrings[choice], SAVESTRINGSIZE,
++	"SAVE%u: %s", choice, maplumpinfo->name);
++    char *p = savegamestrings[choice];
++    while (*p) *p++ = toupper(*p);
++#endif
+     saveCharIndex = strlen(savegamestrings[choice]);
+ }
+ 
+@@ -1087,7 +1085,9 @@ void M_QuitResponse(int ch)
  	    S_StartSound(NULL,quitsounds2[(gametic>>2)&7]);
  	else
  	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
@@ -1395,7 +1418,7 @@ index 4d415ae..e386dfc 100644
      }
      I_Quit ();
  }
-@@ -1100,9 +1091,11 @@ void M_QuitDOOM(int choice)
+@@ -1100,9 +1100,11 @@ void M_QuitDOOM(int choice)
    // We pick index 0 which is language sensitive,
    //  or one at random, between 1 and maximum number.
    if (language != english )
@@ -1409,7 +1432,7 @@ index 4d415ae..e386dfc 100644
    
    M_StartMessage(endstring,M_QuitResponse,true);
  }
-@@ -1133,17 +1126,11 @@ void M_ChangeDetail(int choice)
+@@ -1133,17 +1135,11 @@ void M_ChangeDetail(int choice)
      choice = 0;
      detailLevel = 1 - detailLevel;
  
@@ -1429,7 +1452,7 @@ index 4d415ae..e386dfc 100644
  }
  
  
-@@ -1359,7 +1346,11 @@ boolean M_Responder (event_t* ev)
+@@ -1359,7 +1355,11 @@ boolean M_Responder (event_t* ev)
  	
      ch = -1;
  	
@@ -1441,7 +1464,7 @@ index 4d415ae..e386dfc 100644
      {
  	if (ev->data3 == -1)
  	{
-@@ -1396,7 +1387,11 @@ boolean M_Responder (event_t* ev)
+@@ -1396,7 +1396,11 @@ boolean M_Responder (event_t* ev)
      }
      else
      {
@@ -1453,7 +1476,7 @@ index 4d415ae..e386dfc 100644
  	{
  	    mousey += ev->data3;
  	    if (mousey < lasty-30)
-@@ -1494,6 +1489,9 @@ boolean M_Responder (event_t* ev)
+@@ -1494,6 +1498,9 @@ boolean M_Responder (event_t* ev)
      // Take care of any messages that need input
      if (messageToPrint)
      {
@@ -1463,7 +1486,7 @@ index 4d415ae..e386dfc 100644
  	if (messageNeedsInput == true &&
  	    !(ch == ' ' || ch == 'n' || ch == 'y' || ch == KEY_ESCAPE))
  	    return false;
-@@ -1753,7 +1751,7 @@ void M_Drawer (void)
+@@ -1753,7 +1760,7 @@ void M_Drawer (void)
      if (messageToPrint)
      {
  	start = 0;
@@ -1472,7 +1495,7 @@ index 4d415ae..e386dfc 100644
  	while(*(messageString+start))
  	{
  	    for (i = 0;i < strlen(messageString+start);i++)
-@@ -1781,6 +1779,7 @@ void M_Drawer (void)
+@@ -1781,6 +1788,7 @@ void M_Drawer (void)
      if (!menuactive)
  	return;
  
@@ -1480,7 +1503,7 @@ index 4d415ae..e386dfc 100644
      if (currentMenu->routine)
  	currentMenu->routine();         // call Draw routine
      
-@@ -1801,6 +1800,7 @@ void M_Drawer (void)
+@@ -1801,6 +1809,7 @@ void M_Drawer (void)
      // DRAW SKULL
      V_DrawPatchDirect(x + SKULLXOFF,currentMenu->y - 5 + itemOn*LINEHEIGHT, 0,
  		      W_CacheLumpName(skullName[whichSkull],PU_CACHE));
@@ -2253,7 +2276,7 @@ index 4500a54..bf450ba 100644
  	    P_AddThinker (&glow->thinker);
  	    break;
 diff --git a/p_setup.c b/p_setup.c
-index e5d3667..f27b4ff 100644
+index e5d3667..d4c027a 100644
 --- a/p_setup.c
 +++ b/p_setup.c
 @@ -533,7 +533,7 @@ void P_GroupLines (void)
@@ -2265,6 +2288,41 @@ index e5d3667..f27b4ff 100644
      sector = sectors;
      for (i=0 ; i<numsectors ; i++, sector++)
      {
+@@ -576,6 +576,9 @@ void P_GroupLines (void)
+ 	
+ }
+ 
++#ifdef EMBEDDED
++lumpinfo_t *maplumpinfo;
++#endif
+ 
+ //
+ // P_SetupLevel
+@@ -642,6 +645,9 @@ P_SetupLevel
+     }
+ 
+     lumpnum = W_GetNumForName (lumpname);
++#ifdef EMBEDDED
++    maplumpinfo = &lumpinfo[lumpnum];
++#endif
+ 	
+     leveltime = 0;
+ 	
+diff --git a/p_setup.h b/p_setup.h
+index 92b7f36..8a125dc 100644
+--- a/p_setup.h
++++ b/p_setup.h
+@@ -28,6 +28,10 @@
+ #pragma interface
+ #endif
+ 
++#ifdef EMBEDDED
++#include "w_wad.h"
++extern lumpinfo_t *maplumpinfo;
++#endif
+ 
+ // NOT called by W_Ticker. Fixme.
+ void
 diff --git a/p_spec.c b/p_spec.c
 index f048afb..6553d52 100644
 --- a/p_spec.c
@@ -3106,10 +3164,30 @@ index c201fff..877f348 100644
  	// scan the lumps,
  	//  filling in the frames for whatever is found
 diff --git a/s_sound.c b/s_sound.c
-index bcfb538..8a5bb27 100644
+index bcfb538..e53e0a5 100644
 --- a/s_sound.c
 +++ b/s_sound.c
-@@ -364,7 +364,7 @@ S_StartSoundAtVolume
+@@ -158,6 +158,19 @@ void S_StopChannel(int cnum);
+ // Sets channels, SFX and music volume,
+ //  allocates channel buffer, sets S_sfx lookup.
+ //
++#ifdef EMBEDDED
++void S_Init(int sfxVolume, int musicVolume) {}
++void S_Start(void) {}
++void S_StartSound(void *origin, int sfx_id) {}
++void S_StopSound(void *origin) {}
++void S_PauseSound(void) {}
++void S_ResumeSound(void) {}
++void S_UpdateSounds(void* listener_p) {}
++void S_SetMusicVolume(int volume) {}
++void S_SetSfxVolume(int volume) {}
++void S_StartMusic(int m_id) {}
++void S_ChangeMusic(int musicnum, int looping) {}
++#else
+ void S_Init
+ ( int		sfxVolume,
+   int		musicVolume )
+@@ -364,7 +377,7 @@ S_StartSoundAtVolume
    if (sfx->lumpnum < 0)
      sfx->lumpnum = I_GetSfxLumpNum(sfx);
  
@@ -3118,6 +3196,14 @@ index bcfb538..8a5bb27 100644
    // cache data if necessary
    if (!sfx->data)
    {
+@@ -873,6 +886,7 @@ S_getChannel
+ 
+     return cnum;
+ }
++#endif
+ 
+ 
+ 
 diff --git a/st_lib.c b/st_lib.c
 index 1f060cf..b8aabc0 100644
 --- a/st_lib.c
