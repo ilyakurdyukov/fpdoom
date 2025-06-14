@@ -1,0 +1,2488 @@
+diff --git a/src/d_iwad.c b/src/d_iwad.c
+index 5b6db20..7736332 100644
+--- a/src/d_iwad.c
++++ b/src/d_iwad.c
+@@ -733,6 +733,9 @@ static void BuildIWADDirList(void)
+ {
+     char *env;
+ 
++#if EMBEDDED
++    return;
++#endif
+     if (iwad_dirs_built)
+     {
+         return;
+diff --git a/src/d_loop.c b/src/d_loop.c
+index b963054..9acc5e9 100644
+--- a/src/d_loop.c
++++ b/src/d_loop.c
+@@ -37,6 +37,9 @@
+ #include "net_server.h"
+ #include "net_sdl.h"
+ #include "net_loop.h"
++#if NO_NET
++#define net_client_connected 0
++#endif
+ 
+ // The complete set of data for a particular tic.
+ 
+@@ -433,6 +436,9 @@ boolean D_InitNetGame(net_connect_data_t *connect_data)
+ 
+     // Call D_QuitNetGame on exit:
+ 
++#if NO_NET
++    return false;
++#endif
+     I_AtExit(D_QuitNetGame, true);
+ 
+     player_class = connect_data->player_class;
+diff --git a/src/deh_str.h b/src/deh_str.h
+index d547de6..7e86b73 100644
+--- a/src/deh_str.h
++++ b/src/deh_str.h
+@@ -31,7 +31,7 @@ void DEH_snprintf(char *buffer, size_t len, const char *fmt, ...) PRINTF_ATTR(3,
+ void DEH_AddStringReplacement(const char *from_text, const char *to_text);
+ 
+ 
+-#if 0
++#if NO_DEH
+ // Static macro versions of the functions above
+ 
+ #define DEH_String(x) (x)
+diff --git a/src/doom/am_map.c b/src/doom/am_map.c
+index 150098e..f1baa99 100644
+--- a/src/doom/am_map.c
++++ b/src/doom/am_map.c
+@@ -199,7 +199,11 @@ static int 	grid = 0;
+ 
+ boolean    	automapactive = false;
+ static int 	finit_width = SCREENWIDTH;
++#if HEIGHT_HACK
++#define finit_height (SCREENHEIGHT - ST_HEIGHT)
++#else
+ static int 	finit_height = SCREENHEIGHT - ST_HEIGHT;
++#endif
+ 
+ // location of window on screen
+ static int 	f_x;
+diff --git a/src/doom/d_main.c b/src/doom/d_main.c
+index bc1a4ee..05a1bc8 100644
+--- a/src/doom/d_main.c
++++ b/src/doom/d_main.c
+@@ -201,20 +201,43 @@ boolean D_Display (void)
+ 	    break;
+ 	if (automapactive)
+ 	    AM_Drawer ();
++#if HEIGHT_HACK
++	{
++	    int fullscreen2 = viewheight == SCREENHEIGHT;
++	    if (wipe || (!fullscreen2 && fullscreen) ||
++		(inhelpscreensstate && !inhelpscreens)) // just put away the help screen
++		redrawsbar = true;
++	    ST_Drawer (fullscreen2, redrawsbar );
++	    fullscreen = fullscreen2;
++	}
++#else
+ 	if (wipe || (viewheight != SCREENHEIGHT && fullscreen))
+ 	    redrawsbar = true;
+ 	if (inhelpscreensstate && !inhelpscreens)
+ 	    redrawsbar = true;              // just put away the help screen
+ 	ST_Drawer (viewheight == SCREENHEIGHT, redrawsbar );
+ 	fullscreen = viewheight == SCREENHEIGHT;
++#endif
+ 	break;
+ 
+       case GS_INTERMISSION:
++#if HEIGHT_HACK
++	patch_yadd = SCREENHEIGHTFIX2;
++#endif
+ 	WI_Drawer ();
++#if HEIGHT_HACK
++	patch_yadd = 0;
++#endif
+ 	break;
+ 
+       case GS_FINALE:
++#if HEIGHT_HACK
++	patch_yadd = SCREENHEIGHTFIX2;
++#endif
+ 	F_Drawer ();
++#if HEIGHT_HACK
++	patch_yadd = 0;
++#endif
+ 	break;
+ 
+       case GS_DEMOSCREEN:
+@@ -1309,6 +1332,7 @@ void D_DoomMain (void)
+     // in the game itself.
+     //
+ 
++#if !NO_NET
+     if (M_CheckParm("-dedicated") > 0)
+     {
+         printf("Dedicated server mode.\n");
+@@ -1357,6 +1381,7 @@ void D_DoomMain (void)
+         NET_LANQuery();
+         exit(0);
+     }
++#endif
+ 
+     //!
+     // @category game
+@@ -1533,6 +1558,7 @@ void D_DoomMain (void)
+     // Disable automatic loading of Dehacked patches for certain
+     // IWAD files.
+     //
++#if !NO_DEH
+     if (!M_ParmExists("-nodeh"))
+     {
+         // Some IWADs have dehacked patches that need to be loaded for
+@@ -1579,6 +1605,7 @@ void D_DoomMain (void)
+         // can swap this in instead, and it kind of makes sense.
+         DEH_AddStringReplacement("M_SCRNSZ", "M_DISP");
+     }
++#endif
+ 
+     //!
+     // @category mod
+@@ -1699,6 +1726,9 @@ void D_DoomMain (void)
+     // Load Dehacked patches from DEHACKED lumps contained in one of the
+     // loaded PWAD files.
+     //
++#if NO_DEH
++    if (0)
++#endif
+     if (M_ParmExists("-dehlump"))
+     {
+         int i, loaded = 0;
+diff --git a/src/doom/d_net.c b/src/doom/d_net.c
+index f8969fe..d51d4d3 100644
+--- a/src/doom/d_net.c
++++ b/src/doom/d_net.c
+@@ -222,6 +222,9 @@ void D_ConnectNetGame(void)
+ {
+     net_connect_data_t connect_data;
+ 
++#if NO_NET
++    return;
++#endif
+     InitConnectData(&connect_data);
+     netgame = D_InitNetGame(&connect_data);
+ 
+diff --git a/src/doom/doomdef.h b/src/doom/doomdef.h
+index 62d729d..3d31a9a 100644
+--- a/src/doom/doomdef.h
++++ b/src/doom/doomdef.h
+@@ -39,7 +39,9 @@
+ 
+ // If rangecheck is undefined,
+ // most parameter validation debugging code will not be compiled
++#ifndef NORANGECHECKING
+ #define RANGECHECK
++#endif
+ 
+ // The maximum number of players, multiplayer/networking.
+ #define MAXPLAYERS 4
+diff --git a/src/doom/f_finale.c b/src/doom/f_finale.c
+index 0acd6e3..ebf4312 100644
+--- a/src/doom/f_finale.c
++++ b/src/doom/f_finale.c
+@@ -582,6 +582,9 @@ F_DrawPatchCol
+ 	
+     column = (column_t *)((byte *)patch + LONG(patch->columnofs[col]));
+     desttop = I_VideoBuffer + x;
++#if HEIGHT_HACK
++    desttop += SCREENWIDTH * SCREENHEIGHTFIX2;
++#endif
+ 
+     // step through the posts in a column
+     while (column->topdelta != 0xff )
+@@ -613,6 +616,10 @@ void F_BunnyScroll (void)
+     int		stage;
+     static int	laststage;
+ 		
++#if HEIGHT_HACK
++    if (!finalecount) /* height fix */
++	memset(I_VideoBuffer, 0, SCREENWIDTH*SCREENHEIGHT);
++#endif
+     p1 = W_CacheLumpName (DEH_String("PFUB2"), PU_LEVEL);
+     p2 = W_CacheLumpName (DEH_String("PFUB1"), PU_LEVEL);
+ 
+@@ -637,7 +644,11 @@ void F_BunnyScroll (void)
+     if (finalecount < 1180)
+     {
+         V_DrawPatch((SCREENWIDTH - 13 * 8) / 2,
++#if HEIGHT_HACK
++                    (SCREENHEIGHTOLD - 8 * 8) / 2, 
++#else
+                     (SCREENHEIGHT - 8 * 8) / 2, 
++#endif
+                     W_CacheLumpName(DEH_String("END0"), PU_CACHE));
+ 	laststage = 0;
+ 	return;
+@@ -654,7 +665,11 @@ void F_BunnyScroll (void)
+ 	
+     DEH_snprintf(name, 10, "END%i", stage);
+     V_DrawPatch((SCREENWIDTH - 13 * 8) / 2, 
++#if HEIGHT_HACK
++                (SCREENHEIGHTOLD - 8 * 8) / 2, 
++#else
+                 (SCREENHEIGHT - 8 * 8) / 2, 
++#endif
+                 W_CacheLumpName (name,PU_CACHE));
+ }
+ 
+diff --git a/src/doom/g_game.c b/src/doom/g_game.c
+index 78bce28..e599a64 100644
+--- a/src/doom/g_game.c
++++ b/src/doom/g_game.c
+@@ -198,7 +198,11 @@ static const struct
+ #define NUMKEYS		256 
+ #define MAX_JOY_BUTTONS 20
+ 
++#if EMBEDDED
++char gamekeydown[NUMKEYS];
++#else
+ static boolean  gamekeydown[NUMKEYS]; 
++#endif
+ static int      turnheld;		// for accelerative turning 
+  
+ static boolean  mousearray[MAX_MOUSE_BUTTONS + 1];
+@@ -826,6 +830,9 @@ boolean G_Responder (event_t* ev)
+ 	    return true; 
+ 	} 
+ #endif 
++#if EMBEDDED
++	if (0)
++#endif
+ 	if (HU_Responder (ev)) 
+ 	    return true;	// chat ate the event 
+ 	if (ST_Responder (ev)) 
+@@ -2357,14 +2364,22 @@ boolean G_CheckDemoStatus (void)
+ 
+ 	endtime = I_GetTime (); 
+         realtics = endtime - starttime;
++#if !NO_FLOAT
+         fps = ((float) gametic * TICRATE) / realtics;
++#endif
+ 
+         // Prevent recursive calls
+         timingdemo = false;
+         demoplayback = false;
+ 
++#if NO_FLOAT
++	(void)fps;
++	I_Error ("timed %i gametics in %i realtics",
++                 gametic, realtics);
++#else
+ 	I_Error ("timed %i gametics in %i realtics (%f fps)",
+                  gametic, realtics, fps);
++#endif
+     } 
+ 	 
+     if (demoplayback) 
+diff --git a/src/doom/hu_stuff.c b/src/doom/hu_stuff.c
+index bb20029..111b4db 100644
+--- a/src/doom/hu_stuff.c
++++ b/src/doom/hu_stuff.c
+@@ -54,7 +54,7 @@
+ #define HU_TITLE_CHEX   (mapnames_chex[(gameepisode-1)*9+gamemap-1])
+ #define HU_TITLEHEIGHT	1
+ #define HU_TITLEX	0
+-#define HU_TITLEY	(167 - SHORT(hu_font[0]->height))
++#define HU_TITLEY	(SCREENHEIGHT - 33 - SHORT(hu_font[0]->height))
+ 
+ #define HU_INPUTTOGGLE	't'
+ #define HU_INPUTX	HU_MSGX
+diff --git a/src/doom/m_menu.c b/src/doom/m_menu.c
+index 71b47cb..a993b51 100644
+--- a/src/doom/m_menu.c
++++ b/src/doom/m_menu.c
+@@ -73,7 +73,11 @@ int			showMessages = 1;
+ 
+ // Blocky mode, has default, 0 = high, 1 = normal
+ int			detailLevel = 0;
++#if EMBEDDED
++int			screenblocks = 10;
++#else
+ int			screenblocks = 9;
++#endif
+ 
+ // temp for screenblocks (0-9)
+ int			screenSize;
+@@ -1101,7 +1105,9 @@ void M_QuitResponse(int key)
+ 	    S_StartSound(NULL,quitsounds2[(gametic>>2)&7]);
+ 	else
+ 	    S_StartSound(NULL,quitsounds[(gametic>>2)&7]);
++#if !NO_SOUND
+ 	I_WaitVBL(105);
++#endif
+     }
+     I_Quit ();
+ }
+@@ -1400,7 +1406,11 @@ boolean M_Responder (event_t* ev)
+     ch = 0;
+     key = -1;
+ 	
++#if EMBEDDED
++    if (0)
++#else
+     if (ev->type == ev_joystick)
++#endif
+     {
+         // Simulate key presses from joystick events to interact with the menu.
+ 
+@@ -1493,7 +1503,11 @@ boolean M_Responder (event_t* ev)
+     }
+     else
+     {
++#if NO_MOUSE
++	if (0)
++#else
+ 	if (ev->type == ev_mouse && mousewait < I_GetTime() && menuactive)
++#endif
+ 	{
+ 	    mousey += ev->data3;
+ 	    if (mousey < lasty-30)
+@@ -1958,7 +1972,7 @@ void M_Drawer (void)
+     if (messageToPrint)
+     {
+ 	start = 0;
+-	y = SCREENHEIGHT/2 - M_StringHeight(messageString) / 2;
++	y = SCREENHEIGHT/2u - M_StringHeight(messageString) / 2;
+ 	while (messageString[start] != '\0')
+ 	{
+ 	    boolean foundnewline = false;
+@@ -1994,6 +2008,9 @@ void M_Drawer (void)
+ 	return;
+     }
+ 
++#if NO_SOUND
++    if (0)
++#endif
+     if (opldev)
+     {
+         M_DrawOPLDev();
+@@ -2002,6 +2019,9 @@ void M_Drawer (void)
+     if (!menuactive)
+ 	return;
+ 
++#if HEIGHT_HACK
++    patch_yadd = SCREENHEIGHTFIX2;
++#endif
+     if (currentMenu->routine)
+ 	currentMenu->routine();         // call Draw routine
+     
+@@ -2026,6 +2046,9 @@ void M_Drawer (void)
+     V_DrawPatchDirect(x + SKULLXOFF, currentMenu->y - 5 + itemOn*LINEHEIGHT,
+ 		      W_CacheLumpName(DEH_String(skullName[whichSkull]),
+ 				      PU_CACHE));
++#if HEIGHT_HACK
++    patch_yadd = 0;
++#endif
+ }
+ 
+ 
+diff --git a/src/doom/r_draw.c b/src/doom/r_draw.c
+index 4fc41b5..66e7ea4 100644
+--- a/src/doom/r_draw.c
++++ b/src/doom/r_draw.c
+@@ -59,7 +59,10 @@ int		viewwidth;
+ int		scaledviewwidth;
+ int		viewheight;
+ int		viewwindowx;
+-int		viewwindowy; 
++int		viewwindowy;
++#ifdef USE_ASM
++byte*		firstpix;
++#endif 
+ pixel_t*		ylookup[MAXHEIGHT];
+ int		columnofs[MAXWIDTH]; 
+ 
+@@ -92,6 +95,7 @@ byte*			dc_source;
+ // just for profiling 
+ int			dccount;
+ 
++#ifndef USE_ASM
+ //
+ // A column is a vertical slice/span from a wall texture that,
+ //  given the DOOM style restrictions on the view orientation,
+@@ -249,6 +253,7 @@ void R_DrawColumnLow (void)
+ 
+     } while (count--);
+ }
++#endif
+ 
+ 
+ //
+@@ -272,6 +277,7 @@ int	fuzzoffset[FUZZTABLE] =
+ int	fuzzpos = 0; 
+ 
+ 
++#ifndef USE_ASM
+ //
+ // Framebuffer postprocessing.
+ // Creates a fuzzy image by copying pixels
+@@ -388,6 +394,7 @@ void R_DrawFuzzColumnLow (void)
+ 	dest2 += SCREENWIDTH;
+     } while (count--); 
+ } 
++#endif
+  
+   
+   
+@@ -569,6 +576,7 @@ byte*			ds_source;
+ int			dscount;
+ 
+ 
++#ifndef USE_ASM
+ //
+ // Draws the actual span.
+ void R_DrawSpan (void) 
+@@ -749,6 +757,7 @@ void R_DrawSpanLow (void)
+ 
+     } while (count--);
+ }
++#endif
+ 
+ //
+ // R_InitBuffer 
+@@ -782,6 +791,10 @@ R_InitBuffer
+     // Preclaculate all row offsets.
+     for (i=0 ; i<height ; i++) 
+ 	ylookup[i] = I_VideoBuffer + (i+viewwindowy)*SCREENWIDTH; 
++
++#ifdef USE_ASM
++    firstpix = ylookup[0] + columnofs[0];
++#endif
+ } 
+  
+  
+diff --git a/src/doom/r_draw.h b/src/doom/r_draw.h
+index 5b0c818..d45e1a5 100644
+--- a/src/doom/r_draw.h
++++ b/src/doom/r_draw.h
+@@ -33,6 +33,15 @@ extern fixed_t		dc_texturemid;
+ // first pixel in a column
+ extern byte*		dc_source;		
+ 
++#ifdef USE_ASM
++#define R_DrawColumn R_DrawColumnAsm
++#define R_DrawFuzzColumn R_DrawFuzzColumnAsm
++#define R_DrawSpan R_DrawSpanAsm
++
++#define R_DrawColumnLow R_DrawColumnLowAsm
++#define R_DrawFuzzColumnLow R_DrawFuzzColumnLowAsm
++#define R_DrawSpanLow R_DrawSpanLowAsm
++#endif
+ 
+ // The span blitting interface.
+ // Hook in assembler or system specific BLT
+diff --git a/src/doom/r_main.c b/src/doom/r_main.c
+index 970bd19..6f2107c 100644
+--- a/src/doom/r_main.c
++++ b/src/doom/r_main.c
+@@ -674,7 +674,12 @@ void R_ExecuteSetViewSize (void)
+ 
+     setsizeneeded = false;
+ 
++#if HEIGHT_HACK
++    /* overflow at 255 (byte arrays in visplanes) */
++    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
++#else
+     if (setblocks == 11)
++#endif
+     {
+ 	scaledviewwidth = SCREENWIDTH;
+ 	viewheight = SCREENHEIGHT;
+@@ -682,7 +687,13 @@ void R_ExecuteSetViewSize (void)
+     else
+     {
+ 	scaledviewwidth = setblocks*32;
++#if HEIGHT_HACK
++	/* height fix */
++	viewheight = SCREENHEIGHT-32;
++	if (setblocks < 10) viewheight = (setblocks*viewheight/10u)&~7;
++#else
+ 	viewheight = (setblocks*168/10)&~7;
++#endif
+     }
+     
+     detailshift = setdetail;
+@@ -714,8 +725,18 @@ void R_ExecuteSetViewSize (void)
+     R_InitTextureMapping ();
+     
+     // psprite scales
++#if HEIGHT_HACK
++    {   /* height fix */
++	unsigned viewwidth2 = viewwidth;
++	if (viewheight * 8 > viewwidth * 5)
++	    viewwidth2 = ((unsigned)viewheight * 8 + 2) / 5;
++	pspritescale = (FRACUNIT*viewwidth2+SCREENWIDTH-1)/SCREENWIDTH;
++	pspriteiscale = (FRACUNIT*SCREENWIDTH+viewwidth2-1)/viewwidth2;
++    }
++#else
+     pspritescale = FRACUNIT*viewwidth/SCREENWIDTH;
+     pspriteiscale = FRACUNIT*SCREENWIDTH/viewwidth;
++#endif
+     
+     // thing clipping
+     for (i=0 ; i<viewwidth ; i++)
+diff --git a/src/doom/r_plane.c b/src/doom/r_plane.c
+index b63b20f..0fd40f2 100644
+--- a/src/doom/r_plane.c
++++ b/src/doom/r_plane.c
+@@ -66,6 +66,10 @@ short			ceilingclip[SCREENWIDTH];
+ // spanstart holds the start of a plane span
+ // initialized to 0 at start
+ //
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT SCREENHEIGHTMAX
++#endif
+ int			spanstart[SCREENHEIGHT];
+ int			spanstop[SCREENHEIGHT];
+ 
+@@ -84,6 +88,10 @@ fixed_t			cachedheight[SCREENHEIGHT];
+ fixed_t			cacheddistance[SCREENHEIGHT];
+ fixed_t			cachedxstep[SCREENHEIGHT];
+ fixed_t			cachedystep[SCREENHEIGHT];
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT screenheight
++#endif
+ 
+ 
+ 
+diff --git a/src/doom/r_plane.h b/src/doom/r_plane.h
+index 57b50e5..1514671 100644
+--- a/src/doom/r_plane.h
++++ b/src/doom/r_plane.h
+@@ -37,7 +37,11 @@ extern planefunction_t	ceilingfunc_t;
+ extern short		floorclip[SCREENWIDTH];
+ extern short		ceilingclip[SCREENWIDTH];
+ 
++#if HEIGHT_HACK
++extern fixed_t		yslope[SCREENHEIGHTMAX];
++#else
+ extern fixed_t		yslope[SCREENHEIGHT];
++#endif
+ extern fixed_t		distscale[SCREENWIDTH];
+ 
+ void R_InitPlanes (void);
+diff --git a/src/doom/r_things.c b/src/doom/r_things.c
+index 5533fd9..18fbd50 100644
+--- a/src/doom/r_things.c
++++ b/src/doom/r_things.c
+@@ -38,7 +38,11 @@
+ 
+ 
+ #define MINZ				(FRACUNIT*4)
++#if HEIGHT_HACK
++#define BASEYCENTER			(SCREENHEIGHTOLD/2)
++#else
+ #define BASEYCENTER			(SCREENHEIGHT/2)
++#endif
+ 
+ //void R_DrawColumn (void);
+ //void R_DrawFuzzColumn (void);
+diff --git a/src/doom/st_lib.c b/src/doom/st_lib.c
+index 832bb66..bc6bf11 100644
+--- a/src/doom/st_lib.c
++++ b/src/doom/st_lib.c
+@@ -62,6 +62,9 @@ STlib_initNum
+   boolean*		on,
+   int			width )
+ {
++#if HEIGHT_HACK
++    y += SCREENHEIGHTFIX;
++#endif
+     n->x	= x;
+     n->y	= y;
+     n->oldnum	= 0;
+@@ -188,6 +191,9 @@ STlib_initMultIcon
+   int*			inum,
+   boolean*		on )
+ {
++#if HEIGHT_HACK
++    y += SCREENHEIGHTFIX;
++#endif
+     i->x	= x;
+     i->y	= y;
+     i->oldinum 	= -1;
+@@ -240,6 +246,9 @@ STlib_initBinIcon
+   boolean*		val,
+   boolean*		on )
+ {
++#if HEIGHT_HACK
++    y += SCREENHEIGHTFIX;
++#endif
+     b->x	= x;
+     b->y	= y;
+     b->oldval	= false;
+diff --git a/src/doom/wi_stuff.c b/src/doom/wi_stuff.c
+index 965cc55..5b5b77d 100644
+--- a/src/doom/wi_stuff.c
++++ b/src/doom/wi_stuff.c
+@@ -80,7 +80,11 @@
+ #define SP_STATSY		50
+ 
+ #define SP_TIMEX		16
++#if HEIGHT_HACK
++#define SP_TIMEY		(SCREENHEIGHTOLD-32)
++#else
+ #define SP_TIMEY		(SCREENHEIGHT-32)
++#endif
+ 
+ 
+ // NET GAME STUFF
+diff --git a/src/heretic/am_map.c b/src/heretic/am_map.c
+index afc0c42..cbb3c5c 100644
+--- a/src/heretic/am_map.c
++++ b/src/heretic/am_map.c
+@@ -96,7 +96,12 @@ static int grid = 0;
+ 
+ boolean automapactive = false;
+ static int finit_width = SCREENWIDTH;
++#if HEIGHT_HACK
++#define finit_height (SCREENHEIGHT - 42)
++#define finit_height_old (SCREENHEIGHTOLD - 42)
++#else
+ static int finit_height = SCREENHEIGHT - 42;
++#endif
+ static int f_x, f_y;            // location of window on screen
+ static int f_w, f_h;            // size of window on screen
+ static int lightlev;            // used for funky strobing effect
+@@ -826,7 +831,11 @@ void AM_clearFB(int color)
+         memcpy(I_VideoBuffer + i * finit_width + finit_width - mapxstart,
+                maplump + j, mapxstart);
+         j += finit_width;
++#if HEIGHT_HACK
++        if (j >= finit_height_old * finit_width)
++#else
+         if (j >= finit_height * finit_width)
++#endif
+             j = 0;
+     }
+ 
+@@ -1528,7 +1537,7 @@ void AM_Drawer(void)
+     if (gameepisode <= numepisodes && gamemap < 10)
+     {
+         level_name = LevelNames[(gameepisode - 1) * 9 + gamemap - 1];
+-        MN_DrTextA(DEH_String(level_name), 20, 145);
++        MN_DrTextA(DEH_String(level_name), 20, SCREENHEIGHT - 55);
+     }
+ //  I_Update();
+ //  V_MarkRect(f_x, f_y, f_w, f_h);
+diff --git a/src/heretic/d_main.c b/src/heretic/d_main.c
+index e140a74..b574005 100644
+--- a/src/heretic/d_main.c
++++ b/src/heretic/d_main.c
+@@ -71,7 +71,11 @@ int startepisode;
+ int startmap;
+ int UpdateState;
+ static int graphical_startup = 1;
++#if EMBEDDED
++#define using_graphical_startup 0
++#else
+ static boolean using_graphical_startup;
++#endif
+ static boolean main_loop_started = false;
+ boolean autostart;
+ 
+@@ -165,10 +169,22 @@ void D_Display(void)
+             SB_Drawer();
+             break;
+         case GS_INTERMISSION:
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             IN_Drawer();
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+             break;
+         case GS_FINALE:
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             F_Drawer();
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+             break;
+         case GS_DEMOSCREEN:
+             D_PageDrawer();
+@@ -189,7 +205,12 @@ void D_Display(void)
+         }
+         else
+         {
++#if HEIGHT_HACK
++            V_DrawPatch(160, 70 + SCREENHEIGHTFIX2,
++                W_CacheLumpName(DEH_String("PAUSED"), PU_CACHE));
++#else
+             V_DrawPatch(160, 70, W_CacheLumpName(DEH_String("PAUSED"), PU_CACHE));
++#endif
+         }
+     }
+     // Handle player messages
+@@ -302,7 +323,12 @@ void D_PageDrawer(void)
+     V_DrawRawScreen(W_CacheLumpName(pagename, PU_CACHE));
+     if (demosequence == 1)
+     {
++#if HEIGHT_HACK
++        V_DrawPatch(4, 160 + SCREENHEIGHTFIX2,
++            W_CacheLumpName(DEH_String("ADVISOR"), PU_CACHE));
++#else
+         V_DrawPatch(4, 160, W_CacheLumpName(DEH_String("ADVISOR"), PU_CACHE));
++#endif
+     }
+     UpdateState |= I_FULLSCRN;
+ }
+@@ -567,6 +593,7 @@ void initStartup(void)
+     byte *textScreen;
+     byte *loading;
+ 
++#if !EMBEDDED
+     if (!graphical_startup || debugmode || testcontrols)
+     {
+         using_graphical_startup = false;
+@@ -597,6 +624,7 @@ void initStartup(void)
+     TXT_UpdateScreen();
+ 
+     using_graphical_startup = true;
++#endif
+ }
+ 
+ static void finishStartup(void)
+diff --git a/src/heretic/d_net.c b/src/heretic/d_net.c
+index 8aef319..d860ecb 100644
+--- a/src/heretic/d_net.c
++++ b/src/heretic/d_net.c
+@@ -178,6 +178,9 @@ void D_ConnectNetGame(void)
+ {
+     net_connect_data_t connect_data;
+ 
++#if NO_NET
++    return;
++#endif
+     InitConnectData(&connect_data);
+     netgame = D_InitNetGame(&connect_data);
+ 
+diff --git a/src/heretic/doomdef.h b/src/heretic/doomdef.h
+index 8d5e13e..e6ae008 100644
+--- a/src/heretic/doomdef.h
++++ b/src/heretic/doomdef.h
+@@ -28,7 +28,9 @@
+ 
+ // if rangecheck is undefined, most parameter validation debugging code
+ // will not be compiled
+-//#define RANGECHECK
++#ifndef NORANGECHECKING
++#define RANGECHECK
++#endif
+ 
+ // all external data is defined here
+ #include "doomdata.h"
+diff --git a/src/heretic/f_finale.c b/src/heretic/f_finale.c
+index 4508bd3..559125d 100644
+--- a/src/heretic/f_finale.c
++++ b/src/heretic/f_finale.c
+@@ -260,6 +260,15 @@ void F_DemonScroll(void)
+     {
+         return;
+     }
++#if HEIGHT_HACK
++    pixel_t *dest = I_VideoBuffer;
++    if (!finalecount) /* height fix */
++        memset(dest, 0, SCREENHEIGHT * SCREENWIDTH);
++    dest += SCREENHEIGHTFIX2 * SCREENWIDTH;
++#define I_VideoBuffer dest
++#undef SCREENHEIGHT
++#define SCREENHEIGHT SCREENHEIGHTOLD
++#endif
+     p1 = W_CacheLumpName(DEH_String("FINAL1"), PU_LEVEL);
+     p2 = W_CacheLumpName(DEH_String("FINAL2"), PU_LEVEL);
+     if (finalecount < 70)
+@@ -279,6 +288,11 @@ void F_DemonScroll(void)
+     {                           //else, we'll just sit here and wait, for now
+         memcpy(I_VideoBuffer, p2, SCREENWIDTH * SCREENHEIGHT);
+     }
++#if HEIGHT_HACK
++#undef I_VideoBuffer
++#undef SCREENHEIGHT
++#define SCREENHEIGHT screenheight
++#endif
+ }
+ 
+ /*
+diff --git a/src/heretic/g_game.c b/src/heretic/g_game.c
+index 01bcc4a..1806edc 100644
+--- a/src/heretic/g_game.c
++++ b/src/heretic/g_game.c
+@@ -181,7 +181,11 @@ static const struct
+ #define SLOWTURNTICS    6
+ 
+ #define NUMKEYS 256
++#if EMBEDDED
++char gamekeydown[NUMKEYS];
++#else
+ boolean gamekeydown[NUMKEYS];
++#endif
+ int turnheld;                   // for accelerative turning
+ int lookheld;
+ 
+@@ -911,6 +915,10 @@ static boolean InventoryMoveRight()
+     inv_ptr++;
+     if (inv_ptr >= plr->inventorySlotNum)
+     {
++#if EMBEDDED
++        inv_ptr = curpos = 0;
++        return true;
++#endif
+         inv_ptr--;
+         if (inv_ptr < 0)
+             inv_ptr = 0;
+@@ -2186,9 +2194,15 @@ boolean G_CheckDemoStatus(void)
+         float fps;
+         endtime = I_GetTime();
+         realtics = endtime - starttime;
++#if NO_FLOAT
++        (void)fps;
++        I_Error("timed %i gametics in %i realtics",
++                gametic, realtics);
++#else
+         fps = ((float) gametic * TICRATE) / realtics;
+         I_Error("timed %i gametics in %i realtics (%f fps)",
+                 gametic, realtics, fps);
++#endif
+     }
+ 
+     if (demoplayback)
+diff --git a/src/heretic/mn_menu.c b/src/heretic/mn_menu.c
+index 95cb62c..5862d38 100644
+--- a/src/heretic/mn_menu.c
++++ b/src/heretic/mn_menu.c
+@@ -479,6 +479,9 @@ void MN_Drawer(void)
+     {
+         if (askforquit)
+         {
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             message = DEH_String(QuitEndMsg[typeofask - 1]);
+ 
+             MN_DrTextA(message, 160 - MN_TextAWidth(message) / 2, 80);
+@@ -497,6 +500,9 @@ void MN_Drawer(void)
+                            MN_TextAWidth(SlotText[quickload - 1]) / 2, 90);
+             }
+             UpdateState |= I_FULLSCRN;
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+         }
+         return;
+     }
+@@ -512,6 +518,9 @@ void MN_Drawer(void)
+         {
+             BorderNeedRefresh = true;
+         }
++#if HEIGHT_HACK
++        patch_yadd = SCREENHEIGHTFIX2;
++#endif
+         if (CurrentMenu->drawFunc != NULL)
+         {
+             CurrentMenu->drawFunc();
+@@ -532,6 +541,9 @@ void MN_Drawer(void)
+         selName = DEH_String(MenuTime & 16 ? "M_SLCTR1" : "M_SLCTR2");
+         V_DrawPatch(x + SELECTOR_XOFFSET, y,
+                     W_CacheLumpName(selName, PU_CACHE));
++#if HEIGHT_HACK
++        patch_yadd = 0;
++#endif
+     }
+ }
+ 
+@@ -892,6 +904,10 @@ static boolean SCSaveGame(int option)
+         M_StringCopy(oldSlotText, SlotText[option], sizeof(oldSlotText));
+         ptr = SlotText[option];
+ 
++#if EMBEDDED
++        M_snprintf(SlotText[option], SLOTTEXTLEN, "SAVE%u", option);
++        if (0)
++#endif
+         if (!strcmp(ptr, "") && joypadsave)
+         {
+             SetDefaultSaveName(option);
+@@ -1122,6 +1138,9 @@ boolean MN_Responder(event_t * event)
+     charTyped = 0;
+     key = -1;
+ 
++#if EMBEDDED
++    if (0)
++#endif
+     if (event->type == ev_joystick)
+     {
+         // Simulate key presses from joystick events to interact with the menu.
+diff --git a/src/heretic/r_draw.c b/src/heretic/r_draw.c
+index 4760cd5..85061c9 100644
+--- a/src/heretic/r_draw.c
++++ b/src/heretic/r_draw.c
+@@ -30,6 +30,9 @@ files only know about ccordinates, not the architecture of the frame buffer.
+ 
+ byte *viewimage;
+ int viewwidth, scaledviewwidth, viewheight, viewwindowx, viewwindowy;
++#ifdef USE_ASM
++byte *firstpix;
++#endif 
+ byte *ylookup[MAXHEIGHT];
+ int columnofs[MAXWIDTH];
+ byte translations[3][256];      // color tables for different players
+@@ -54,6 +57,7 @@ byte *dc_source;                // first pixel in a column (possibly virtual)
+ 
+ int dccount;                    // just for profiling
+ 
++#ifndef USE_ASM
+ void R_DrawColumn(void)
+ {
+     int count;
+@@ -82,6 +86,7 @@ void R_DrawColumn(void)
+     }
+     while (count--);
+ }
++#endif
+ 
+ void R_DrawColumnLow(void)
+ {
+@@ -276,6 +281,7 @@ byte *ds_source;                // start of a 64*64 tile image
+ 
+ int dscount;                    // just for profiling
+ 
++#ifndef USE_ASM
+ void R_DrawSpan(void)
+ {
+     fixed_t xfrac, yfrac;
+@@ -303,6 +309,7 @@ void R_DrawSpan(void)
+     }
+     while (count--);
+ }
++#endif
+ 
+ void R_DrawSpanLow(void)
+ {
+@@ -355,6 +362,10 @@ void R_InitBuffer(int width, int height)
+         viewwindowy = (SCREENHEIGHT - SBARHEIGHT - height) >> 1;
+     for (i = 0; i < height; i++)
+         ylookup[i] = I_VideoBuffer + (i + viewwindowy) * SCREENWIDTH;
++
++#ifdef USE_ASM
++    firstpix = ylookup[0] + columnofs[0];
++#endif
+ }
+ 
+ 
+diff --git a/src/heretic/r_local.h b/src/heretic/r_local.h
+index cf58ed1..2a581b5 100644
+--- a/src/heretic/r_local.h
++++ b/src/heretic/r_local.h
+@@ -363,7 +363,11 @@ extern short openings[MAXOPENINGS], *lastopening;
+ extern short floorclip[SCREENWIDTH];
+ extern short ceilingclip[SCREENWIDTH];
+ 
++#if HEIGHT_HACK
++extern fixed_t yslope[SCREENHEIGHTMAX];
++#else
+ extern fixed_t yslope[SCREENHEIGHT];
++#endif
+ extern fixed_t distscale[SCREENWIDTH];
+ 
+ void R_InitPlanes(void);
+@@ -456,6 +460,10 @@ extern fixed_t dc_texturemid;
+ extern byte *dc_source;         // first pixel in a column
+ extern byte *ylookup[MAXHEIGHT];
+ 
++#ifdef USE_ASM
++#define R_DrawColumn R_DrawColumnAsm
++#define R_DrawSpan R_DrawSpanAsm
++#endif
+ 
+ void R_DrawColumn(void);
+ void R_DrawColumnLow(void);
+diff --git a/src/heretic/r_main.c b/src/heretic/r_main.c
+index 1ff6a68..7826ccf 100644
+--- a/src/heretic/r_main.c
++++ b/src/heretic/r_main.c
+@@ -543,6 +543,10 @@ void R_SetViewSize(int blocks, int detail)
+ ==============
+ */
+ 
++#if HEIGHT_HACK
++fixed_t PSpriteSY_mult;
++#endif
++
+ void R_ExecuteSetViewSize(void)
+ {
+     fixed_t cosadj, dy;
+@@ -550,7 +554,12 @@ void R_ExecuteSetViewSize(void)
+ 
+     setsizeneeded = false;
+ 
++#if HEIGHT_HACK
++    /* overflow at 255 (byte arrays in visplanes) */
++    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
++#else
+     if (setblocks == 11)
++#endif
+     {
+         scaledviewwidth = SCREENWIDTH;
+         viewheight = SCREENHEIGHT;
+@@ -558,10 +567,23 @@ void R_ExecuteSetViewSize(void)
+     else
+     {
+         scaledviewwidth = setblocks * 32;
++#if HEIGHT_HACK
++        /* height fix */
++        viewheight = SCREENHEIGHT - 42;
++        if (setblocks < 10) {
++            viewheight = (setblocks * viewheight / 10u);
++            if ((viewheight & 15) < 12) viewheight &= ~15;
++        }
++#else
+         viewheight = (setblocks * 158 / 10);
++#endif
+     }
+ 
++#if 1 // doesn't support low detail mode
++    detailshift = 0;
++#else
+     detailshift = setdetail;
++#endif
+     viewwidth = scaledviewwidth >> detailshift;
+ 
+     centery = viewheight / 2;
+@@ -592,8 +614,25 @@ void R_ExecuteSetViewSize(void)
+ //
+ // psprite scales
+ //
++#if HEIGHT_HACK
++    {   /* height fix */
++        unsigned viewwidth2 = viewwidth;
++        if (viewheight * 8 > viewwidth * 5)
++            viewwidth2 = ((unsigned)viewheight * 8 + 2) / 5;
++        pspritescale = (FRACUNIT * viewwidth2 + SCREENWIDTH - 1) / SCREENWIDTH;
++        pspriteiscale = (FRACUNIT * SCREENWIDTH + viewwidth2 - 1) / viewwidth2;
++    }
++    {
++        fixed_t start = ((SCREENHEIGHTOLD - 42) << FRACBITS) / SCREENWIDTH;
++        fixed_t range = (SCREENHEIGHTOLD << FRACBITS) / SCREENWIDTH - start;
++        fixed_t coef = (viewheight << FRACBITS) / viewwidth - start;
++        PSpriteSY_mult = coef <= 0 ? 0 :
++            coef >= range ? FRACUNIT : FixedDiv(coef, range);
++    }
++#else
+     pspritescale = FRACUNIT * viewwidth / SCREENWIDTH;
+     pspriteiscale = FRACUNIT * SCREENWIDTH / viewwidth;
++#endif
+ 
+ //
+ // thing clipping
+diff --git a/src/heretic/r_plane.c b/src/heretic/r_plane.c
+index e9ed70c..17d7ed6 100644
+--- a/src/heretic/r_plane.c
++++ b/src/heretic/r_plane.c
+@@ -52,6 +52,10 @@ short ceilingclip[SCREENWIDTH];
+ // spanstart holds the start of a plane span
+ // initialized to 0 at start
+ //
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT SCREENHEIGHTMAX
++#endif
+ int spanstart[SCREENHEIGHT];
+ int spanstop[SCREENHEIGHT];
+ 
+@@ -69,6 +73,10 @@ fixed_t cachedheight[SCREENHEIGHT];
+ fixed_t cacheddistance[SCREENHEIGHT];
+ fixed_t cachedxstep[SCREENHEIGHT];
+ fixed_t cachedystep[SCREENHEIGHT];
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT screenheight
++#endif
+ 
+ 
+ /*
+diff --git a/src/heretic/r_things.c b/src/heretic/r_things.c
+index 88e35b9..5958d36 100644
+--- a/src/heretic/r_things.c
++++ b/src/heretic/r_things.c
+@@ -717,10 +717,20 @@ void R_DrawPSprite(pspdef_t * psp)
+     vis->texturemid =
+         (BASEYCENTER << FRACBITS) + FRACUNIT / 2 - (psp->sy -
+                                                     spritetopoffset[lump]);
++#if HEIGHT_HACK
++    {
++        extern fixed_t PSpriteSY_mult;
++        fixed_t mult = PSpriteSY_mult;
++        if (mult)
++            vis->texturemid -= FixedMul(
++                PSpriteSY[players[consoleplayer].readyweapon], mult);
++    }
++#else
+     if (viewheight == SCREENHEIGHT)
+     {
+         vis->texturemid -= PSpriteSY[players[consoleplayer].readyweapon];
+     }
++#endif
+     vis->x1 = x1 < 0 ? 0 : x1;
+     vis->x2 = x2 >= viewwidth ? viewwidth - 1 : x2;
+     vis->scale = pspritescale << detailshift;
+diff --git a/src/heretic/sb_bar.c b/src/heretic/sb_bar.c
+index bcc5d76..66d638f 100644
+--- a/src/heretic/sb_bar.c
++++ b/src/heretic/sb_bar.c
+@@ -407,6 +407,9 @@ static void ShadeLine(int x, int y, int height, int shade)
+     byte *dest;
+     byte *shades;
+ 
++#if HEIGHT_HACK
++    y += SCREENHEIGHTFIX;
++#endif
+     shades = colormaps + 9 * 256 + shade * 2 * 256;
+     dest = I_VideoBuffer + y * SCREENWIDTH + x;
+     while (height--)
+@@ -551,6 +554,9 @@ void SB_Drawer(void)
+     {
+         DrawSoundInfo();
+     }
++#if HEIGHT_HACK
++    patch_yadd = SCREENHEIGHTFIX;
++#endif
+     CPlayer = &players[consoleplayer];
+     if (viewheight == SCREENHEIGHT && !automapactive)
+     {
+@@ -599,6 +605,9 @@ void SB_Drawer(void)
+             SB_state = 1;
+         }
+     }
++#if HEIGHT_HACK
++    patch_yadd = 0;
++#endif
+     SB_PaletteFlash();
+ 
+     // Flight icons
+@@ -1183,9 +1192,13 @@ static void CheatArtifact3Func(player_t * player, Cheat_t * cheat)
+     int type;
+     int count;
+ 
++#if EMBEDDED
++    type = 26; count = 0;
++#else
+     cht_GetParam(cheat->seq, args);
+     type = args[0] - 'a' + 1;
+     count = args[1] - '0';
++#endif
+     if (type == 26 && count == 0)
+     {                           // All artifacts
+         for (i = arti_none + 1; i < NUMARTIFACTS; i++)
+@@ -1261,6 +1274,16 @@ static void CheatMassacreFunc(player_t * player, Cheat_t * cheat)
+     P_SetMessage(player, DEH_String(TXT_CHEATMASSACRE), false);
+ }
+ 
++#if EMBEDDED
++static void CheatIDKFAFunc(player_t * player, Cheat_t * cheat) {
++    CheatWeaponsFunc(player, cheat);
++    CheatKeysFunc(player, cheat);
++    CheatArtifact3Func(player, cheat);
++}
++static void CheatIDDQDFunc(player_t * player, Cheat_t * cheat) {
++    CheatGodFunc(player, cheat);
++}
++#else
+ static void CheatIDKFAFunc(player_t * player, Cheat_t * cheat)
+ {
+     int i;
+@@ -1281,3 +1304,4 @@ static void CheatIDDQDFunc(player_t * player, Cheat_t * cheat)
+     P_DamageMobj(player->mo, NULL, player->mo, 10000);
+     P_SetMessage(player, DEH_String(TXT_CHEATIDDQD), true);
+ }
++#endif
+diff --git a/src/hexen/am_map.c b/src/hexen/am_map.c
+index 34985dc..93e62ee 100644
+--- a/src/hexen/am_map.c
++++ b/src/hexen/am_map.c
+@@ -35,7 +35,12 @@ static int grid = 0;
+ 
+ boolean automapactive = false;
+ static int finit_width = SCREENWIDTH;
++#if HEIGHT_HACK
++#define finit_height (SCREENHEIGHT - SBARHEIGHT - 3)
++#define finit_height_old (SCREENHEIGHTOLD - SBARHEIGHT - 3)
++#else
+ static int finit_height = SCREENHEIGHT - SBARHEIGHT - 3;
++#endif
+ static int f_x, f_y;            // location of window on screen
+ static int f_w, f_h;            // size of window on screen
+ static int lightlev;            // used for funky strobing effect
+@@ -725,7 +730,11 @@ void AM_clearFB(int color)
+         memcpy(I_VideoBuffer + i * finit_width + finit_width - mapxstart,
+                maplump + j, mapxstart);
+         j += finit_width;
++#if HEIGHT_HACK
++        if (j >= finit_height_old * finit_width)
++#else
+         if (j >= finit_height * finit_width)
++#endif
+             j = 0;
+     }
+ 
+@@ -1400,7 +1409,7 @@ void AM_Drawer(void)
+ //  AM_drawMarks();
+ //      if(gameskill == sk_baby) AM_drawkeys();
+ 
+-    MN_DrTextA(P_GetMapName(gamemap), 38, 144);
++    MN_DrTextA(P_GetMapName(gamemap), 38, SCREENHEIGHT - 56);
+     if (ShowKills && netgame && deathmatch)
+     {
+         AM_DrawDeathmatchStats();
+diff --git a/src/hexen/d_net.c b/src/hexen/d_net.c
+index 2529147..2eac1cf 100644
+--- a/src/hexen/d_net.c
++++ b/src/hexen/d_net.c
+@@ -208,6 +208,9 @@ void D_ConnectNetGame(void)
+ {
+     net_connect_data_t connect_data;
+ 
++#if NO_NET
++    return;
++#endif
+     InitConnectData(&connect_data);
+     netgame = D_InitNetGame(&connect_data);
+ 
+diff --git a/src/hexen/f_finale.c b/src/hexen/f_finale.c
+index 93af19e..814bdaf 100644
+--- a/src/hexen/f_finale.c
++++ b/src/hexen/f_finale.c
+@@ -169,8 +169,16 @@ static void TextWrite(void)
+     int cx, cy;
+     patch_t *w;
+ 
++#if HEIGHT_HACK
++    pixel_t *dest = I_VideoBuffer;
++    memset(dest, 0, SCREENWIDTH * SCREENHEIGHT);
++    dest += SCREENWIDTH * SCREENHEIGHTFIX2;
++    memcpy(dest, W_CacheLumpNum(FinaleLumpNum, PU_CACHE),
++           SCREENWIDTH * SCREENHEIGHTOLD);
++#else
+     memcpy(I_VideoBuffer, W_CacheLumpNum(FinaleLumpNum, PU_CACHE),
+            SCREENWIDTH * SCREENHEIGHT);
++#endif
+     if (FinaleStage == 5)
+     {                           // Chess pic, draw the correct character graphic
+         if (netgame)
+@@ -310,8 +318,16 @@ static void FadePic(void)
+ 
+ static void DrawPic(void)
+ {
++#if HEIGHT_HACK
++    pixel_t *dest = I_VideoBuffer;
++    memset(dest, 0, SCREENWIDTH * SCREENHEIGHT);
++    dest += SCREENWIDTH * SCREENHEIGHTFIX2;
++    memcpy(dest, W_CacheLumpNum(FinaleLumpNum, PU_CACHE),
++           SCREENWIDTH * SCREENHEIGHTOLD);
++#else
+     memcpy(I_VideoBuffer, W_CacheLumpNum(FinaleLumpNum, PU_CACHE),
+            SCREENWIDTH * SCREENHEIGHT);
++#endif
+     if (FinaleStage == 4 || FinaleStage == 5)
+     {                           // Chess pic, draw the correct character graphic
+         if (netgame)
+diff --git a/src/hexen/g_game.c b/src/hexen/g_game.c
+index ecfb383..57799ec 100644
+--- a/src/hexen/g_game.c
++++ b/src/hexen/g_game.c
+@@ -144,7 +144,11 @@ static int next_weapon = 0;
+ 
+ #define SLOWTURNTICS    6
+ 
++#if EMBEDDED
++char gamekeydown[NUMKEYS];
++#else
+ boolean gamekeydown[NUMKEYS];
++#endif
+ int turnheld;                   // for accelerative turning
+ int lookheld;
+ 
+@@ -2316,9 +2320,15 @@ boolean G_CheckDemoStatus(void)
+         float fps;
+         endtime = I_GetTime();
+         realtics = endtime - starttime;
++#if NO_FLOAT
++        (void)fps;
++        I_Error("timed %i gametics in %i realtics",
++                gametic, realtics);
++#else
+         fps = ((float) gametic * TICRATE) / realtics;
+         I_Error("timed %i gametics in %i realtics (%f fps)",
+                 gametic, realtics, fps);
++#endif
+     }
+ 
+     if (demoplayback)
+diff --git a/src/hexen/h2_main.c b/src/hexen/h2_main.c
+index e84ee33..bd4279d 100644
+--- a/src/hexen/h2_main.c
++++ b/src/hexen/h2_main.c
+@@ -484,12 +484,16 @@ void D_DoomMain(void)
+     M_SetConfigFilenames("hexen.cfg", PROGRAM_PREFIX "hexen.cfg");
+     M_LoadDefaults();
+ 
++#if !EMBEDDED
+     D_SetDefaultSavePath();
++#endif
+ 
+     I_AtExit(M_SaveDefaults, false);
+ 
+     // Now that the savedir is loaded, make sure it exists
++#if !EMBEDDED
+     CreateSavePath();
++#endif
+ 
+     ST_Message("Z_Init: Init zone memory allocation daemon.\n");
+     Z_Init();
+@@ -990,10 +994,22 @@ static void DrawAndBlit(void)
+             SB_Drawer();
+             break;
+         case GS_INTERMISSION:
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             IN_Drawer();
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+             break;
+         case GS_FINALE:
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             F_Drawer();
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+             break;
+         case GS_DEMOSCREEN:
+             PageDrawer();
+@@ -1014,7 +1030,12 @@ static void DrawAndBlit(void)
+         }
+         else
+         {
++#if HEIGHT_HACK
++            V_DrawPatch(160, 70 + SCREENHEIGHTFIX2,
++                W_CacheLumpName("PAUSED", PU_CACHE));
++#else
+             V_DrawPatch(160, 70, W_CacheLumpName("PAUSED", PU_CACHE));
++#endif
+         }
+     }
+ 
+@@ -1083,7 +1104,12 @@ static void PageDrawer(void)
+     V_DrawRawScreen(W_CacheLumpName(pagename, PU_CACHE));
+     if (demosequence == 1)
+     {
++#if HEIGHT_HACK
++        V_DrawPatch(4, 160 + SCREENHEIGHTFIX2,
++            W_CacheLumpName("ADVISOR", PU_CACHE));
++#else
+         V_DrawPatch(4, 160, W_CacheLumpName("ADVISOR", PU_CACHE));
++#endif
+     }
+     UpdateState |= I_FULLSCRN;
+ }
+diff --git a/src/hexen/h2def.h b/src/hexen/h2def.h
+index 2bfdfb5..6c926ea 100644
+--- a/src/hexen/h2def.h
++++ b/src/hexen/h2def.h
+@@ -830,7 +830,11 @@ void G_ScreenShot(void);
+ 
+ 
+ extern int LeaveMap;
++#if EMBEDDED
++extern char gamekeydown[NUMKEYS];
++#else
+ extern boolean gamekeydown[NUMKEYS];
++#endif
+ 
+ 
+ //-------
+diff --git a/src/hexen/mn_menu.c b/src/hexen/mn_menu.c
+index 57be51c..7d1e9b4 100644
+--- a/src/hexen/mn_menu.c
++++ b/src/hexen/mn_menu.c
+@@ -516,6 +516,9 @@ void MN_Drawer(void)
+     {
+         if (askforquit)
+         {
++#if HEIGHT_HACK
++            patch_yadd = SCREENHEIGHTFIX2;
++#endif
+             MN_DrTextA(QuitEndMsg[typeofask - 1], 160 -
+                        MN_TextAWidth(QuitEndMsg[typeofask - 1]) / 2, 80);
+             if (typeofask == 3)
+@@ -533,6 +536,9 @@ void MN_Drawer(void)
+                            MN_TextAWidth(SlotText[quicksave - 1]) / 2, 90);
+             }
+             UpdateState |= I_FULLSCRN;
++#if HEIGHT_HACK
++            patch_yadd = 0;
++#endif
+         }
+         return;
+     }
+@@ -548,6 +554,9 @@ void MN_Drawer(void)
+         {
+             BorderNeedRefresh = true;
+         }
++#if HEIGHT_HACK
++        patch_yadd = SCREENHEIGHTFIX2;
++#endif
+         if (CurrentMenu->drawFunc != NULL)
+         {
+             CurrentMenu->drawFunc();
+@@ -568,6 +577,9 @@ void MN_Drawer(void)
+         selName = MenuTime & 16 ? "M_SLCTR1" : "M_SLCTR2";
+         V_DrawPatch(x + SELECTOR_XOFFSET, y,
+                     W_CacheLumpName(selName, PU_CACHE));
++#if HEIGHT_HACK
++        patch_yadd = 0;
++#endif
+     }
+ }
+ 
+@@ -973,6 +985,10 @@ static void SCSaveGame(int option)
+         M_StringCopy(oldSlotText, SlotText[option], sizeof(oldSlotText));
+         ptr = SlotText[option];
+ 
++#if EMBEDDED
++        M_snprintf(SlotText[option], SLOTTEXTLEN, "SAVE%u", option);
++        if (0)
++#endif
+         if (!strcmp(ptr, "") && joypadsave)
+         {
+             SetDefaultSaveName(option);
+@@ -1229,6 +1245,9 @@ boolean MN_Responder(event_t * event)
+     charTyped = 0;
+     key = -1;
+ 
++#if EMBEDDED
++    if (0)
++#endif
+     if (event->type == ev_joystick)
+     {
+         // Simulate key presses from joystick events to interact with the menu.
+diff --git a/src/hexen/r_draw.c b/src/hexen/r_draw.c
+index 13a0421..1f649d0 100644
+--- a/src/hexen/r_draw.c
++++ b/src/hexen/r_draw.c
+@@ -30,6 +30,9 @@ files only know about ccordinates, not the architecture of the frame buffer.
+ 
+ byte *viewimage;
+ int viewwidth, scaledviewwidth, viewheight, viewwindowx, viewwindowy;
++#ifdef USE_ASM
++byte *firstpix;
++#endif 
+ byte *ylookup[MAXHEIGHT];
+ int columnofs[MAXWIDTH];
+ //byte translations[3][256]; // color tables for different players
+@@ -54,6 +57,7 @@ byte *dc_source;                // first pixel in a column (possibly virtual)
+ 
+ int dccount;                    // just for profiling
+ 
++#ifndef USE_ASM
+ void R_DrawColumn(void)
+ {
+     int count;
+@@ -82,6 +86,7 @@ void R_DrawColumn(void)
+     }
+     while (count--);
+ }
++#endif
+ 
+ void R_DrawColumnLow(void)
+ {
+@@ -351,6 +356,7 @@ byte *ds_source;                // start of a 64*64 tile image
+ 
+ int dscount;                    // just for profiling
+ 
++#ifndef USE_ASM
+ void R_DrawSpan(void)
+ {
+     fixed_t xfrac, yfrac;
+@@ -378,6 +384,7 @@ void R_DrawSpan(void)
+     }
+     while (count--);
+ }
++#endif
+ 
+ void R_DrawSpanLow(void)
+ {
+@@ -430,6 +437,10 @@ void R_InitBuffer(int width, int height)
+         viewwindowy = (SCREENHEIGHT - SBARHEIGHT - height) >> 1;
+     for (i = 0; i < height; i++)
+         ylookup[i] = I_VideoBuffer + (i + viewwindowy) * SCREENWIDTH;
++
++#ifdef USE_ASM
++    firstpix = ylookup[0] + columnofs[0];
++#endif
+ }
+ 
+ 
+diff --git a/src/hexen/r_local.h b/src/hexen/r_local.h
+index e9cb26c..97203eb 100644
+--- a/src/hexen/r_local.h
++++ b/src/hexen/r_local.h
+@@ -418,7 +418,11 @@ extern short openings[MAXOPENINGS], *lastopening;
+ extern short floorclip[SCREENWIDTH];
+ extern short ceilingclip[SCREENWIDTH];
+ 
++#if HEIGHT_HACK
++extern fixed_t yslope[SCREENHEIGHTMAX];
++#else
+ extern fixed_t yslope[SCREENHEIGHT];
++#endif
+ extern fixed_t distscale[SCREENWIDTH];
+ 
+ void R_InitPlanes(void);
+@@ -521,6 +525,10 @@ extern byte *dc_source;         // first pixel in a column
+ extern byte *ylookup[MAXHEIGHT];
+ extern int columnofs[MAXWIDTH];
+ 
++#ifdef USE_ASM
++#define R_DrawColumn R_DrawColumnAsm
++#define R_DrawSpan R_DrawSpanAsm
++#endif
+ 
+ void R_DrawColumn(void);
+ void R_DrawColumnLow(void);
+diff --git a/src/hexen/r_main.c b/src/hexen/r_main.c
+index 3bbb4fc..ee88818 100644
+--- a/src/hexen/r_main.c
++++ b/src/hexen/r_main.c
+@@ -545,6 +545,10 @@ void R_SetViewSize(int blocks, int detail)
+ ==============
+ */
+ 
++#if HEIGHT_HACK
++fixed_t PSpriteSY_mult;
++#endif
++
+ void R_ExecuteSetViewSize(void)
+ {
+     fixed_t cosadj, dy;
+@@ -552,7 +556,12 @@ void R_ExecuteSetViewSize(void)
+ 
+     setsizeneeded = false;
+ 
++#if HEIGHT_HACK
++    /* overflow at 255 (byte arrays in visplanes) */
++    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
++#else
+     if (setblocks == 11)
++#endif
+     {
+         scaledviewwidth = SCREENWIDTH;
+         viewheight = SCREENHEIGHT;
+@@ -560,10 +569,23 @@ void R_ExecuteSetViewSize(void)
+     else
+     {
+         scaledviewwidth = setblocks * 32;
++#if HEIGHT_HACK
++        /* height fix */
++        viewheight = SCREENHEIGHT - 39;
++        if (setblocks < 10) {
++            viewheight = (setblocks * viewheight / 10u);
++            if ((viewheight & 15) < 12) viewheight &= ~15;
++        }
++#else
+         viewheight = (setblocks * 161 / 10);
++#endif
+     }
+ 
++#if 1 // doesn't support low detail mode
++    detailshift = 0;
++#else
+     detailshift = setdetail;
++#endif
+     viewwidth = scaledviewwidth >> detailshift;
+ 
+     centery = viewheight / 2;
+@@ -594,8 +616,25 @@ void R_ExecuteSetViewSize(void)
+ //
+ // psprite scales
+ //
++#if HEIGHT_HACK
++    {   /* height fix */
++        unsigned viewwidth2 = viewwidth;
++        if (viewheight * 8 > viewwidth * 5)
++            viewwidth2 = ((unsigned)viewheight * 8 + 2) / 5;
++        pspritescale = (FRACUNIT * viewwidth2 + SCREENWIDTH - 1) / SCREENWIDTH;
++        pspriteiscale = (FRACUNIT * SCREENWIDTH + viewwidth2 - 1) / viewwidth2;
++    }
++    {
++        fixed_t start = ((SCREENHEIGHTOLD - 39) << FRACBITS) / SCREENWIDTH;
++        fixed_t range = (SCREENHEIGHTOLD << FRACBITS) / SCREENWIDTH - start;
++        fixed_t coef = (viewheight << FRACBITS) / viewwidth - start;
++        PSpriteSY_mult = coef <= 0 ? 0 :
++            coef >= range ? FRACUNIT : FixedDiv(coef, range);
++    }
++#else
+     pspritescale = FRACUNIT * viewwidth / SCREENWIDTH;
+     pspriteiscale = FRACUNIT * SCREENWIDTH / viewwidth;
++#endif
+ 
+ //
+ // thing clipping
+diff --git a/src/hexen/r_plane.c b/src/hexen/r_plane.c
+index 8acbcc4..9dfe744 100644
+--- a/src/hexen/r_plane.c
++++ b/src/hexen/r_plane.c
+@@ -59,6 +59,10 @@ short floorclip[SCREENWIDTH];
+ short ceilingclip[SCREENWIDTH];
+ 
+ // spanstart holds the start of a plane span, initialized to 0
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT SCREENHEIGHTMAX
++#endif
+ int spanstart[SCREENHEIGHT];
+ int spanstop[SCREENHEIGHT];
+ 
+@@ -72,6 +76,10 @@ fixed_t cachedheight[SCREENHEIGHT];
+ fixed_t cacheddistance[SCREENHEIGHT];
+ fixed_t cachedxstep[SCREENHEIGHT];
+ fixed_t cachedystep[SCREENHEIGHT];
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT screenheight
++#endif
+ 
+ // PRIVATE DATA DEFINITIONS ------------------------------------------------
+ 
+diff --git a/src/hexen/r_things.c b/src/hexen/r_things.c
+index e9cfecc..ceaee7b 100644
+--- a/src/hexen/r_things.c
++++ b/src/hexen/r_things.c
+@@ -730,11 +730,21 @@ void R_DrawPSprite(pspdef_t * psp)
+     vis->floorclip = 0;
+     vis->texturemid = (BASEYCENTER << FRACBITS) + FRACUNIT / 2
+         - (psp->sy - spritetopoffset[lump]);
++#if HEIGHT_HACK
++    {
++        extern fixed_t PSpriteSY_mult;
++        fixed_t mult = PSpriteSY_mult;
++        if (mult)
++            vis->texturemid -= FixedMul(PSpriteSY[viewplayer->class]
++                [players[consoleplayer].readyweapon], mult);
++    }
++#else
+     if (viewheight == SCREENHEIGHT)
+     {
+         vis->texturemid -= PSpriteSY[viewplayer->class]
+             [players[consoleplayer].readyweapon];
+     }
++#endif
+     vis->x1 = x1 < 0 ? 0 : x1;
+     vis->x2 = x2 >= viewwidth ? viewwidth - 1 : x2;
+     vis->scale = pspritescale << detailshift;
+diff --git a/src/hexen/sb_bar.c b/src/hexen/sb_bar.c
+index fa94d59..35c200e 100644
+--- a/src/hexen/sb_bar.c
++++ b/src/hexen/sb_bar.c
+@@ -747,6 +747,9 @@ void SB_Drawer(void)
+     {
+         DrawSoundInfo();
+     }
++#if HEIGHT_HACK
++    patch_yadd = SCREENHEIGHTFIX;
++#endif
+     CPlayer = &players[consoleplayer];
+     if (viewheight == SCREENHEIGHT && !automapactive)
+     {
+@@ -800,6 +803,9 @@ void SB_Drawer(void)
+             SB_state = 1;
+         }
+     }
++#if HEIGHT_HACK
++    patch_yadd = 0;
++#endif
+     SB_PaletteFlash(false);
+     DrawAnimatedIcons();
+ }
+diff --git a/src/hexen/st_start.c b/src/hexen/st_start.c
+index aa10435..5633b7f 100644
+--- a/src/hexen/st_start.c
++++ b/src/hexen/st_start.c
+@@ -120,6 +120,10 @@ void ST_Init(void)
+     byte *pal;
+     byte *buffer;
+     
++#if EMBEDDED
++#define graphical_startup 0
++#define using_graphical_startup 0
++#else
+     using_graphical_startup = false;
+ 
+     if (graphical_startup && !debugmode && !testcontrols)
+@@ -148,6 +152,7 @@ void ST_Init(void)
+             Z_Free(buffer);
+         }
+     }
++#endif
+ }
+ 
+ void ST_Done(void)
+diff --git a/src/i_endoom.c b/src/i_endoom.c
+index 9beacc9..f233f75 100644
+--- a/src/i_endoom.c
++++ b/src/i_endoom.c
+@@ -39,6 +39,9 @@ void I_Endoom(byte *endoom_data)
+ 
+     // Set up text mode screen
+ 
++#if EMBEDDED
++    return;
++#endif
+     TXT_Init();
+ 
+     TXT_SetWindowTitle(PACKAGE_STRING);
+diff --git a/src/i_glob.c b/src/i_glob.c
+index 79c3e89..e1786b2 100644
+--- a/src/i_glob.c
++++ b/src/i_glob.c
+@@ -366,7 +366,13 @@ void I_EndGlob(glob_t *glob)
+ 
+ const char *I_NextGlob(glob_t *glob)
+ {
+-    return "";
++    return NULL;
++}
++
++glob_t *I_StartMultiGlob(const char *directory, int flags,
++                         const char *glob, ...)
++{
++    return NULL;
+ }
+ 
+ #endif /* #ifdef NO_DIRENT_IMPLEMENTATION */
+diff --git a/src/i_joystick.h b/src/i_joystick.h
+index 15c8daa..420c760 100644
+--- a/src/i_joystick.h
++++ b/src/i_joystick.h
+@@ -19,7 +19,11 @@
+ #ifndef __I_JOYSTICK__
+ #define __I_JOYSTICK__
+ 
++#ifndef EMBEDDED
+ #include "SDL_gamecontroller.h"
++#else
++#define SDL_CONTROLLER_BUTTON_MAX 0
++#endif
+ 
+ // Number of "virtual" joystick buttons defined in configuration files.
+ // This needs to be at least as large as the number of different key
+diff --git a/src/i_system.c b/src/i_system.c
+index dba3590..884bf53 100644
+--- a/src/i_system.c
++++ b/src/i_system.c
+@@ -49,8 +49,13 @@
+ #include "w_wad.h"
+ #include "z_zone.h"
+ 
++#if EMBEDDED
++extern int recalc_cache(unsigned cache_kb);
++#define DEFAULT_RAM 3 * 1024 /* KiB */
++#else
+ #define DEFAULT_RAM 16 /* MiB */
+ #define MIN_RAM     4  /* MiB */
++#endif
+ 
+ 
+ typedef struct atexit_listentry_s atexit_listentry_t;
+@@ -141,6 +146,17 @@ byte *I_ZoneBase (int *size)
+ 
+     if (p > 0)
+     {
++#if EMBEDDED
++        char *end, *end2;
++        default_ram = strtol(myargv[p+1], &end, 10) << 10;
++        if (*end == '.') {
++            unsigned extra = strtoul(end + 1, &end2, 10), div = 1;
++            while (++end != end2) div *= 10;
++            default_ram += (1024 * extra + div / 2) / div;
++        }
++    } else default_ram = recalc_cache(DEFAULT_RAM);
++    zonemem = malloc(*size = default_ram << 10);
++#else
+         default_ram = atoi(myargv[p+1]);
+         min_ram = default_ram;
+     }
+@@ -165,8 +181,9 @@ byte *I_ZoneBase (int *size)
+     }
+ 
+     zonemem = AutoAllocMemory(size, default_ram, min_ram);
++#endif
+ 
+-    printf("zone memory: %p, %x allocated for zone\n", 
++    printf("zone memory: %p, %u allocated for zone\n", 
+            zonemem, *size);
+ 
+     return zonemem;
+@@ -221,6 +238,8 @@ boolean I_ConsoleStdout(void)
+ #ifdef _WIN32
+     // SDL "helpfully" always redirects stdout to a file.
+     return false;
++#elif EMBEDDED
++    return false;
+ #else
+     return isatty(fileno(stdout));
+ #endif
+diff --git a/src/i_video.h b/src/i_video.h
+index d98b8f5..4b6ae78 100644
+--- a/src/i_video.h
++++ b/src/i_video.h
+@@ -25,7 +25,19 @@
+ // Screen width and height.
+ 
+ #define SCREENWIDTH  320
++#if EMBEDDED
++#define HEIGHT_HACK 1
++#endif
++#if HEIGHT_HACK
++#define SCREENHEIGHTOLD 200
++#define SCREENHEIGHTMAX 240
++extern int screenheight, patch_yadd;
++#define SCREENHEIGHT screenheight
++#define SCREENHEIGHTFIX (SCREENHEIGHT-SCREENHEIGHTOLD)
++#define SCREENHEIGHTFIX2 (SCREENHEIGHTFIX/2u)
++#else
+ #define SCREENHEIGHT 200
++#endif
+ 
+ // Screen height used when aspect_ratio_correct=true.
+ 
+@@ -107,4 +119,4 @@ extern unsigned int joywait;
+ extern int usemouse;
+ 
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/m_argv.c b/src/m_argv.c
+index a6be584..af43242 100644
+--- a/src/m_argv.c
++++ b/src/m_argv.c
+@@ -21,7 +21,9 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#if !EMBEDDED
+ #include "SDL_stdinc.h"
++#endif
+ 
+ #include "doomtype.h"
+ #include "d_iwad.h"
+diff --git a/src/m_config.c b/src/m_config.c
+index 0ef35ac..3afcdec 100644
+--- a/src/m_config.c
++++ b/src/m_config.c
+@@ -26,7 +26,9 @@
+ #include <assert.h>
+ #include <locale.h>
+ 
++#if !EMBEDDED
+ #include "SDL_filesystem.h"
++#endif
+ 
+ #include "config.h"
+ 
+@@ -2211,9 +2213,11 @@ static void SaveDefaultCollection(default_collection_t *collection)
+ 	        fprintf(f, "0x%x", *defaults[i].location.i);
+                 break;
+ 
++#if !NO_FLOAT
+             case DEFAULT_FLOAT:
+                 fprintf(f, "%f", *defaults[i].location.f);
+                 break;
++#endif
+ 
+             case DEFAULT_STRING:
+ 	        fprintf(f,"\"%s\"", *defaults[i].location.s);
+@@ -2232,10 +2236,14 @@ static int ParseIntParameter(const char *strparm)
+ {
+     int parm;
+ 
++#if EMBEDDED
++    parm = strtol(strparm, NULL, 0);
++#else
+     if (strparm[0] == '0' && strparm[1] == 'x')
+         sscanf(strparm+2, "%x", (unsigned int *) &parm);
+     else
+         sscanf(strparm, "%i", &parm);
++#endif
+ 
+     return parm;
+ }
+@@ -2277,6 +2285,7 @@ static void SetVariable(default_t *def, const char *value)
+             *def->location.i = intparm;
+             break;
+ 
++#if !NO_FLOAT
+         case DEFAULT_FLOAT:
+         {
+             // Different locales use different decimal separators.
+@@ -2314,6 +2323,7 @@ static void SetVariable(default_t *def, const char *value)
+             free(str);
+         }
+             break;
++#endif
+     }
+ }
+ 
+@@ -2335,6 +2345,19 @@ static void LoadDefaultCollection(default_collection_t *collection)
+         return;
+     }
+ 
++#if EMBEDDED
++    int a = 0;
++    while (a >= 0) {
++        int i = 0, n = 0;
++        while (a = fgetc(f), a >= 0 && a != '\n' && a != '\r') {
++            if ((a == ' ' || a == '\t') && (!i || !n)) {
++			          if (n) defname[n] = 0, n = 0, i++;
++            } else if (i) strparm[n] = a, n += n < sizeof(strparm) - 1;
++            else defname[n] = a, n += n < sizeof(defname) - 1;
++        }
++        if (!i || !n) continue;
++        strparm[n] = 0;
++#else
+     while (!feof(f))
+     {
+         if (fscanf(f, "%79s %99[^\n]\n", defname, strparm) != 2)
+@@ -2343,6 +2366,7 @@ static void LoadDefaultCollection(default_collection_t *collection)
+ 
+             continue;
+         }
++#endif
+ 
+         // Find the setting in the list
+ 
+@@ -2524,6 +2548,7 @@ void M_BindIntVariable(const char *name, int *location)
+     variable->bound = true;
+ }
+ 
++#if !NO_FLOAT
+ void M_BindFloatVariable(const char *name, float *location)
+ {
+     default_t *variable;
+@@ -2534,6 +2559,7 @@ void M_BindFloatVariable(const char *name, float *location)
+     variable->location.f = location;
+     variable->bound = true;
+ }
++#endif
+ 
+ void M_BindStringVariable(const char *name, char **location)
+ {
+@@ -2597,6 +2623,7 @@ const char *M_GetStringVariable(const char *name)
+     return *variable->location.s;
+ }
+ 
++#if !NO_FLOAT
+ float M_GetFloatVariable(const char *name)
+ {
+     default_t *variable;
+@@ -2611,10 +2638,17 @@ float M_GetFloatVariable(const char *name)
+ 
+     return *variable->location.f;
+ }
++#endif
+ 
+ // Get the path to the default configuration dir to use, if NULL
+ // is passed to M_SetConfigDir.
+ 
++#if EMBEDDED
++void M_SetConfigDir(const char *dir) { configdir = ""; }
++void M_SetMusicPackDir(void) {}
++char *M_GetSaveGameDir(const char *iwadname) { return ""; }
++char *M_GetAutoloadDir(const char *iwadname) { return NULL; }
++#else
+ static char *GetDefaultConfigDir(void)
+ {
+ #if !defined(_WIN32) || defined(_WIN32_WCE)
+@@ -2808,4 +2842,5 @@ char *M_GetAutoloadDir(const char *iwadname)
+     // TODO: Add README file
+ 
+     return result;
+-}
+\ No newline at end of file
++}
++#endif
+diff --git a/src/m_controls.c b/src/m_controls.c
+index e6c5812..35c4f43 100644
+--- a/src/m_controls.c
++++ b/src/m_controls.c
+@@ -34,7 +34,11 @@ int key_down = KEY_DOWNARROW;
+ int key_strafeleft = ',';
+ int key_straferight = '.';
+ int key_fire = KEY_RCTRL;
++#if EMBEDDED
++int key_use = KEY_ENTER;
++#else
+ int key_use = ' ';
++#endif
+ int key_strafe = KEY_RALT;
+ int key_speed = KEY_RSHIFT; 
+ 
+@@ -52,7 +56,11 @@ int key_lookcenter = KEY_END;
+ 
+ int key_invleft = '[';
+ int key_invright = ']';
++#if EMBEDDED
++int key_useartifact = ' ';
++#else
+ int key_useartifact = KEY_ENTER;
++#endif
+ 
+ int key_arti_quartz = 0;
+ int key_arti_urn = 0;
+@@ -144,8 +152,13 @@ int key_weapon5 = '5';
+ int key_weapon6 = '6';
+ int key_weapon7 = '7';
+ int key_weapon8 = '8';
++#if 1
++int key_prevweapon = ';';
++int key_nextweapon = '\'';
++#else
+ int key_prevweapon = 0;
+ int key_nextweapon = 0;
++#endif
+ 
+ // Map control keys:
+ 
+@@ -171,8 +184,13 @@ int key_menu_left      = KEY_LEFTARROW;
+ int key_menu_right     = KEY_RIGHTARROW;
+ int key_menu_back      = KEY_BACKSPACE;
+ int key_menu_forward   = KEY_ENTER;
++#if EMBEDDED
++int key_menu_confirm   = KEY_ENTER;
++int key_menu_abort     = KEY_ESCAPE;
++#else
+ int key_menu_confirm   = 'y';
+ int key_menu_abort     = 'n';
++#endif
+ 
+ int key_menu_help      = KEY_F1;
+ int key_menu_save      = KEY_F2;
+diff --git a/src/m_fixed.c b/src/m_fixed.c
+index d2c1818..ecf373e 100644
+--- a/src/m_fixed.c
++++ b/src/m_fixed.c
+@@ -30,6 +30,7 @@
+ 
+ // Fixme. __USE_C_FIXED__ or something.
+ 
++#ifndef USE_ASM
+ fixed_t
+ FixedMul
+ ( fixed_t	a,
+@@ -44,6 +45,30 @@ FixedMul
+ // FixedDiv, C version.
+ //
+ 
++#if EMBEDDED
++fixed_t FixedDiv(fixed_t a, fixed_t b) {
++	unsigned r0 = a, r1 = b;
++	unsigned r12 = r0 ^ r1, r2, r3;
++	r2 = r0 ^ ((int32_t)r0 >> 31);
++	r3 = r1 ^ ((int32_t)r1 >> 31);
++	r2 -= ((int32_t)r0 >> 31);
++	r3 -= ((int32_t)r1 >> 31);
++	r1 = r2 >> 15; r2 <<= 17;
++	r0 = 0x7fffffff ^ ((int32_t)r12 >> 31);
++	if (r1 >= r3) return r0;
++	r0 = 2;
++	for (;;) {
++		int end = r0;
++		r1 = r1 << 1 | r2 >> 31;
++		r2 <<= 1;
++		r0 += r0;
++		if (r1 >= r3) r0++, r1 -= r3;
++		if (end < 0) break;
++	}
++	if (r12 >> 31) r0 = -r0;
++	return r0;
++}
++#else
+ fixed_t FixedDiv(fixed_t a, fixed_t b)
+ {
+     if ((abs(a) >> 14) >= abs(b))
+@@ -59,4 +84,6 @@ fixed_t FixedDiv(fixed_t a, fixed_t b)
+ 	return (fixed_t) result;
+     }
+ }
++#endif
++#endif
+ 
+diff --git a/src/m_fixed.h b/src/m_fixed.h
+index 733b290..8b97cc6 100644
+--- a/src/m_fixed.h
++++ b/src/m_fixed.h
+@@ -31,6 +31,11 @@
+ 
+ typedef int fixed_t;
+ 
++#ifdef USE_ASM
++#define FixedMul FixedMulAsm
++#define FixedDiv FixedDivAsm
++#endif
++
+ fixed_t FixedMul	(fixed_t a, fixed_t b);
+ fixed_t FixedDiv	(fixed_t a, fixed_t b);
+ 
+diff --git a/src/m_misc.c b/src/m_misc.c
+index ba1e188..465ee0f 100644
+--- a/src/m_misc.c
++++ b/src/m_misc.c
+@@ -174,6 +174,8 @@ int M_remove(const char *path)
+     free(wpath);
+ 
+     return ret;
++#elif EMBEDDED
++    return 0;
+ #else
+     return remove(path);
+ #endif
+@@ -207,6 +209,8 @@ int M_rename(const char *oldname, const char *newname)
+     free(wnew);
+ 
+     return ret;
++#elif EMBEDDED
++    return 0;
+ #else
+     return rename(oldname, newname);
+ #endif
+@@ -339,7 +343,11 @@ boolean M_FileExists(const char *filename)
+         // If we can't open because the file is a directory, the 
+         // "file" exists at least!
+ 
++#if EMBEDDED
++        return false;
++#else
+         return errno == EISDIR;
++#endif
+     }
+ }
+ 
+@@ -519,10 +527,15 @@ char *M_TempFile(const char *s)
+ 
+ boolean M_StrToInt(const char *str, int *result)
+ {
++#if EMBEDDED
++    *result = strtol(str, NULL, 0);
++    return 1;
++#else
+     return sscanf(str, " 0x%x", (unsigned int *) result) == 1
+         || sscanf(str, " 0X%x", (unsigned int *) result) == 1
+         || sscanf(str, " 0%o", (unsigned int *) result) == 1
+         || sscanf(str, " %d", result) == 1;
++#endif
+ }
+ 
+ // Returns the directory portion of the given path, without the trailing
+diff --git a/src/strife/am_map.c b/src/strife/am_map.c
+index e36fb56..a881d87 100644
+--- a/src/strife/am_map.c
++++ b/src/strife/am_map.c
+@@ -175,7 +175,11 @@ static int 	cheating = 0;
+ 
+ boolean    	automapactive = false;
+ static int 	finit_width = SCREENWIDTH;
++#if HEIGHT_HACK
++#define finit_height (SCREENHEIGHT - 32)
++#else
+ static int 	finit_height = SCREENHEIGHT - 32;
++#endif
+ 
+ // location of window on screen
+ static int 	f_x;
+diff --git a/src/strife/d_main.c b/src/strife/d_main.c
+index 72157b7..ddab809 100644
+--- a/src/strife/d_main.c
++++ b/src/strife/d_main.c
+@@ -140,7 +140,11 @@ boolean         isdemoversion;
+ int             show_endoom = 1;
+ int             show_diskicon = 1;
+ int             graphical_startup = 1;
++#if EMBEDDED
++#define using_text_startup 0
++#else
+ static boolean  using_text_startup;
++#endif
+ 
+ // If true, startup has completed and the main game loop has started.
+ 
+@@ -1280,7 +1284,9 @@ static void D_InitIntroSequence(void)
+ 
+     if (devparm || !graphical_startup || testcontrols)
+     {
++#if !EMBEDDED
+         using_text_startup = false;
++#endif
+         showintro = false;
+         return;
+     }
+@@ -1307,6 +1313,7 @@ static void D_InitIntroSequence(void)
+         // Draw the background
+         D_IntroBackground();
+ 
++#if !EMBEDDED
+         using_text_startup = false;
+     }
+     else
+@@ -1361,6 +1368,7 @@ static void D_InitIntroSequence(void)
+         D_DrawText(string, TXT_COLOR_BLUE, TXT_COLOR_GREEN);
+ 
+         TXT_UpdateScreen();
++#endif
+     }
+ }
+ 
+@@ -1529,6 +1537,7 @@ void D_DoomMain (void)
+     // in the game itself.
+     //
+ 
++#if !NO_NET
+     if (M_CheckParm("-dedicated") > 0)
+     {
+         printf("Dedicated server mode.\n");
+@@ -1577,6 +1586,7 @@ void D_DoomMain (void)
+         NET_LANQuery();
+         exit(0);
+     }
++#endif
+ 
+     //!
+     // @category game
+diff --git a/src/strife/d_net.c b/src/strife/d_net.c
+index 26d8078..1af5373 100644
+--- a/src/strife/d_net.c
++++ b/src/strife/d_net.c
+@@ -216,6 +216,9 @@ void D_ConnectNetGame(void)
+ {
+     net_connect_data_t connect_data;
+ 
++#if NO_NET
++    return;
++#endif
+     InitConnectData(&connect_data);
+     netgame = D_InitNetGame(&connect_data);
+ 
+diff --git a/src/strife/doomdef.h b/src/strife/doomdef.h
+index cdb6454..df01cb2 100644
+--- a/src/strife/doomdef.h
++++ b/src/strife/doomdef.h
+@@ -44,7 +44,9 @@
+ 
+ // If rangecheck is undefined,
+ // most parameter validation debugging code will not be compiled
++#ifndef NORANGECHECKING
+ #define RANGECHECK
++#endif
+ 
+ // The current state of the game: whether we are
+ // playing, gazing at the intermission screen,
+diff --git a/src/strife/g_game.c b/src/strife/g_game.c
+index 56925db..5d99f82 100644
+--- a/src/strife/g_game.c
++++ b/src/strife/g_game.c
+@@ -199,7 +199,11 @@ static const struct
+ #define NUMKEYS		256 
+ #define MAX_JOY_BUTTONS 20
+ 
++#if EMBEDDED
++char gamekeydown[NUMKEYS];
++#else
+ static boolean  gamekeydown[NUMKEYS]; 
++#endif
+ static int      turnheld;		// for accelerative turning 
+  
+ static boolean  mousearray[MAX_MOUSE_BUTTONS + 1];
+@@ -2471,14 +2475,22 @@ boolean G_CheckDemoStatus (void)
+ 
+         endtime = I_GetTime (); 
+         realtics = endtime - starttime;
++#if !NO_FLOAT
+         fps = ((float) gametic * TICRATE) / realtics;
++#endif
+ 
+         // Prevent recursive calls
+         timingdemo = false;
+         demoplayback = false;
+ 
++#if NO_FLOAT
++        (void)fps;
++        I_Error ("timed %i gametics in %i realtics",
++                 gametic, realtics);
++#else
+         I_Error ("timed %i gametics in %i realtics (%f fps)",
+                  gametic, realtics, fps);
++#endif
+     } 
+ 
+     if (demoplayback) 
+diff --git a/src/strife/r_plane.c b/src/strife/r_plane.c
+index 5bc643c..b5ca3e4 100644
+--- a/src/strife/r_plane.c
++++ b/src/strife/r_plane.c
+@@ -67,6 +67,10 @@ short			ceilingclip[SCREENWIDTH];
+ // spanstart holds the start of a plane span
+ // initialized to 0 at start
+ //
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT SCREENHEIGHTMAX
++#endif
+ int			spanstart[SCREENHEIGHT];
+ int			spanstop[SCREENHEIGHT];
+ 
+@@ -85,6 +89,10 @@ fixed_t			cachedheight[SCREENHEIGHT];
+ fixed_t			cacheddistance[SCREENHEIGHT];
+ fixed_t			cachedxstep[SCREENHEIGHT];
+ fixed_t			cachedystep[SCREENHEIGHT];
++#if HEIGHT_HACK
++#undef SCREENHEIGHT
++#define SCREENHEIGHT screenheight
++#endif
+ 
+ 
+ 
+diff --git a/src/strife/r_plane.h b/src/strife/r_plane.h
+index 57b50e5..1514671 100644
+--- a/src/strife/r_plane.h
++++ b/src/strife/r_plane.h
+@@ -37,7 +37,11 @@ extern planefunction_t	ceilingfunc_t;
+ extern short		floorclip[SCREENWIDTH];
+ extern short		ceilingclip[SCREENWIDTH];
+ 
++#if HEIGHT_HACK
++extern fixed_t		yslope[SCREENHEIGHTMAX];
++#else
+ extern fixed_t		yslope[SCREENHEIGHT];
++#endif
+ extern fixed_t		distscale[SCREENWIDTH];
+ 
+ void R_InitPlanes (void);
+diff --git a/src/v_video.c b/src/v_video.c
+index c35f259..8d3de56 100644
+--- a/src/v_video.c
++++ b/src/v_video.c
+@@ -148,6 +148,17 @@ void V_DrawPatch(int x, int y, patch_t *patch)
+     byte *source;
+     int w;
+ 
++#if HEIGHT_HACK
++    /* height fix */
++    if (!(y | x) && patch->height == SCREENHEIGHTOLD) {
++	y = SCREENHEIGHTFIX2;
++	desttop = I_VideoBuffer;
++	memset(desttop, 0, y * SCREENWIDTH);
++	memset(desttop + (y + SCREENHEIGHTOLD) * SCREENWIDTH,
++	    0, y * SCREENWIDTH);
++	V_MarkRect(0, 0, patch->width, SCREENHEIGHT);
++    } else y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset);
+     x -= SHORT(patch->leftoffset);
+ 
+@@ -212,6 +223,9 @@ void V_DrawPatchFlipped(int x, int y, patch_t *patch)
+     byte *source; 
+     int w; 
+  
++#if HEIGHT_HACK
++    y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset); 
+     x -= SHORT(patch->leftoffset); 
+ 
+@@ -286,6 +300,9 @@ void V_DrawTLPatch(int x, int y, patch_t * patch)
+     byte *source;
+     int w;
+ 
++#if HEIGHT_HACK
++    y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset);
+     x -= SHORT(patch->leftoffset);
+ 
+@@ -337,6 +354,9 @@ void V_DrawXlaPatch(int x, int y, patch_t * patch)
+     byte *source;
+     int w;
+ 
++#if HEIGHT_HACK
++    y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset);
+     x -= SHORT(patch->leftoffset);
+ 
+@@ -387,6 +407,9 @@ void V_DrawAltTLPatch(int x, int y, patch_t * patch)
+     byte *source;
+     int w;
+ 
++#if HEIGHT_HACK
++    y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset);
+     x -= SHORT(patch->leftoffset);
+ 
+@@ -439,6 +462,9 @@ void V_DrawShadowedPatch(int x, int y, patch_t *patch)
+     pixel_t *desttop2, *dest2;
+     int w;
+ 
++#if HEIGHT_HACK
++    y += patch_yadd;
++#endif
+     y -= SHORT(patch->topoffset);
+     x -= SHORT(patch->leftoffset);
+ 
+@@ -594,7 +620,16 @@ void V_DrawBox(int x, int y, int w, int h, int c)
+  
+ void V_DrawRawScreen(pixel_t *raw)
+ {
++#if HEIGHT_HACK
++    pixel_t *dest = dest_screen;
++    int y = SCREENHEIGHTFIX2;
++    memset(dest, 0, y * SCREENWIDTH);
++    dest += y * SCREENWIDTH;
++    memset(dest + SCREENHEIGHTOLD * SCREENWIDTH, 0, y * SCREENWIDTH);
++    memcpy(dest, raw, SCREENWIDTH * SCREENHEIGHTOLD * sizeof(*dest));
++#else
+     memcpy(dest_screen, raw, SCREENWIDTH * SCREENHEIGHT * sizeof(*dest_screen));
++#endif
+ }
+ 
+ //
+@@ -892,6 +927,9 @@ void V_ScreenShot(const char *format)
+     }
+ }
+ 
++#if NO_MOUSE
++void V_DrawMouseSpeedBox(int speed) {}
++#else
+ #define MOUSE_SPEED_BOX_WIDTH  120
+ #define MOUSE_SPEED_BOX_HEIGHT 9
+ #define MOUSE_SPEED_BOX_X (SCREENWIDTH - MOUSE_SPEED_BOX_WIDTH - 10)
+@@ -1020,4 +1058,5 @@ void V_DrawMouseSpeedBox(int speed)
+         DrawNonAcceleratingBox(speed);
+     }
+ }
++#endif
+ 

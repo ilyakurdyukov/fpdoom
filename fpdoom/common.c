@@ -189,6 +189,13 @@ char* strrchr(const char *str, int ch) {
 	return found;
 }
 
+void* memchr(const void *src, int ch, size_t len) {
+	const uint8_t *s = (const uint8_t*)src;
+	for (; len--; s++)
+		if (*s == (uint8_t)ch) return s;
+	return NULL;
+}
+
 int toupper(int ch) {
 	if ((unsigned)(ch - 'a') <= 'z' - 'a')
 		ch -= 'a' - 'A';

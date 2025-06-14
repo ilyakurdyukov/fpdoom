@@ -12,6 +12,7 @@ There are other ports that reuse code written for FPDoom:
 [infones](infones): NES emulator  
 [wolf3d](wolf3d): Wolfenstein 3D  
 [snes9x](snes9x): SNES emulator  
+[chocolate-doom](chocolate-doom): Heretic, Hexen  
 
 ### Installation on SD card
 

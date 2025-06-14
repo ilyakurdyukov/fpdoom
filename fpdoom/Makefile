@@ -2,15 +2,22 @@
 CHIP = 0
 TWO_STAGE = 1
 LIBC_SDIO = 0
+USE_ASM = 1
 PACK_RELOC = ../pack_reloc/pack_reloc
 OBJDIR = obj$(CHIP)
 SRCS = asmcode usbio common libc syscomm syscode
 ifneq ($(LIBC_SDIO), 0)
 SRCS += sdio microfat
 endif
-SRCS += doomasm keytrn scr_update
+SRCS += keytrn scr_update
+ifneq ($(USE_ASM), 0)
+SRCS += doomasm
+endif
 
 DOOM_DIR = ../doom_src
+NAME = fpdoom
+NM = nm
+
 DOOM_SRCS = \
 	doomdef doomstat dstrings tables f_finale f_wipe \
 	d_main d_net d_items g_game m_menu m_misc m_argv m_bbox \
@@ -34,7 +41,6 @@ OBJS = $(OBJS1) $(OBJS2)
 endif
 
 LDSCRIPT = sc6531e_fdl.ld
-NAME = fpdoom
 
 ifdef TOOLCHAIN
 CC = "$(TOOLCHAIN)"-gcc
@@ -74,7 +80,10 @@ CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DCHIPRAM_ARGS=1
 endif
 
-DOOM_CFLAGS = -DEMBEDDED=2 -DNORMALUNIX -DLINUX -DUSEASM
+DOOM_CFLAGS = -DEMBEDDED=2 -DNORMALUNIX -DLINUX
+ifneq ($(USE_ASM), 0)
+CFLAGS += -DUSE_ASM
+endif
 DOOM_CFLAGS += -Wno-unused-parameter -Wno-unused -Wno-missing-field-initializers
 DOOM_CFLAGS += -Wno-strict-prototypes
 
@@ -89,7 +98,8 @@ endif
 
 .PHONY: all clean
 
-all: $(NAME).bin
+all: $(NAME).bin map
+map: $(OBJDIR)/$(NAME)_map.txt
 
 clean:
 	$(RM) -r $(OBJDIR) $(NAME).bin
@@ -123,6 +133,9 @@ ifeq ($(TWO_STAGE), 0)
 $(OBJDIR)/$(NAME).elf: $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o $@
 
+$(OBJDIR)/$(NAME)_map.txt: $(OBJDIR)/$(NAME).elf
+	$(NM) -n $< > $@
+
 $(NAME).bin: $(OBJDIR)/$(NAME).elf $(OBJDIR)/$(NAME).rel
 	$(OBJCOPY) -O binary -j .text $< $@
 	cat $(OBJDIR)/$(NAME).rel >> $@
@@ -132,6 +145,9 @@ $(OBJDIR)/$(NAME)_part1.elf: $(OBJS1)
 
 $(OBJDIR)/$(NAME)_part2.elf: $(OBJS2)
 	$(CC) $(LFLAGS) $(OBJS2) -o $@
+
+$(OBJDIR)/$(NAME)_map.txt: $(OBJDIR)/$(NAME)_part2.elf
+	$(NM) -n $< > $@
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary -j .text $< $@

@@ -13,7 +13,8 @@ endif
 
 FPBIN = $(BINDIR)/sdcard/fpbin
 APPS = fpdoom fpduke3d fpsw fpblood infones \
-	wolf3d wolf3d_sw snes9x snes9x_16bit
+	wolf3d wolf3d_sw snes9x snes9x_16bit \
+	chocolate-doom chocolate-heretic chocolate-hexen
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
@@ -45,6 +46,9 @@ wolf3d/Wolf4SDL:
 
 snes9x/snes9x_src:
 	$(call getsrc,snes9x)
+
+chocolate-doom/chocolate-doom:
+	$(call getsrc,chocolate-doom)
 
 define makebin
 	cd $(1) && $(MAKE) clean $(2)
@@ -85,6 +89,15 @@ $(BINDIR)/usb/snes9x.bin: snes9x/snes9x_src
 
 $(BINDIR)/usb/snes9x_16bit.bin: snes9x/snes9x_src
 	$(call makebin,snes9x,LIBC_SDIO=0 NAME=snes9x_16bit)
+
+$(BINDIR)/usb/chocolate-doom.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=doom)
+
+$(BINDIR)/usb/chocolate-heretic.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=heretic)
+
+$(BINDIR)/usb/chocolate-hexen.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=hexen)
 
 # SD card mode
 
@@ -133,4 +146,13 @@ $(FPBIN)/snes9x.bin: snes9x/snes9x_src
 
 $(FPBIN)/snes9x_16bit.bin: snes9x/snes9x_src
 	$(call makebin,snes9x,LIBC_SDIO=3 NAME=snes9x_16bit)
+
+$(FPBIN)/chocolate-doom.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=doom)
+
+$(FPBIN)/chocolate-heretic.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=heretic)
+
+$(FPBIN)/chocolate-hexen.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=hexen)
 

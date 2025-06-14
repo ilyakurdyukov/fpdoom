@@ -837,7 +837,7 @@ index a327bfa..89ae9a0 100644
  }
 +#endif
 diff --git a/i_system.c b/i_system.c
-index 1b67d51..d80ff66 100644
+index 1b67d51..1de37e8 100644
 --- a/i_system.c
 +++ b/i_system.c
 @@ -30,7 +30,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -852,11 +852,12 @@ index 1b67d51..d80ff66 100644
  
  #include "doomdef.h"
  #include "m_misc.h"
-@@ -48,7 +52,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+@@ -48,7 +52,12 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
  
  
  
 +#ifdef EMBEDDED
++extern int recalc_cache(unsigned cache_kb);
 +int	mb_used = 3;
 +#else
  int	mb_used = 6;
@@ -864,14 +865,14 @@ index 1b67d51..d80ff66 100644
  
  
  void
-@@ -68,6 +76,23 @@ ticcmd_t*	I_BaseTiccmd(void)
+@@ -68,6 +77,23 @@ ticcmd_t*	I_BaseTiccmd(void)
  }
  
  
 +#ifdef EMBEDDED
 +#include "m_argv.h"
 +byte* I_ZoneBase(int *size) {
-+    int default_ram = mb_used << 10;
++    int default_ram;
 +    int p = M_CheckParm("-mb");
 +    if (p && p + 1 < myargc) {
 +	char *end, *end2;
@@ -881,14 +882,14 @@ index 1b67d51..d80ff66 100644
 +	    while (++end != end2) div *= 10;
 +	    default_ram += (1024 * extra + div / 2) / div;
 +	}
-+    }
++    } else default_ram = recalc_cache(mb_used << 10);
 +    return (byte*)malloc(*size = default_ram << 10);
 +}
 +#else
  int  I_GetHeapSize (void)
  {
      return mb_used*1024*1024;
-@@ -78,6 +103,7 @@ byte* I_ZoneBase (int*	size)
+@@ -78,6 +104,7 @@ byte* I_ZoneBase (int*	size)
      *size = mb_used*1024*1024;
      return (byte *) malloc (*size);
  }
@@ -896,7 +897,7 @@ index 1b67d51..d80ff66 100644
  
  
  
-@@ -87,16 +113,41 @@ byte* I_ZoneBase (int*	size)
+@@ -87,16 +114,41 @@ byte* I_ZoneBase (int*	size)
  //
  int  I_GetTime (void)
  {
@@ -940,7 +941,7 @@ index 1b67d51..d80ff66 100644
  }
  
  
-@@ -125,15 +176,11 @@ void I_Quit (void)
+@@ -125,15 +177,11 @@ void I_Quit (void)
  
  void I_WaitVBL(int count)
  {
@@ -1243,7 +1244,7 @@ index 786a717..00da20b 100644
  
  
 diff --git a/m_fixed.c b/m_fixed.c
-index 4e0792d..295541d 100644
+index 4e0792d..73894f7 100644
 --- a/m_fixed.c
 +++ b/m_fixed.c
 @@ -35,7 +35,36 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -1251,7 +1252,7 @@ index 4e0792d..295541d 100644
  #include "m_fixed.h"
  
 +#ifdef EMBEDDED
-+#ifndef USEASM
++#ifndef USE_ASM
 +fixed_t FixedMul(fixed_t a, fixed_t b) {
 +    return ((long long)a * (long long)b) >> FRACBITS;
 +}
@@ -1305,14 +1306,14 @@ index 4e0792d..295541d 100644
  }
 +#endif
 diff --git a/m_fixed.h b/m_fixed.h
-index 7cd7c66..e0e54cf 100644
+index 7cd7c66..9acd608 100644
 --- a/m_fixed.h
 +++ b/m_fixed.h
 @@ -37,6 +37,11 @@
  
  typedef int fixed_t;
  
-+#ifdef USEASM
++#ifdef USE_ASM
 +#define FixedMul FixedMulAsm
 +#define FixedDiv FixedDivAsm
 +#endif
@@ -2547,18 +2548,20 @@ index 6c842a5..645e9db 100644
  
  
 diff --git a/r_draw.c b/r_draw.c
-index 0145044..e236549 100644
+index 0145044..fee5a9a 100644
 --- a/r_draw.c
 +++ b/r_draw.c
-@@ -66,6 +66,7 @@ int		scaledviewwidth;
+@@ -66,6 +66,9 @@ int		scaledviewwidth;
  int		viewheight;
  int		viewwindowx;
  int		viewwindowy; 
++#ifdef USE_ASM
 +byte*		firstpix;
++#endif
  byte*		ylookup[MAXHEIGHT]; 
  int		columnofs[MAXWIDTH]; 
  
-@@ -92,9 +93,16 @@ fixed_t			dc_texturemid;
+@@ -92,9 +95,16 @@ fixed_t			dc_texturemid;
  // first pixel in a column (possibly virtual) 
  byte*			dc_source;		
  
@@ -2573,11 +2576,11 @@ index 0145044..e236549 100644
 +#define RANGECHECK_COLUMN(dc_x, name)
 +#endif
  
-+#ifndef USEASM
++#ifndef USE_ASM
  //
  // A column is a vertical slice/span from a wall texture that,
  //  given the DOOM style restrictions on the view orientation,
-@@ -115,12 +123,7 @@ void R_DrawColumn (void)
+@@ -115,12 +125,7 @@ void R_DrawColumn (void)
      if (count < 0) 
  	return; 
  				 
@@ -2591,7 +2594,7 @@ index 0145044..e236549 100644
  
      // Framebuffer destination address.
      // Use ylookup LUT to avoid multiply with ScreenWidth.
-@@ -212,7 +215,6 @@ void R_DrawColumnLow (void)
+@@ -212,7 +217,6 @@ void R_DrawColumnLow (void)
  { 
      int			count; 
      byte*		dest; 
@@ -2599,7 +2602,7 @@ index 0145044..e236549 100644
      fixed_t		frac;
      fixed_t		fracstep;	 
   
-@@ -221,22 +223,11 @@ void R_DrawColumnLow (void)
+@@ -221,22 +225,11 @@ void R_DrawColumnLow (void)
      // Zero length.
      if (count < 0) 
  	return; 
@@ -2626,7 +2629,7 @@ index 0145044..e236549 100644
      
      fracstep = dc_iscale; 
      frac = dc_texturemid + (dc_yl-centery)*fracstep;
-@@ -244,13 +235,12 @@ void R_DrawColumnLow (void)
+@@ -244,13 +237,12 @@ void R_DrawColumnLow (void)
      do 
      {
  	// Hack. Does not work corretly.
@@ -2642,15 +2645,15 @@ index 0145044..e236549 100644
  
  
  //
-@@ -274,6 +264,7 @@ int	fuzzoffset[FUZZTABLE] =
+@@ -274,6 +266,7 @@ int	fuzzoffset[FUZZTABLE] =
  int	fuzzpos = 0; 
  
  
-+#ifndef USEASM
++#ifndef USE_ASM
  //
  // Framebuffer postprocessing.
  // Creates a fuzzy image by copying pixels
-@@ -286,8 +277,6 @@ void R_DrawFuzzColumn (void)
+@@ -286,8 +279,6 @@ void R_DrawFuzzColumn (void)
  { 
      int			count; 
      byte*		dest; 
@@ -2659,7 +2662,7 @@ index 0145044..e236549 100644
  
      // Adjust borders. Low... 
      if (!dc_yl) 
-@@ -304,48 +293,12 @@ void R_DrawFuzzColumn (void)
+@@ -304,48 +295,12 @@ void R_DrawFuzzColumn (void)
  	return; 
  
      
@@ -2709,7 +2712,7 @@ index 0145044..e236549 100644
      // Looks like an attempt at dithering,
      //  using the colormap #6 (of 0-31, a bit
      //  brighter than average).
-@@ -362,12 +315,51 @@ void R_DrawFuzzColumn (void)
+@@ -362,12 +317,51 @@ void R_DrawFuzzColumn (void)
  	    fuzzpos = 0;
  	
  	dest += SCREENWIDTH;
@@ -2763,7 +2766,7 @@ index 0145044..e236549 100644
   
  
  //
-@@ -393,38 +385,8 @@ void R_DrawTranslatedColumn (void)
+@@ -393,38 +387,8 @@ void R_DrawTranslatedColumn (void)
      if (count < 0) 
  	return; 
  				 
@@ -2793,17 +2796,17 @@ index 0145044..e236549 100644
 -    else
 -    {
 -	outp (SC_INDEX+1,1<<(dc_x&3)); 
--
--	dest = destview + dc_yl*80 + (dc_x>>2); 
--    }*/
 +    RANGECHECK_COLUMN(dc_x, R_DrawTranslatedColumn)
  
+-	dest = destview + dc_yl*80 + (dc_x>>2); 
+-    }*/
+-
 -    
 -    // FIXME. As above.
      dest = ylookup[dc_yl] + columnofs[dc_x]; 
  
      // Looks familiar.
-@@ -447,6 +409,38 @@ void R_DrawTranslatedColumn (void)
+@@ -447,6 +411,38 @@ void R_DrawTranslatedColumn (void)
  } 
  
  
@@ -2842,7 +2845,7 @@ index 0145044..e236549 100644
  
  
  //
-@@ -460,8 +454,12 @@ void R_InitTranslationTables (void)
+@@ -460,8 +456,12 @@ void R_InitTranslationTables (void)
  {
      int		i;
  	
@@ -2856,7 +2859,7 @@ index 0145044..e236549 100644
      
      // translate just the 16 green colors
      for (i=0 ; i<256 ; i++)
-@@ -511,10 +509,17 @@ fixed_t			ds_ystep;
+@@ -511,10 +511,17 @@ fixed_t			ds_ystep;
  // start of a 64*64 tile image 
  byte*			ds_source;	
  
@@ -2872,11 +2875,11 @@ index 0145044..e236549 100644
 +#define RANGECHECK_SPAN(m, name)
 +#endif
  
-+#ifndef USEASM
++#ifndef USE_ASM
  //
  // Draws the actual span.
  void R_DrawSpan (void) 
-@@ -524,19 +529,8 @@ void R_DrawSpan (void)
+@@ -524,19 +531,8 @@ void R_DrawSpan (void)
      byte*		dest; 
      int			count;
      int			spot; 
@@ -2897,7 +2900,7 @@ index 0145044..e236549 100644
      
      xfrac = ds_xfrac; 
      yfrac = ds_yfrac; 
-@@ -646,29 +640,15 @@ void R_DrawSpanLow (void)
+@@ -646,29 +642,15 @@ void R_DrawSpanLow (void)
      fixed_t		yfrac; 
      byte*		dest; 
      int			count;
@@ -2932,7 +2935,7 @@ index 0145044..e236549 100644
      
      count = ds_x2 - ds_x1; 
      do 
-@@ -676,14 +656,15 @@ void R_DrawSpanLow (void)
+@@ -676,14 +658,15 @@ void R_DrawSpanLow (void)
  	spot = ((yfrac>>(16-6))&(63*64)) + ((xfrac>>16)&63);
  	// Lowres/blocky mode does it twice,
  	//  while scale is adjusted appropriately.
@@ -2951,25 +2954,26 @@ index 0145044..e236549 100644
  
  //
  // R_InitBuffer 
-@@ -717,6 +698,9 @@ R_InitBuffer
+@@ -717,6 +700,10 @@ R_InitBuffer
      // Preclaculate all row offsets.
      for (i=0 ; i<height ; i++) 
  	ylookup[i] = screens[0] + (i+viewwindowy)*SCREENWIDTH; 
 +
-+    // First pixel address
++#ifdef USE_ASM
 +    firstpix = ylookup[0] + columnofs[0];
++#endif
  } 
   
   
 diff --git a/r_draw.h b/r_draw.h
-index 534fffd..b53b747 100644
+index 534fffd..ba9c479 100644
 --- a/r_draw.h
 +++ b/r_draw.h
 @@ -39,6 +39,15 @@ extern fixed_t		dc_texturemid;
  // first pixel in a column
  extern byte*		dc_source;		
  
-+#ifdef USEASM
++#ifdef USE_ASM
 +#define R_DrawColumn R_DrawColumnAsm
 +#define R_DrawFuzzColumn R_DrawFuzzColumnAsm
 +#define R_DrawSpan R_DrawSpanAsm

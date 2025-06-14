@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-typedef __time_t time_t;
+typedef long time_t;
 
 time_t time (time_t*);
 

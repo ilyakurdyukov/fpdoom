@@ -3,10 +3,6 @@
 
 #include "syscode.h"
 
-#if EMBEDDED == 2
-#define USE_ASM
-#endif
-
 void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
 
@@ -407,6 +403,20 @@ int main(int argc, char **argv) {
 	screenheight = *(int32_t*)sys_data.user;
 	D_DoomMain();
 	return 0;
+}
+
+int recalc_cache(unsigned cache_kb) {
+#if EMBEDDED == 2
+	uint32_t ram_addr = (uint32_t)&main & 0xfc000000;
+	uint32_t ram_size = *(volatile uint32_t*)ram_addr;
+	cache_kb += (ram_size >> 10) - (4 << 10);
+	// 160x128 mode uses less memory for the framebuffer
+	if (sys_data.display.h2 <= 128) cache_kb += 105;
+	if (cache_kb > 6 << 10) n = 6 << 10;
+#else
+	if (sizeof(void*) == 8) cache_kb *= 2;
+#endif
+	return cache_kb;
 }
 
 void lcd_appinit(void) {
