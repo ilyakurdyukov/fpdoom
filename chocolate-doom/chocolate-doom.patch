@@ -1395,7 +1395,7 @@ index 93af19e..814bdaf 100644
      {                           // Chess pic, draw the correct character graphic
          if (netgame)
 diff --git a/src/hexen/g_game.c b/src/hexen/g_game.c
-index ecfb383..57799ec 100644
+index ecfb383..5096db9 100644
 --- a/src/hexen/g_game.c
 +++ b/src/hexen/g_game.c
 @@ -144,7 +144,11 @@ static int next_weapon = 0;
@@ -1410,7 +1410,28 @@ index ecfb383..57799ec 100644
  int turnheld;                   // for accelerative turning
  int lookheld;
  
-@@ -2316,9 +2320,15 @@ boolean G_CheckDemoStatus(void)
+@@ -457,6 +461,9 @@ void G_BuildTiccmd(ticcmd_t *cmd, int maketic)
+     if (gamekeydown[key_jump] || mousebuttons[mousebjump]
+         || joybuttons[joybjump])
+     {
++#if EMBEDDED
++        if (!players[consoleplayer].powers[pw_flight])
++#endif
+         cmd->arti |= AFLAG_JUMP;
+     }
+     if (mn_SuicideConsole)
+@@ -870,6 +877,10 @@ static boolean InventoryMoveRight()
+     inv_ptr++;
+     if (inv_ptr >= plr->inventorySlotNum)
+     {
++#if EMBEDDED
++        inv_ptr = curpos = 0;
++        return true;
++#endif
+         inv_ptr--;
+         if (inv_ptr < 0)
+             inv_ptr = 0;
+@@ -2316,9 +2327,15 @@ boolean G_CheckDemoStatus(void)
          float fps;
          endtime = I_GetTime();
          realtics = endtime - starttime;
@@ -1516,7 +1537,7 @@ index 2bfdfb5..6c926ea 100644
  
  //-------
 diff --git a/src/hexen/mn_menu.c b/src/hexen/mn_menu.c
-index 57be51c..46eef18 100644
+index 57be51c..8fd0489 100644
 --- a/src/hexen/mn_menu.c
 +++ b/src/hexen/mn_menu.c
 @@ -516,6 +516,9 @@ void MN_Drawer(void)
@@ -1582,6 +1603,21 @@ index 57be51c..46eef18 100644
      if (event->type == ev_joystick)
      {
          // Simulate key presses from joystick events to interact with the menu.
+@@ -1904,9 +1925,14 @@ void MN_DeactivateMenu(void)
+ void MN_DrawInfo(void)
+ {
+     I_SetPalette(W_CacheLumpName("PLAYPAL", PU_CACHE));
++#if HEIGHT_HACK
++    V_DrawRawScreen(W_CacheLumpNum(W_GetNumForName("TITLE") + InfoType,
++                                   PU_CACHE));
++#else
+     memcpy(I_VideoBuffer,
+            (byte *) W_CacheLumpNum(W_GetNumForName("TITLE") + InfoType,
+                                    PU_CACHE), SCREENWIDTH * SCREENHEIGHT);
++#endif
+ //      V_DrawPatch(0, 0, W_CacheLumpNum(W_GetNumForName("TITLE")+InfoType,
+ //              PU_CACHE));
+ }
 diff --git a/src/hexen/r_draw.c b/src/hexen/r_draw.c
 index 13a0421..1f649d0 100644
 --- a/src/hexen/r_draw.c
@@ -1833,10 +1869,36 @@ index eadba47..1cb99f2 100644
 +#endif
  
 diff --git a/src/hexen/sb_bar.c b/src/hexen/sb_bar.c
-index fa94d59..55bd364 100644
+index fa94d59..e3832b7 100644
 --- a/src/hexen/sb_bar.c
 +++ b/src/hexen/sb_bar.c
-@@ -745,8 +745,13 @@ void SB_Drawer(void)
+@@ -211,9 +211,25 @@ cheatseq_t CheatTrackSeq1 = CHEAT("`", 0);
+ 
+ cheatseq_t CheatTrackSeq2 = CHEAT("`", 2);
+ 
++#if EMBEDDED
++cheatseq_t CheatIDKFASeq_new = CHEAT("idkfa", 0);
++cheatseq_t CheatIDDQDSeq = CHEAT("iddqd", 0);
++static void CheatIDKFAFunc_new(player_t * player, Cheat_t * cheat) {
++    CheatWeaponsFunc(player, cheat);
++    CheatKeysFunc(player, cheat);
++    CheatArtifactAllFunc(player, cheat);
++}
++#endif
++
+ static Cheat_t Cheats[] = {
++#if EMBEDDED
++    {CheatGodFunc, &CheatIDDQDSeq},
++    {CheatIDKFAFunc_new, &CheatIDKFASeq_new},
++#endif
++#if !NO_SOUND
+     {CheatTrackFunc1, &CheatTrackSeq1},
+     {CheatTrackFunc2, &CheatTrackSeq2},
++#endif
+     {CheatGodFunc, &CheatGodSeq},
+     {CheatNoClipFunc, &CheatNoClipSeq},
+     {CheatWeaponsFunc, &CheatWeaponsSeq},
+@@ -745,8 +761,13 @@ void SB_Drawer(void)
      // Sound info debug stuff
      if (DebugSound == true)
      {
@@ -1850,7 +1912,7 @@ index fa94d59..55bd364 100644
      CPlayer = &players[consoleplayer];
      if (viewheight == SCREENHEIGHT && !automapactive)
      {
-@@ -800,6 +805,9 @@ void SB_Drawer(void)
+@@ -800,6 +821,9 @@ void SB_Drawer(void)
              SB_state = 1;
          }
      }
@@ -2201,7 +2263,7 @@ index 0ef35ac..6d16ea4 100644
 +}
 +#endif
 diff --git a/src/m_controls.c b/src/m_controls.c
-index e6c5812..35c4f43 100644
+index e6c5812..e7127e6 100644
 --- a/src/m_controls.c
 +++ b/src/m_controls.c
 @@ -34,7 +34,11 @@ int key_down = KEY_DOWNARROW;
@@ -2228,7 +2290,19 @@ index e6c5812..35c4f43 100644
  
  int key_arti_quartz = 0;
  int key_arti_urn = 0;
-@@ -144,8 +152,13 @@ int key_weapon5 = '5';
+@@ -69,7 +77,11 @@ int key_arti_morph = 0;
+ // Hexen key controls
+ //
+ 
++#if EMBEDDED
++int key_jump = KEY_PGUP;
++#else
+ int key_jump = '/';
++#endif
+ 
+ int key_arti_all             = KEY_BACKSPACE;
+ int key_arti_health          = '\\';
+@@ -144,8 +156,13 @@ int key_weapon5 = '5';
  int key_weapon6 = '6';
  int key_weapon7 = '7';
  int key_weapon8 = '8';
@@ -2242,7 +2316,7 @@ index e6c5812..35c4f43 100644
  
  // Map control keys:
  
-@@ -171,8 +184,13 @@ int key_menu_left      = KEY_LEFTARROW;
+@@ -171,8 +188,13 @@ int key_menu_left      = KEY_LEFTARROW;
  int key_menu_right     = KEY_RIGHTARROW;
  int key_menu_back      = KEY_BACKSPACE;
  int key_menu_forward   = KEY_ENTER;

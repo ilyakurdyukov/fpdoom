@@ -446,7 +446,7 @@ index bab5e00..f9b3926 100644
  
  
 diff --git a/doomdef.h b/doomdef.h
-index 1850477..6ace803 100644
+index 1850477..3b45d84 100644
 --- a/doomdef.h
 +++ b/doomdef.h
 @@ -25,6 +25,7 @@
@@ -457,7 +457,17 @@ index 1850477..6ace803 100644
  
  //
  // Global parameters/defines.
-@@ -81,7 +82,7 @@ typedef enum
+@@ -72,7 +73,9 @@ typedef enum
+ 
+ // If rangecheck is undefined,
+ // most parameter validation debugging code will not be compiled
++#ifndef NORANGECHECKING
+ #define RANGECHECK
++#endif
+ 
+ // Do or do not use external soundserver.
+ // The sndserver binary to be run separately
+@@ -81,7 +84,7 @@ typedef enum
  //  and unfinished. Default is synchronous.
  // Experimental asynchronous timer based is
  //  handled by SNDINTR. 
@@ -466,7 +476,7 @@ index 1850477..6ace803 100644
  //#define SNDINTR  1
  
  
-@@ -109,8 +110,13 @@ typedef enum
+@@ -109,8 +112,13 @@ typedef enum
  // So there.
  #define SCREENWIDTH  320
  //SCREEN_MUL*BASE_WIDTH //320
