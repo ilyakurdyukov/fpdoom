@@ -510,23 +510,21 @@ index 5b0c818..d45e1a5 100644
  // The span blitting interface.
  // Hook in assembler or system specific BLT
 diff --git a/src/doom/r_main.c b/src/doom/r_main.c
-index 970bd19..6f2107c 100644
+index 970bd19..53325c4 100644
 --- a/src/doom/r_main.c
 +++ b/src/doom/r_main.c
-@@ -674,7 +674,12 @@ void R_ExecuteSetViewSize (void)
+@@ -674,6 +674,10 @@ void R_ExecuteSetViewSize (void)
  
      setsizeneeded = false;
  
 +#if HEIGHT_HACK
 +    /* overflow at 255 (byte arrays in visplanes) */
-+    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
-+#else
-     if (setblocks == 11)
++    if (setblocks == 11 && SCREENHEIGHT > SCREENHEIGHTMAX) setblocks = 10;
 +#endif
+     if (setblocks == 11)
      {
  	scaledviewwidth = SCREENWIDTH;
- 	viewheight = SCREENHEIGHT;
-@@ -682,7 +687,13 @@ void R_ExecuteSetViewSize (void)
+@@ -682,7 +686,13 @@ void R_ExecuteSetViewSize (void)
      else
      {
  	scaledviewwidth = setblocks*32;
@@ -540,7 +538,7 @@ index 970bd19..6f2107c 100644
      }
      
      detailshift = setdetail;
-@@ -714,8 +725,18 @@ void R_ExecuteSetViewSize (void)
+@@ -714,8 +724,18 @@ void R_ExecuteSetViewSize (void)
      R_InitTextureMapping ();
      
      // psprite scales
@@ -1072,7 +1070,7 @@ index cf58ed1..2a581b5 100644
  void R_DrawColumn(void);
  void R_DrawColumnLow(void);
 diff --git a/src/heretic/r_main.c b/src/heretic/r_main.c
-index 1ff6a68..7826ccf 100644
+index 1ff6a68..6e11545 100644
 --- a/src/heretic/r_main.c
 +++ b/src/heretic/r_main.c
 @@ -543,6 +543,10 @@ void R_SetViewSize(int blocks, int detail)
@@ -1086,20 +1084,18 @@ index 1ff6a68..7826ccf 100644
  void R_ExecuteSetViewSize(void)
  {
      fixed_t cosadj, dy;
-@@ -550,7 +554,12 @@ void R_ExecuteSetViewSize(void)
+@@ -550,6 +554,10 @@ void R_ExecuteSetViewSize(void)
  
      setsizeneeded = false;
  
 +#if HEIGHT_HACK
 +    /* overflow at 255 (byte arrays in visplanes) */
-+    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
-+#else
-     if (setblocks == 11)
++    if (setblocks == 11 && SCREENHEIGHT > SCREENHEIGHTMAX) setblocks = 10;
 +#endif
+     if (setblocks == 11)
      {
          scaledviewwidth = SCREENWIDTH;
-         viewheight = SCREENHEIGHT;
-@@ -558,10 +567,23 @@ void R_ExecuteSetViewSize(void)
+@@ -558,10 +566,23 @@ void R_ExecuteSetViewSize(void)
      else
      {
          scaledviewwidth = setblocks * 32;
@@ -1123,7 +1119,7 @@ index 1ff6a68..7826ccf 100644
      viewwidth = scaledviewwidth >> detailshift;
  
      centery = viewheight / 2;
-@@ -592,8 +614,25 @@ void R_ExecuteSetViewSize(void)
+@@ -592,8 +613,25 @@ void R_ExecuteSetViewSize(void)
  //
  // psprite scales
  //
@@ -1703,7 +1699,7 @@ index e9cb26c..97203eb 100644
  void R_DrawColumn(void);
  void R_DrawColumnLow(void);
 diff --git a/src/hexen/r_main.c b/src/hexen/r_main.c
-index 3bbb4fc..ee88818 100644
+index 3bbb4fc..1c8776a 100644
 --- a/src/hexen/r_main.c
 +++ b/src/hexen/r_main.c
 @@ -545,6 +545,10 @@ void R_SetViewSize(int blocks, int detail)
@@ -1717,20 +1713,18 @@ index 3bbb4fc..ee88818 100644
  void R_ExecuteSetViewSize(void)
  {
      fixed_t cosadj, dy;
-@@ -552,7 +556,12 @@ void R_ExecuteSetViewSize(void)
+@@ -552,6 +556,10 @@ void R_ExecuteSetViewSize(void)
  
      setsizeneeded = false;
  
 +#if HEIGHT_HACK
 +    /* overflow at 255 (byte arrays in visplanes) */
-+    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
-+#else
-     if (setblocks == 11)
++    if (setblocks == 11 && SCREENHEIGHT > SCREENHEIGHTMAX) setblocks = 10;
 +#endif
+     if (setblocks == 11)
      {
          scaledviewwidth = SCREENWIDTH;
-         viewheight = SCREENHEIGHT;
-@@ -560,10 +569,23 @@ void R_ExecuteSetViewSize(void)
+@@ -560,10 +568,23 @@ void R_ExecuteSetViewSize(void)
      else
      {
          scaledviewwidth = setblocks * 32;
@@ -1754,7 +1748,7 @@ index 3bbb4fc..ee88818 100644
      viewwidth = scaledviewwidth >> detailshift;
  
      centery = viewheight / 2;
-@@ -594,8 +616,25 @@ void R_ExecuteSetViewSize(void)
+@@ -594,8 +615,25 @@ void R_ExecuteSetViewSize(void)
  //
  // psprite scales
  //

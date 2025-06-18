@@ -330,13 +330,17 @@ int main(int argc, char **argv) {
 					draw.flags |= 4; draw_menu_adv(&draw, 1);
 					key_time[1] = sys_timer_ms();
 					break;
-				// TODO
 				//case 0x34: // 4
 				//case 0x06: // LEFT
-				//case 0x08: // LSOFT
+				// TODO: page up
 				//case 0x36: // 6
 				//case 0x07: // RIGHT
-				//case 0x09: // RSOFT
+				// TODO: page down
+				case 0x31: // 1
+				case 0x33: // 3
+				case 0x08: // LSOFT
+				case 0x09: // RSOFT
+				// some phones don't have a center key
 				case 0x0d: // CENTER
 					if (run_binary(&draw)) goto loop_end;
 					break;

@@ -3054,20 +3054,19 @@ index 534fffd..ba9c479 100644
  // The span blitting interface.
  // Hook in assembler or system specific BLT
 diff --git a/r_main.c b/r_main.c
-index ad942c7..2a9e797 100644
+index ad942c7..6c224c8 100644
 --- a/r_main.c
 +++ b/r_main.c
-@@ -679,7 +679,8 @@ void R_ExecuteSetViewSize (void)
+@@ -679,6 +679,8 @@ void R_ExecuteSetViewSize (void)
  
      setsizeneeded = false;
  
--    if (setblocks == 11)
 +    /* overflow at 255 (byte arrays in visplanes) */
-+    if (setblocks == 11 && SCREENHEIGHT <= SCREENHEIGHTMAX)
++    if (setblocks == 11 && SCREENHEIGHT > SCREENHEIGHTMAX) setblocks = 10;
+     if (setblocks == 11)
      {
  	scaledviewwidth = SCREENWIDTH;
- 	viewheight = SCREENHEIGHT;
-@@ -687,7 +688,9 @@ void R_ExecuteSetViewSize (void)
+@@ -687,7 +689,9 @@ void R_ExecuteSetViewSize (void)
      else
      {
  	scaledviewwidth = setblocks*32;
@@ -3078,7 +3077,7 @@ index ad942c7..2a9e797 100644
      }
      
      detailshift = setdetail;
-@@ -709,8 +712,8 @@ void R_ExecuteSetViewSize (void)
+@@ -709,8 +713,8 @@ void R_ExecuteSetViewSize (void)
      else
      {
  	colfunc = basecolfunc = R_DrawColumnLow;
@@ -3089,7 +3088,7 @@ index ad942c7..2a9e797 100644
  	spanfunc = R_DrawSpanLow;
      }
  
-@@ -719,8 +722,18 @@ void R_ExecuteSetViewSize (void)
+@@ -719,8 +723,18 @@ void R_ExecuteSetViewSize (void)
      R_InitTextureMapping ();
      
      // psprite scales
