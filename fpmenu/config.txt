@@ -14,6 +14,9 @@
 
 $@ = $@ --rotate 3
 
+# Menu colors (0xRRGGBB): bg text  sel_bg sel_text
+# $_colors = 0x00003f 0x0000ff  0x3f0000 0xff0000
+
 $nes_args = --dir games/nes infones
 # "--scaler 49" means auto resolution + widescreen scaler
 $nes = fpbin/infones.bin $@ --scaler 49 $nes_args
@@ -22,9 +25,11 @@ $nes2 = $nes --scanline_step 113
 # This crops the top and bottom tiles, there is garbage in some games.
 $nes_crop = fpbin/infones.bin $@ --scaler 149 $nes_args
 
-$snes_args = --dir games/snes snes9x
-$snes = fpbin/snes9x.bin $@ --scaler 49 $snes_args
-$snes16 = fpbin/snes9x_16bit.bin $@ --scaler 49 $snes_args
+$snes_args = --dir games/snes snes9x --crc 0 --nocheck
+$snes_pal = fpbin/snes9x.bin $@ --scaler 49 $snes_args
+$snes = fpbin/snes9x.bin $@ --scaler 149 $snes_args
+$snes16_pal = fpbin/snes9x_16bit.bin $@ --scaler 49 $snes_args
+$snes16 = fpbin/snes9x_16bit.bin $@ --scaler 149 $snes_args
 
 $doom = fpbin/fpdoom.bin $@
 

@@ -240,9 +240,28 @@ int main(int argc, char **argv) {
 
 	draw.pal[0].u16[0] = RGB565(0x000000); // bg
 	draw.pal[0].u16[1] = RGB565(0xffffff); // text
-	// selected
-	draw.pal[1].u16[0] = RGB565(0xffffff); // bgm
-	draw.pal[1].u16[1] = RGB565(0x000000); // text
+	draw.pal[1].u16[0] = RGB565(0xffffff); // sel_bg
+	draw.pal[1].u16[1] = RGB565(0x000000); // sel_text
+	{
+		char *vars = menu + *(uint32_t*)(menu + 4);
+		char *args = find_var("_colors", vars);
+		if (args) {
+			char *d = (char*)CHIPRAM_ADDR;
+			extract_args_t x = { 0, 0, d + 0x1000 };
+			if (!extract_args(0, &x, args, d + 6)) {
+				DBG_LOG("too many args\n");
+			} else if (x.argc != 4) {
+				DBG_LOG("wrong number of args (%d)\n", x.argc);
+			} else {
+				unsigned i, a; char *p = d + 6;
+				for (i = 0; i < 4; i++) {
+					a = strtol(p, NULL, 0);
+					((uint16_t*)draw.pal)[i] = RGB565(a);
+					while (*p++);
+				}
+			}
+		}
+	}
 
 	{
 		struct sys_display *disp = &sys_data.display;

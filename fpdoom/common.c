@@ -192,7 +192,7 @@ char* strrchr(const char *str, int ch) {
 void* memchr(const void *src, int ch, size_t len) {
 	const uint8_t *s = (const uint8_t*)src;
 	for (; len--; s++)
-		if (*s == (uint8_t)ch) return s;
+		if (*s == (uint8_t)ch) return (void*)s;
 	return NULL;
 }
 
