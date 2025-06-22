@@ -599,6 +599,35 @@ index 57b50e5..1514671 100644
  extern fixed_t		distscale[SCREENWIDTH];
  
  void R_InitPlanes (void);
+diff --git a/src/doom/r_segs.c b/src/doom/r_segs.c
+index 06881a5..a141ab1 100644
+--- a/src/doom/r_segs.c
++++ b/src/doom/r_segs.c
+@@ -254,6 +254,9 @@ void R_RenderSegLoop (void)
+ 	{
+ 	    // calculate texture offset
+ 	    angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
++#if HEIGHT_HACK // ASan
++	    angle &= FINEMASK/2;
++#endif
+ 	    texturecolumn = rw_offset-FixedMul(finetangent[angle],rw_distance);
+ 	    texturecolumn >>= FRACBITS;
+ 	    // calculate lighting
+diff --git a/src/doom/r_sky.c b/src/doom/r_sky.c
+index bcd5a75..d43f170 100644
+--- a/src/doom/r_sky.c
++++ b/src/doom/r_sky.c
+@@ -47,6 +47,10 @@ int			skytexturemid;
+ void R_InitSkyMap (void)
+ {
+   // skyflatnum = R_FlatNumForName ( SKYFLATNAME );
++#if HEIGHT_HACK
++    skytexturemid = SCREENHEIGHTOLD/2*FRACUNIT;
++#else
+     skytexturemid = SCREENHEIGHT/2*FRACUNIT;
++#endif
+ }
+ 
 diff --git a/src/doom/r_things.c b/src/doom/r_things.c
 index 5533fd9..18fbd50 100644
 --- a/src/doom/r_things.c
@@ -1070,10 +1099,22 @@ index cf58ed1..2a581b5 100644
  void R_DrawColumn(void);
  void R_DrawColumnLow(void);
 diff --git a/src/heretic/r_main.c b/src/heretic/r_main.c
-index 1ff6a68..6e11545 100644
+index 1ff6a68..395bea8 100644
 --- a/src/heretic/r_main.c
 +++ b/src/heretic/r_main.c
-@@ -543,6 +543,10 @@ void R_SetViewSize(int blocks, int detail)
+@@ -318,7 +318,11 @@ void R_InitPointToAngle(void)
+ fixed_t R_ScaleFromGlobalAngle(angle_t visangle)
+ {
+     fixed_t scale;
++#if 1 // ASan
++    angle_t anglea, angleb;
++#else
+     int anglea, angleb;
++#endif
+     int sinea, sineb;
+     fixed_t num, den;
+ 
+@@ -543,6 +547,10 @@ void R_SetViewSize(int blocks, int detail)
  ==============
  */
  
@@ -1084,7 +1125,7 @@ index 1ff6a68..6e11545 100644
  void R_ExecuteSetViewSize(void)
  {
      fixed_t cosadj, dy;
-@@ -550,6 +554,10 @@ void R_ExecuteSetViewSize(void)
+@@ -550,6 +558,10 @@ void R_ExecuteSetViewSize(void)
  
      setsizeneeded = false;
  
@@ -1095,7 +1136,7 @@ index 1ff6a68..6e11545 100644
      if (setblocks == 11)
      {
          scaledviewwidth = SCREENWIDTH;
-@@ -558,10 +566,23 @@ void R_ExecuteSetViewSize(void)
+@@ -558,10 +570,23 @@ void R_ExecuteSetViewSize(void)
      else
      {
          scaledviewwidth = setblocks * 32;
@@ -1119,7 +1160,7 @@ index 1ff6a68..6e11545 100644
      viewwidth = scaledviewwidth >> detailshift;
  
      centery = viewheight / 2;
-@@ -592,8 +613,25 @@ void R_ExecuteSetViewSize(void)
+@@ -592,8 +617,25 @@ void R_ExecuteSetViewSize(void)
  //
  // psprite scales
  //
@@ -1171,6 +1212,20 @@ index e9ed70c..17d7ed6 100644
  
  
  /*
+diff --git a/src/heretic/r_segs.c b/src/heretic/r_segs.c
+index b37c94d..e8fe8c4 100644
+--- a/src/heretic/r_segs.c
++++ b/src/heretic/r_segs.c
+@@ -230,6 +230,9 @@ void R_RenderSegLoop(void)
+         {
+             // calculate texture offset
+             angle = (rw_centerangle + xtoviewangle[rw_x]) >> ANGLETOFINESHIFT;
++#if HEIGHT_HACK // ASan
++            angle &= FINEMASK/2;
++#endif
+             texturecolumn =
+                 rw_offset - FixedMul(finetangent[angle], rw_distance);
+             texturecolumn >>= FRACBITS;
 diff --git a/src/heretic/r_things.c b/src/heretic/r_things.c
 index 88e35b9..5958d36 100644
 --- a/src/heretic/r_things.c
@@ -1699,10 +1754,22 @@ index e9cb26c..97203eb 100644
  void R_DrawColumn(void);
  void R_DrawColumnLow(void);
 diff --git a/src/hexen/r_main.c b/src/hexen/r_main.c
-index 3bbb4fc..1c8776a 100644
+index 3bbb4fc..92a2a24 100644
 --- a/src/hexen/r_main.c
 +++ b/src/hexen/r_main.c
-@@ -545,6 +545,10 @@ void R_SetViewSize(int blocks, int detail)
+@@ -320,7 +320,11 @@ void R_InitPointToAngle(void)
+ fixed_t R_ScaleFromGlobalAngle(angle_t visangle)
+ {
+     fixed_t scale;
++#if 1 // ASan
++    angle_t anglea, angleb;
++#else
+     int anglea, angleb;
++#endif
+     int sinea, sineb;
+     fixed_t num, den;
+ 
+@@ -545,6 +549,10 @@ void R_SetViewSize(int blocks, int detail)
  ==============
  */
  
@@ -1713,7 +1780,7 @@ index 3bbb4fc..1c8776a 100644
  void R_ExecuteSetViewSize(void)
  {
      fixed_t cosadj, dy;
-@@ -552,6 +556,10 @@ void R_ExecuteSetViewSize(void)
+@@ -552,6 +560,10 @@ void R_ExecuteSetViewSize(void)
  
      setsizeneeded = false;
  
@@ -1724,7 +1791,7 @@ index 3bbb4fc..1c8776a 100644
      if (setblocks == 11)
      {
          scaledviewwidth = SCREENWIDTH;
-@@ -560,10 +568,23 @@ void R_ExecuteSetViewSize(void)
+@@ -560,10 +572,23 @@ void R_ExecuteSetViewSize(void)
      else
      {
          scaledviewwidth = setblocks * 32;
@@ -1748,7 +1815,7 @@ index 3bbb4fc..1c8776a 100644
      viewwidth = scaledviewwidth >> detailshift;
  
      centery = viewheight / 2;
-@@ -594,8 +615,25 @@ void R_ExecuteSetViewSize(void)
+@@ -594,8 +619,25 @@ void R_ExecuteSetViewSize(void)
  //
  // psprite scales
  //
@@ -1800,6 +1867,20 @@ index 8acbcc4..9dfe744 100644
  
  // PRIVATE DATA DEFINITIONS ------------------------------------------------
  
+diff --git a/src/hexen/r_segs.c b/src/hexen/r_segs.c
+index 003cf2e..a3b144e 100644
+--- a/src/hexen/r_segs.c
++++ b/src/hexen/r_segs.c
+@@ -222,6 +222,9 @@ void R_RenderSegLoop(void)
+         {
+             // calculate texture offset
+             angle = (rw_centerangle + xtoviewangle[rw_x]) >> ANGLETOFINESHIFT;
++#if HEIGHT_HACK // ASan
++            angle &= FINEMASK/2;
++#endif
+             texturecolumn =
+                 rw_offset - FixedMul(finetangent[angle], rw_distance);
+             texturecolumn >>= FRACBITS;
 diff --git a/src/hexen/r_things.c b/src/hexen/r_things.c
 index e9cfecc..ceaee7b 100644
 --- a/src/hexen/r_things.c
@@ -1940,7 +2021,7 @@ index aa10435..5633b7f 100644
  
  void ST_Done(void)
 diff --git a/src/hexen/sv_save.c b/src/hexen/sv_save.c
-index 007e633..4e5d042 100644
+index 007e633..6e5c38e 100644
 --- a/src/hexen/sv_save.c
 +++ b/src/hexen/sv_save.c
 @@ -138,7 +138,11 @@ static void SV_WritePtr(void *ptr);
@@ -1955,7 +2036,20 @@ index 007e633..4e5d042 100644
  
  char *SavePath = DEFAULT_SAVEPATH;
  
-@@ -3408,6 +3412,11 @@ static void SV_OpenRead(char *fileName)
+@@ -2356,7 +2360,12 @@ void SV_MapTeleport(int map, int position)
+     // For single play, save immediately into the reborn slot
+     if (!netgame)
+     {
++#if 1 // ASan
++        static const char description[HXS_DESCRIPTION_LENGTH] = { REBORN_DESCRIPTION };
++        SV_SaveGame(REBORN_SLOT, description);
++#else
+         SV_SaveGame(REBORN_SLOT, REBORN_DESCRIPTION);
++#endif
+     }
+ }
+ 
+@@ -3408,6 +3417,11 @@ static void SV_OpenRead(char *fileName)
  static void SV_OpenWrite(char *fileName)
  {
      SavingFP = M_fopen(fileName, "wb");

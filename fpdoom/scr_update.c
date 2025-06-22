@@ -78,6 +78,36 @@ DEF(void, scr_update_1d2, (uint8_t *s, void *dest)) {
 	}
 }
 
+static void scr_update_1d2_vert(uint8_t *s, void *dest, uint32_t rmsk, uint32_t bmsk) {
+	uint16_t *d = (uint16_t*)dest;
+	uint32_t *c32 = (uint32_t*)dest - 256;
+	int x, y, w = 320, h = 256;
+	unsigned a, b = 0x00400802;
+	uint8_t *p = s, *n = s + w * 2;
+	for (y = h; y; y -= 2, p = s, s += w) {
+		for (x = w; x; x -= 2, p += 2, s += 2, n += 2) {
+			a = (c32[p[0]] + c32[p[1]]) & rmsk;
+			a += (c32[s[0]] + c32[s[1]]) & ~bmsk;
+			a += (c32[s[w]] + c32[s[w + 1]]) & ~rmsk;
+			a += (c32[n[0]] + c32[n[1]]) & bmsk;
+			a += (b & a >> 2) + b;
+			a &= 0xf81f07e0;
+			*d++ = a | a >> 16;
+		}
+		if (y != 4) n += w;
+	}
+}
+
+DEF(void, scr_update_1d2_rgb_vert, (uint8_t *s, void *dest)) {
+	uint32_t rmsk = 0xffc00000, bmsk = rmsk >> 11;
+	scr_update_1d2_vert(s, dest, rmsk, bmsk);
+}
+
+DEF(void, scr_update_1d2_bgr_vert, (uint8_t *s, void *dest)) {
+	uint32_t rmsk = 0xffc00000, bmsk = rmsk >> 11;
+	scr_update_1d2_vert(s, dest, bmsk, rmsk);
+}
+
 #define X1(a0, o) \
 	a = a0 << 2 & m; \
 	d[o] = a | a >> 16;
@@ -355,7 +385,7 @@ DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
 #endif
 
 void* framebuffer_init(unsigned size1) {
-	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4, 1, 1, 1 };
+	static const uint8_t pal_size[] = { 2, 4, 4, 4, 4,  4, 4,  1, 1, 1 };
 	static const struct {
 		void (*pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -365,6 +395,10 @@ void* framebuffer_init(unsigned size1) {
 		{ pal_update32, scr_update_3d2 },
 		{ pal_update32, scr_update_11d16 },
 		{ pal_update32, scr_update_25x24d20 },
+		// subpixel scale
+		{ pal_update32, scr_update_1d2_rgb_vert },
+		{ pal_update32, scr_update_1d2_bgr_vert },
+		// monochrome
 		{ pal_update8, scr_update_128x64 },
 		{ pal_update8, scr_update_96x68 },
 #if LIBC_SDIO == 0
@@ -419,10 +453,16 @@ int recalc_cache(unsigned cache_kb) {
 	return cache_kb;
 }
 
+#define GS_MODE (5 + 2)
+#define SUBPIX_MODE 5
+
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
 		320, 240, 240,  160, 128, 256,  480, 320, 214,
 		220, 176, 256,  400, 240, 200,
+		// subpixel scale
+		160, 128, 256,  160, 128, 256,
+		// monochrome
 		128,  64, 224,   96,  68, 226,
 		 64,  48, 240,
 	};
@@ -430,10 +470,10 @@ void lcd_appinit(void) {
 	unsigned mode = sys_data.scaler - 1;
 	unsigned w = disp->w1, h = disp->h1;
 	if (h <= 68) {
-		mode = 5;
-		if (h == 68) mode = 6;
-		if (h == 48) mode = 7;
-	} else if (mode >= 5) {
+		mode = GS_MODE;
+		if (h == 68) mode = GS_MODE + 1;
+		if (h == 48) mode = GS_MODE + 2;
+	} else if (mode >= GS_MODE) {
 		switch (w) {
 		case 400: mode = 4; break;
 		case 480: mode = 2; break;
@@ -447,6 +487,11 @@ void lcd_appinit(void) {
 			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
 			exit(1);
 		}
+	}	else if (mode >= SUBPIX_MODE) {
+		mode -= SUBPIX_MODE;
+		mode ^= ~sys_data.mac >> 3; // RB
+		mode ^= sys_data.rotate >> 1;
+		mode = (mode & 1) + SUBPIX_MODE;
 	}
 	sys_data.scaler = mode;
 	disp->w2 = dim[mode * 3];
