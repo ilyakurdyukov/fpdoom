@@ -488,10 +488,13 @@ void lcd_appinit(void) {
 			exit(1);
 		}
 	}	else if (mode >= SUBPIX_MODE) {
+		int mac = sys_data.mac;
+		// doesn't cover all cases
 		mode -= SUBPIX_MODE;
-		mode ^= ~sys_data.mac >> 3; // RB
-		mode ^= sys_data.rotate >> 1;
+		mode ^= mac >> 6; // MX
+		mode ^= mac >> 3; // RB
 		mode = (mode & 1) + SUBPIX_MODE;
+		if (!(mac & 0x20)) mode = 1; // MV
 	}
 	sys_data.scaler = mode;
 	disp->w2 = dim[mode * 3];

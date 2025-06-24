@@ -239,9 +239,15 @@ void scan_firmware(intptr_t fw_addr) {
 	// TODO: enable QPI mode for SPI flash for faster scanning
 	if (flags & 1) {
 		if (keymap) DBG_LOG("keymap = %p\n", (void*)keymap);
-		else if (!sys_data.keymap_addr &&
-				(intptr_t)trapgami - fw_addr < DRPS_LIM)
-			keymap = scan_drps((uint32_t*)(fw_addr + trapgami[2]));
+		else if (!sys_data.keymap_addr) {
+			unsigned part_offs = (intptr_t)trapgami - fw_addr;
+			if (part_offs < DRPS_LIM) {
+				uint32_t drps_offs = trapgami[2];
+				// workaround for Nokia
+				if (part_offs >= 0x10400) drps_offs += 0x10400;
+				keymap = scan_drps((uint32_t*)(fw_addr + drps_offs));
+			}
+		}
 		if (!keymap) DBG_LOG("!!! keymap not found\n");
 	}
 	time0 = sys_timer_ms() - time0;

@@ -111,11 +111,12 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 55 | Texet TM-B322           | SC6531   | 128x64  ST7567A   | 0          |
 | 56 | Itel it5615             | SC6531   | 240x320 ST7789    | left soft  |
 | 57 | Jinga Simple F200n      | SC6531   | 128x160 GC9102    | left soft  |
+| 58 | Jinga Simple F170       | SC6531   | 128x160 GC9102    | right soft |
 
 * Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * Nokia TA-1174: use `--spi 1 --spi_mode 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
-* BQ 3586: use `--bl_gpio 19` for backlight to work properly
+* BQ 3586 Tank Max: use `--bl_gpio 19` for backlight to work properly
 * Fly TS114: use `--spi 1`
 * Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
@@ -131,6 +132,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 * LONG-CZ J9: use `--lcd 0x1306`
 * Prestigio Wize J1: use `--lcd 0x80009106`, 0 and # keys not present in the keymap and implemented differently
 * Texet TM-B322: use `--lcd 0x7567`, dial key is mapped to left soft key
+* Jinga Simple F170: use `--mac 0xd8`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
