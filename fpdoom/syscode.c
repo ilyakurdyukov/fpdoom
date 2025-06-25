@@ -484,6 +484,25 @@ static const lcd_config_t* lcm_init(void) {
 	uint32_t id, clk_rate, cs = sys_data.lcd_cs;
 	const lcd_config_t *lcd;
 
+	// auto detect SPI1 display
+	if (_chip == 1 && !sys_data.spi) {
+		// REG: 0x138, 0x13c, 0x144, 0x148
+		// ---
+		// LCM: all 0x2014 or 0x2015
+		// SPI1_MODE3: all 0x2004 (0x82004 for Nokia TA-1400)
+		// SPI1_MODE1: 0x2074, 0x2004, 0x2004, 0x2074
+		// GPIO: all 0x2031
+
+		// SPI1_CLK/LCMCD
+		if ((MEM4(0x8c00013c) & 0x3fff) == 0x2004) {
+			sys_data.spi = 0x69 << 24;
+			// SPI1_DI/LCMWR/---/GPIO_25
+			if ((MEM4(0x8c000138) & 0x3fff) == 0x2074)
+				sys_data.spi_mode = 1;
+		}
+	}
+	if (!~sys_data.spi) sys_data.spi = 0;
+
 	id = sys_data.lcd_id;
 	if (id == 0x1230 || id == 0x1306) {
 		DBG_LOG("LCD: id = 0x%06x\n", id);
