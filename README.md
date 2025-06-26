@@ -62,7 +62,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 |  6 | Vertex С323             | SC6531   | 128x160 GC9106    | 0          |
 |  7 | Nobby 170B              | SC6531E  | 128x160 GC9106    | #          |
 |  8 | Smart Watch DZ09        | SC6531   | 240x240 GC9307    | none       |
-|  9 | Nokia TA-1174           | SC6531E  | 128x160 ST7735    | 7          |
+|  9 | Nokia 105 (TA-1174)     | SC6531E  | 128x160 ST7735    | 7          |
 | 10 | BQ 3586 Tank Max        | SC6531E  | 320x480 R61529    | #          |
 | 11 | Samsung B310E           | SC6530C  | 128x160 ST7735    | center     |
 | 12 | Fontel FP200            | SC6531   | 128x160 GC9106    | left soft  |
@@ -72,7 +72,7 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 16 | Itel it5626             | SC6531   | 240x320 GC9307    | left soft  |
 | 17 | Sunwind C2401           | SC6531E  | 240x320 ST7789    | *          |
 | 18 | DEXP SD2810             | SC6531E  | 240x320 NV3029G   | 2          |
-| 19 | Nokia TA-1400           | SC6531E  | 240x320 ???       | right soft |
+| 19 | Nokia 6310 (TA-1400)    | SC6531E  | 240x320 ???       | right soft |
 | 20 | YX Q5 Kids Camera       | SC6531   | 128x160 NV3023    | shutter    |
 | 21 | Nomi i184               | SC6531   | 128x160 GC9102    | *          |
 | 22 | Sigma IO67              | SC6531   | 240x320 GC9305    | dial       |
@@ -112,15 +112,15 @@ All feature phone LCDs I've seen are vertical, if you have a phone with a horizo
 | 56 | Itel it5615             | SC6531   | 240x320 ST7789    | left soft  |
 | 57 | Jinga Simple F200n      | SC6531   | 128x160 GC9102    | left soft  |
 | 58 | Jinga Simple F170       | SC6531   | 128x160 GC9102    | right soft |
+| 59 | Nokia 105 (TA-1203)     | SC6531E  | 128x160 ST7735    | 7          |
+| 60 | Nokia 110 (TA-1192)     | SC6531E  | 128x160 ST7735    | right soft |
 
-* Nobby 170B: use `--spi 1 --mac 0xa8` without `--rotate`
+* Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
+* Nobby 170B: use `--mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
-* Nokia TA-1174: use `--spi 1 --spi_mode 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * BQ 3586 Tank Max: use `--bl_gpio 19` for backlight to work properly
-* Fly TS114: use `--spi 1`
-* Nokia TA-1400: use `--spi 1`, also add `end_data 0` command for `spd_dump`, before `fdl` commands
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
-* Alcatel 2019G: use `--spi 1`, dial key is mapped to left soft key
+* Alcatel 2019G: dial key is mapped to left soft key
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 * Texet TM-B316: use `--lcd 0x8083760f --rotate 1,0`

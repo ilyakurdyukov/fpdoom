@@ -486,6 +486,10 @@ static const lcd_config_t* lcm_init(void) {
 
 	// auto detect SPI1 display
 	if (_chip == 1 && !sys_data.spi) {
+		uint32_t x = 0x8c000138;
+		DBG_LOG("LCD: pins = 0x%x, 0x%x, 0x%x, 0x%x\n",
+			MEM4(x), MEM4(x + 4), MEM4(x + 12), MEM4(x + 16));
+
 		// REG: 0x138, 0x13c, 0x144, 0x148
 		// ---
 		// LCM: all 0x2014 or 0x2015
