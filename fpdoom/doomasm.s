@@ -444,6 +444,77 @@ CODE32_FN scr_update_1d2_asm
 	bhi	1b
 	pop	{r4-r10,pc}
 
+CODE32_FN scr_update_1d2_rgb_vert_asm
+	ldr	r2, 1f
+	lsr	r3, r2, #11
+	b	scr_update_1d2_vert
+1:	.long	0xffc00000
+
+	.type scr_update_1d2_bgr_vert_asm, %function
+	.global scr_update_1d2_bgr_vert_asm
+scr_update_1d2_bgr_vert_asm:
+	ldr	r3, 1b
+	lsr	r2, r3, #11
+scr_update_1d2_vert:
+	push	{r4-r11,lr}
+	sub	r11, r1, #256 * 4
+	mov	r12, #256
+	ldr	lr, =0x00400802
+	mov	r4, #0x3fc
+	mov	r5, r0
+	add	r10, r0, #320 * 2
+1:	sub	r12, #320 << 16
+2:	add	r9, r0, #320 // ldrh is out of range
+	ldrh	r7, [r0], #2
+	ldrh	r9, [r9]
+	and	r6, r4, r7, lsl #2
+	and	r7, r4, r7, lsr #6
+	and	r8, r4, r9, lsl #2
+	and	r9, r4, r9, lsr #6
+	ldr	r6, [r11, r6]
+	ldr	r7, [r11, r7]
+	ldr	r8, [r11, r8]
+	ldr	r9, [r11, r9]
+	add	r6, r7
+	add	r9, r8
+	bic	r6, r3 // ~bmsk
+	bic	r9, r2 // ~rmsk
+
+	ldrh	r8, [r5], #2 // prev
+	add	r6, r9
+	and	r7, r4, r8, lsl #2
+	and	r8, r4, r8, lsr #6
+	ldr	r7, [r11, r7]
+	ldr	r8, [r11, r8]
+	ldrh	r9, [r10], #2 // next
+	add	r7, r8
+	and	r8, r4, r9, lsl #2
+	and	r9, r4, r9, lsr #6
+	ldr	r8, [r11, r8]
+	ldr	r9, [r11, r9]
+	add	r8, r9
+	and	r7, r2 // rmsk
+	and	r8, r3 // bmsk
+	add	r6, r7
+	add	r6, r8
+
+	and	r7, lr, r6, lsr #2
+	add	r6, lr
+	add	r6, r7
+	and	r7, r6, #0x7e0
+	bic	r6, #0x07e0 << 16
+	orr	r6, r7, r6, lsr #16
+	strh	r6, [r1], #2
+	adds	r12, #2 << 16
+	bmi	2b
+	cmp	r12, #4
+	mov	r5, r0		// p = s
+	addne	r10, #320	// if (y != 4) n += w
+	add	r0, #320	// s += w
+	subs	r12, #2
+	bhi	1b
+	pop	{r4-r11,pc}
+
 .macro READ2X2
 	mov	r4, #0x3fc
 	ldrh	r8, [r0, lr]

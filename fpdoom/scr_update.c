@@ -378,6 +378,8 @@ DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
 #define pal_update32 pal_update32_asm
 #define scr_update_1d1 scr_update_1d1_asm
 #define scr_update_1d2 scr_update_1d2_asm
+#define scr_update_1d2_rgb_vert scr_update_1d2_rgb_vert_asm
+#define scr_update_1d2_bgr_vert scr_update_1d2_bgr_vert_asm
 #define scr_update_3d2 scr_update_3d2_asm
 #define scr_update_25x24d20 scr_update_25x24d20_asm
 #define scr_update_128x64 scr_update_128x64_asm
