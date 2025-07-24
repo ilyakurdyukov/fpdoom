@@ -1505,6 +1505,39 @@ static const uint8_t cmd1230_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd8066_init[] = {
+	LCM_DELAY(10),
+	LCM_CMD(0xb4, 1), 0x07,
+	LCM_CMD(0xb1, 1), 0x14,
+	LCM_CMD(0xff, 1), 0xa5,
+	LCM_CMD(0xec, 1), 0x89,
+	LCM_CMD(0xed, 1), 0x37,
+	LCM_CMD(0xee, 1), 0x14,
+	LCM_CMD(0xf6, 1), 0x10,
+	LCM_CMD(0xc4, 1), 0x0a,
+	LCM_CMD(0xc5, 1), 0x4c,
+	LCM_CMD(0xc6, 1), 0x3f,
+	LCM_CMD(0xc7, 1), 0x03,
+	LCM_CMD(0xe0, 1), 0x00,
+	LCM_CMD(0xe8, 1), 0x77,
+	LCM_CMD(0xe1, 1), 0x22,
+	LCM_CMD(0xe7, 1), 0x55,
+	LCM_CMD(0xe2, 1), 0x07,
+	LCM_CMD(0xe6, 1), 0x77,
+	LCM_CMD(0xe3, 1), 0x17,
+	LCM_CMD(0xe9, 1), 0x77,
+	LCM_CMD(0xe4, 1), 0x00,
+	LCM_CMD(0xeb, 1), 0x05,
+	LCM_CMD(0xe5, 1), 0x00,
+	LCM_CMD(0xea, 1), 0x00,
+	LCM_CMD(0x11, 0),
+	LCM_DELAY(50),
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0x88, // Memory Access Control
+	LCM_DELAY(50),
+	LCM_CMD(0x29, 0),
+	LCM_END
+};
 
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
@@ -1713,6 +1746,11 @@ static const lcd_config_t lcd_config2[] = {
 
 	// Sitronix ST7565R
 	X(0x007565, 128,64, 0x181, 30,150,150,40,50,50, 0, cmd7565)
+
+/* Bjorn P220 */
+
+	// NewVision NV3021
+	X(0xd48066, 128,160, 0x88, 5,250,200,50,70,50, 0, cmd8066)
 };
 #undef X
 #undef NO_TIMINGS
