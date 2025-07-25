@@ -35,7 +35,31 @@ int fputs(const char *str, FILE *f) {
 __attribute__((noreturn))
 void sys_exit(void);
 
+#ifndef ATEXIT_MAX
+#define ATEXIT_MAX 0
+#endif
+#if ATEXIT_MAX
+static int atexit_num;
+typedef void (*atexit_fn_t)(void);
+static atexit_fn_t atexit_buf[ATEXIT_MAX];
+#endif
+
+int atexit(void (*func)(void)) {
+#if ATEXIT_MAX
+	if (atexit_num >= ATEXIT_MAX) return -1;
+	atexit_buf[atexit_num++] = func;
+	return 0;
+#else
+	(void)func;
+	return -1;
+#endif
+}
+
 void exit(int code) {
+#if ATEXIT_MAX
+	int n = atexit_num;
+	while (n) atexit_buf[--n]();
+#endif
 	fprintf(stderr, "!!! exit(%d)\n", code);
 	sys_exit();
 }
@@ -43,11 +67,6 @@ void exit(int code) {
 void __assert2(const char *file, int line, const char *func, const char *msg) {
 	fprintf(stderr, "!!! %s:%i %s: assert(%s) failed\n", file, line, func, msg);
 	exit(255);
-}
-
-int atexit(void (*func)(void)) {
-	(void)func;
-	return -1;
 }
 
 FILE *_stdin = NULL;

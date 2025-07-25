@@ -1,0 +1,237 @@
+diff --git a/loader.c b/loader.c
+index fb8b4a8..d1ca3a3 100644
+--- a/loader.c
++++ b/loader.c
+@@ -108,7 +108,12 @@ static void initmem(void *mem, int size)
+ 	char *p = mem;
+ 	if (memrand >= 0)
+ 	{
++#ifdef EMBEDDED
++		extern unsigned sys_timer_ms(void);
++		srand(memrand ? memrand : sys_timer_ms());
++#else
+ 		srand(memrand ? memrand : time(0));
++#endif
+ 		while(size--) *(p++) = rand();
+ 	}
+ 	else if (memfill >= 0)
+@@ -288,12 +293,18 @@ static byte *do_unxz(byte *data, int *len) {
+ 
+ static byte *decompress(byte *data, int *len)
+ {
++#ifndef NO_GZ
+ 	if (data[0] == 0x1f && data[1] == 0x8b)
+ 		return gunzip(data, len);
++#endif
++#ifndef NO_XZ
+ 	if (data[0] == 0xFD && !memcmp(data+1, "7zXZ", 4))
+ 		return do_unxz(data, len);
++#endif
++#ifndef NO_ZIP
+ 	if (data[0] == 'P' && !memcmp(data+1, "K\03\04", 3))
+ 		return pkunzip(data, len);
++#endif
+ 	return data;
+ }
+ 
+@@ -559,7 +570,11 @@ int loader_init(char *s)
+ 	else if (romfile && *base(romfile) && strcmp(romfile, "-"))
+ 	{
+ 		name = strdup(base(romfile));
++#ifdef EMBEDDED
++		p = strrchr(name, '.');
++#else
+ 		p = strchr(name, '.');
++#endif
+ 		if (p) *p = 0;
+ 	}
+ 	else name = ldup(rom.name);
+diff --git a/main.c b/main.c
+index 9c0cf85..bbfc1f9 100644
+--- a/main.c
++++ b/main.c
+@@ -211,6 +211,7 @@ void die(char *fmt, ...)
+ 	exit(1);
+ }
+ 
++#ifndef EMBEDDED
+ static int bad_signals[] =
+ {
+ 	/* These are all standard, so no need to #ifdef them... */
+@@ -235,6 +236,7 @@ static void catch_signals()
+ 	for (i = 0; bad_signals[i]; i++)
+ 		signal(bad_signals[i], fatalsignal);
+ }
++#endif
+ 
+ 
+ 
+@@ -265,7 +267,11 @@ int load_rom_and_rc(char *rom) {
+ }
+ 
+ 
++#if EMBEDDED == 1
++int app_main(int argc, char *argv[])
++#else
+ int main(int argc, char *argv[])
++#endif
+ {
+ 	int i, ri = 0, sv = 0;
+ 	char *opt, *arg, *cmd, *s, *rom = 0;
+@@ -298,7 +304,11 @@ int main(int argc, char *argv[])
+ 
+ 	init_exports();
+ 
++#ifdef EMBEDDED
++	s = "";
++#else
+ 	s = strdup(argv[0]);
++#endif
+ 	sys_sanitize(s);
+ 	sys_initpath(s);
+ 
+@@ -364,7 +374,9 @@ int main(int argc, char *argv[])
+ 
+ 	/* FIXME - make interface modules responsible for atexit() */
+ 	atexit(shutdown);
++#ifndef EMBEDDED
+ 	catch_signals();
++#endif
+ 	vid_init();
+ 	joy_init();
+ 	pcm_init();
+@@ -372,9 +384,13 @@ int main(int argc, char *argv[])
+ 
+ 	if(rom) load_rom_and_rc(rom);
+ 	else {
++#ifdef NO_MENU
++		die("no rom selected\n");
++#else
+ 		rc_command("bind esc menu");
+ 		menu_initpage(mp_romsel);
+ 		menu_enter();
++#endif
+ 	}
+ 	while(1) {
+ 		emu_run();
+diff --git a/rcfile.c b/rcfile.c
+index 9945f52..d31aace 100644
+--- a/rcfile.c
++++ b/rcfile.c
+@@ -23,12 +23,26 @@ int rc_sourcefile(char *filename)
+ 	f = fopen(name, "r");
+ 	if (!f) return -1;
+ 
++#ifdef EMBEDDED
++	int a = 0;
++	while (a != EOF) {
++		int i = 0, skip = 0;
++		for (;;) {
++			a = fgetc(f);
++			if (a == EOF || a == '\n' || a == '\r') break;
++			if (a == '#') skip = 1;
++			if (!skip && i < sizeof(line) - 1) line[i++] = a;
++		}
++		if (!i) continue;
++		line[i] = 0;
++#else
+ 	for (;;)
+ 	{
+ 		if (feof(f)) break;
+ 		fgets(line, sizeof line, f);
+ 		if ((p = strpbrk(line, "#\r\n")))
+ 			*p = 0;
++#endif
+ 		rc_command(line);
+ 	}
+ 	fclose(f);
+diff --git a/rcvars.c b/rcvars.c
+index 95a9d27..f4b1e7d 100644
+--- a/rcvars.c
++++ b/rcvars.c
+@@ -127,11 +127,13 @@ int rc_setvar_n(int i, int c, char **v)
+ 		n = (int *)rcvars[i].mem;
+ 		*n = my_atoi(v[0]);
+ 		return 0;
++#ifndef NO_FLOAT
+ 	case rcv_float:
+ 		if (c < 1) return -1;
+ 		f = (float *)rcvars[i].mem;
+ 		*f = atof(v[0]);
+ 		return 0;
++#endif
+ 	case rcv_string:
+ 		if (c < 1) return -1;
+ 		s = (char **)rcvars[i].mem;
+@@ -196,6 +198,7 @@ int rc_getint_n(int i)
+ 	return 0;
+ }
+ 
++#ifndef NO_FLOAT
+ float rc_getfloat_n(int i)
+ {
+ 	if (i < 0) return 0.0;
+@@ -206,6 +209,7 @@ float rc_getfloat_n(int i)
+ 	}
+ 	return 0.0;
+ }
++#endif
+ 
+ int *rc_getvec_n(int i)
+ {
+@@ -236,10 +240,12 @@ int rc_getint(char *name)
+ 	return rc_getint_n(rc_findvar(name));
+ }
+ 
++#ifndef NO_FLOAT
+ float rc_getfloat(char *name)
+ {
+ 	return rc_getfloat_n(rc_findvar(name));
+ }
++#endif
+ 
+ int *rc_getvec(char *name)
+ {
+diff --git a/rtc.c b/rtc.c
+index c3785ec..22fa18a 100644
+--- a/rtc.c
++++ b/rtc.c
+@@ -95,13 +95,16 @@ void rtc_tick()
+ 
+ void rtc_save_internal(FILE *f)
+ {
++#ifndef EMBEDDED
+ 	fprintf(f, "%d %d %d %02d %02d %02d %02d\n%ld\n",
+ 		rtc.carry, rtc.stop, rtc.d, rtc.h, rtc.m, rtc.s, rtc.t,
+ 		(long) time(0));
++#endif
+ }
+ 
+ void rtc_load_internal(FILE *f)
+ {
++#ifndef EMBEDDED
+ 	int rt = 0;
+ 	fscanf(
+ 		f, "%d %d %d %02d %02d %02d %02d\n%d\n",
+@@ -116,6 +119,7 @@ void rtc_load_internal(FILE *f)
+ 	rtc.carry &= 1;
+ 	if (rt) rt = (time(0) - rt) * 60;
+ 	if (syncrtc) while (rt-- > 0) rtc_tick();
++#endif
+ }
+ 
+ 
+diff --git a/sys.h b/sys.h
+index 944f3cb..ec98aca 100644
+--- a/sys.h
++++ b/sys.h
+@@ -32,6 +32,9 @@ void kb_close();
+ 
+ 
+ /* FIXME these have different prototype for obsolete ( == M$ ) platforms */
++#ifdef EMBEDDED
++struct timeval;
++#endif
+ #include <sys/time.h>
+ int sys_elapsed(struct timeval *prev);
+ void sys_initpath();

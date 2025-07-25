@@ -251,6 +251,7 @@ void scan_firmware(intptr_t fw_addr) {
 		if (!keymap) DBG_LOG("!!! keymap not found\n");
 	}
 	time0 = sys_timer_ms() - time0;
+	if (keymap) DBG_LOG("bootkey = 0x%02x\n", *(uint16_t*)keymap);
 	if (pinmap) DBG_LOG("pinmap = %p\n", (void*)pinmap);
 	else ERR_EXIT("pinmap not found\n");
 	DBG_LOG("scan_firmware: %dms\n", time0);

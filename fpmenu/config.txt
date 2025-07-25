@@ -25,6 +25,9 @@ $nes2 = $nes --scanline_step 113
 # This crops the top and bottom tiles, there is garbage in some games.
 $nes_crop = fpbin/infones.bin $@ --scaler 149 $nes_args
 
+$gnuboy_args = --dir games/gameboy gnuboy
+$gnuboy = fpbin/gnuboy.bin $@ $gnuboy_args
+
 $snes_args = --dir games/snes snes9x --crc 0 --nocheck
 $snes_pal = fpbin/snes9x.bin $@ --scaler 49 $snes_args
 $snes = fpbin/snes9x.bin $@ --scaler 149 $snes_args
@@ -36,6 +39,7 @@ $doom = fpbin/fpdoom.bin $@
 # Menu items are defined using this pattern:
 # |Name| path/to/app.bin arg1 arg2 arg3
 
+|=== Ports ===|
 |Doom 1| $doom --dir games/doom1 doom # -timedemo demo1
 |Duke 3D| fpbin/fpduke3d.bin $@ --dir games/duke3d duke3d # -cachesize 1648
 |Shadow Warrior| fpbin/fpsw.bin $@ --dir games/sw sw # -cachesize 1552
@@ -53,6 +57,9 @@ $doom = fpbin/fpdoom.bin $@
 |=== SNES ===|
 |SNES Example 1| $snes "Example 1.smc"
 |SNES Example 2| $snes16 "Example 2.smc"
+
+|=== GameBoy ===|
+|GB Example 1| $gnuboy "Example 1.gbc"
 
 |=== NES ===|
 |NES Example 1| $nes "Example 1.nes"

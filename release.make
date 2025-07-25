@@ -2,7 +2,7 @@
 export
 
 BINDIR = release
-ZIPDIR = zipdir
+ZIPDIR = ../zipdir
 
 ifneq ($(words $(BINDIR)), 1)
 $(error BINDIR must not contain spaces in the name)
@@ -14,7 +14,8 @@ endif
 FPBIN = $(BINDIR)/sdcard/fpbin
 APPS = fpdoom fpduke3d fpsw fpblood infones \
 	wolf3d wolf3d_sw snes9x snes9x_16bit \
-	chocolate-doom chocolate-heretic chocolate-hexen
+	chocolate-doom chocolate-heretic chocolate-hexen \
+	gnuboy
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
@@ -29,7 +30,7 @@ clean:
 	$(RM) $(BINS)
 
 define getsrc
-	test -d $@ || ( mkdir -p $(ZIPDIR); cd $(1) && $(MAKE) -f helper.make ZIPDIR="../$(ZIPDIR)" all patch )
+	test -d $@ || ( cd $(1) && mkdir -p $(ZIPDIR) && $(MAKE) -f helper.make ZIPDIR="$(ZIPDIR)" all patch )
 endef
 
 doom_src:
@@ -49,6 +50,9 @@ snes9x/snes9x_src:
 
 chocolate-doom/chocolate-doom:
 	$(call getsrc,chocolate-doom)
+
+gnuboy/gnuboy:
+	$(call getsrc,gnuboy)
 
 define makebin
 	cd $(1) && $(MAKE) clean $(2)
@@ -98,6 +102,9 @@ $(BINDIR)/usb/chocolate-heretic.bin: chocolate-doom/chocolate-doom
 
 $(BINDIR)/usb/chocolate-hexen.bin: chocolate-doom/chocolate-doom
 	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=hexen)
+
+$(BINDIR)/usb/gnuboy.bin: gnuboy/gnuboy
+	$(call makebin,gnuboy,LIBC_SDIO=0)
 
 # SD card mode
 
@@ -155,4 +162,7 @@ $(FPBIN)/chocolate-heretic.bin: chocolate-doom/chocolate-doom
 
 $(FPBIN)/chocolate-hexen.bin: chocolate-doom/chocolate-doom
 	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=hexen)
+
+$(FPBIN)/gnuboy.bin: gnuboy/gnuboy
+	$(call makebin,gnuboy,LIBC_SDIO=3)
 

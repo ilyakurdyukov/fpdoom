@@ -13,6 +13,7 @@ There are other ports that reuse code written for FPDoom:
 [wolf3d](wolf3d): Wolfenstein 3D  
 [snes9x](snes9x): SNES emulator  
 [chocolate-doom](chocolate-doom): Heretic, Hexen  
+[gnuboy](gnuboy): GB/GBC emulator  
 
 ### Installation on SD card
 
