@@ -11,6 +11,27 @@
 
 uint32_t *pinmap_addr;
 
+#define KEYPAD_CHAR_ENUM(M) \
+	M("\x01", DIAL) \
+	M("\x04", UP) M("\x05", DOWN) M("\x06", LEFT) M("\x07", RIGHT) \
+	M("\x08", LSOFT) M("\x09", RSOFT) M("\x0d", CENTER) \
+	M("\x23", HASH) M("\x24", VOLUP) M("\x25", VOLDOWN) \
+	M("\x2a", STAR) M("\x2b", PLUS) \
+	M("\x30", 0) M("\x31", 1) M("\x32", 2) M("\x33", 3) M("\x34", 4) \
+	M("\x35", 5) M("\x36", 6) M("\x37", 7) M("\x38", 8) M("\x39", 9)
+
+static const char* keypad_getname(unsigned a) {
+#define M(a, b) a #b "\0"
+	const char *p = KEYPAD_CHAR_ENUM(M);
+#undef M
+	int b;
+	while ((b = *p++)) {
+		if (a == b) return p;
+		while (*p++);
+	}
+	return "???";
+}
+
 static int check_keymap(const void *buf) {
 	const uint16_t *s = (const uint16_t*)buf;
 	uint32_t a, tmp, t0 = 0, t1 = ~0;
@@ -251,7 +272,10 @@ void scan_firmware(intptr_t fw_addr) {
 		if (!keymap) DBG_LOG("!!! keymap not found\n");
 	}
 	time0 = sys_timer_ms() - time0;
-	if (keymap) DBG_LOG("bootkey = 0x%02x\n", *(uint16_t*)keymap);
+	if (keymap) {
+		int a = *(uint16_t*)keymap;
+		DBG_LOG("bootkey = 0x%02x (%s)\n", a, keypad_getname(a));
+	}
 	if (pinmap) DBG_LOG("pinmap = %p\n", (void*)pinmap);
 	else ERR_EXIT("pinmap not found\n");
 	DBG_LOG("scan_firmware: %dms\n", time0);
