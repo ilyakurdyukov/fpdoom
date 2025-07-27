@@ -201,3 +201,161 @@ end:
 	}
 }
 
+#if defined(APP_MEM_RESERVE) && defined(APP_DATA_EXCEPT)
+
+#define ROMMAP_ADDR 0x8000000
+#define ROMMAP_SIZE (8 << 20)
+#define ROMMAP_EXTRA 0
+
+struct {
+	uint32_t *tab2;
+	uint16_t *map;
+	uint32_t pages, npages, last;
+	uint32_t fileoffs, rompages;
+	FILE *file;
+} rommap;
+
+void invalidate_tlb(void);
+void invalidate_tlb_mva(uint32_t);
+
+size_t app_mem_reserve(void *start, size_t size) {
+	uint32_t ram_addr = (uint32_t)start & 0xfc000000;
+	uint32_t ram_size = *(volatile uint32_t*)ram_addr;
+	uint8_t *p = (uint8_t*)start;
+	uint32_t *tab1 = (uint32_t*)(p + size);
+	unsigned i, domain = 2 << 5, cb = 3 << 2;
+	uint32_t res1 = ROMMAP_SIZE >> (12 - 2);
+	uint32_t res2 = 0x180000, res0;
+
+	if (ram_size >= 8 << 20) res2 = 4 << 20;
+	res0 = res2 >> 12;
+	rommap.npages = res0 - 1; res0 <<= 1;
+	res2 += res1 + res0;
+	if (size < res2) {
+		fprintf(stderr, "!!! app_memres failed\n");
+		exit(1);
+	}
+	size -= res2; p += size;
+	memset(p, 0, res0 + res1);
+	rommap.map = (uint16_t*)p; p += res0;
+	rommap.tab2 = (uint32_t*)p;
+	rommap.pages = (uint32_t)(p + res1);
+	memset(p + res1, -1, 0x1000);
+	for (i = 0; i < ROMMAP_EXTRA; i++)
+		((uint32_t*)p)[i] = (uint32_t)(p + res1) | cb | 2;
+	tab1 += ROMMAP_ADDR >> 20;
+	// coarse pages
+	for (i = 0; i < ROMMAP_SIZE >> 20; i++, p += 0x400)
+		tab1[i] = (uint32_t)p | domain | 0x11;
+	invalidate_tlb();
+	return size;
+}
+
+#if LIBC_SDIO < 3
+#define ROMMAP_ERR(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define ROMMAP_ERR(...) (void)0
+#endif
+
+#if 0
+#define ROMMAP_LOG ROMMAP_ERR
+#else
+#define ROMMAP_LOG(...) (void)0
+#endif
+
+unsigned rommap_size(void) { return rommap.rompages << 12; }
+
+static void rommap_page_update(unsigned i, uint32_t val) {
+	uint32_t *tab2 = rommap.tab2;
+	tab2[i] = val;
+	clean_dcache();
+	invalidate_tlb_mva(ROMMAP_ADDR + (i << 12));
+}
+
+void def_data_except(uint32_t fsr, uint32_t far, uint32_t pc);
+void app_data_except(uint32_t fsr, uint32_t far, uint32_t pc) {
+	uint32_t pos, buf;
+	unsigned i, j, k, npages, cb = 3 << 2;
+	uint16_t *map;
+	// 0x7 : Translation Page
+	// 0xf : Permission Page
+	if ((fsr & 0xf7) != 0x27) goto err;
+	pos = far - ROMMAP_ADDR;
+	if (pos >= ROMMAP_SIZE) goto err;
+	pos >>= 12;
+	map = rommap.map;
+	if (fsr & 8) {
+		uint32_t *tab2 = rommap.tab2;
+		buf = tab2[pos];
+		i = ((buf - rommap.pages) >> 12) - 1;
+		if ((int)i >= 0) {
+			map[i] = -1; // lock page
+			ROMMAP_LOG("!!! page lock: pos = 0x%x, buf = 0x%x\n", pos, buf & ~0xfff);
+			rommap_page_update(pos, buf | 0xff0);
+			return;
+		}
+	}
+	k = i = rommap.last;
+	npages = rommap.npages;
+	do {
+		if (++i >= npages) i = 0;
+		j = map[i];
+		if (!(j >> 15)) goto found;
+	} while (i != k);
+	goto err_locked;
+found:
+	map[i] = fsr & 8 ? -1 : pos + 1;
+	rommap.last = i;
+	buf = rommap.pages + ((i + 1) << 12);
+	if (fsr & 8)
+	ROMMAP_LOG("!!! page map%s: pos = 0x%x, buf = 0x%x\n",
+		fsr & 8 ? "+lock" : "", pos, buf);
+	i = pos - ROMMAP_EXTRA;
+	if (i < rommap.rompages) {
+		if (fseek(rommap.file, (i << 12) + rommap.fileoffs, SEEK_SET)) {
+			ROMMAP_ERR("!!! rommap: fseek failed\n");
+			goto err;
+		}
+		if (fread((void*)buf, 1, 0x1000, rommap.file) != 0x1000) {
+			ROMMAP_ERR("!!! rommap: fread failed\n");
+			goto err;
+		}
+	} else {
+		if (!(fsr & 8)) goto err;
+		memset((void*)buf, 0, 0x1000);
+	}
+	if ((int)--j >= 0) rommap_page_update(j, 0);
+	if (fsr & 8) buf |= 0xff0;
+	rommap_page_update(pos, buf | cb | 2);
+	return;
+
+err_locked:
+	ROMMAP_ERR("!!! rommap: all pages locked\n");
+err:
+	def_data_except(fsr, far, pc);
+}
+
+uint8_t* init_rommap(const char *fn) {
+	size_t size, pos = 0;
+	FILE *f;
+	f = fopen(fn, "rb");
+	if (!f) return NULL;
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	rommap.fileoffs = pos;
+	rommap.file = f;
+	size &= ~0xfff;
+	if (size > 4 << 20) size = 4 << 20;
+	rommap.rompages = size >> 12;
+	{
+		uint32_t *tab2 = rommap.tab2;
+		uint32_t pages = rommap.pages;
+		unsigned i = ROMMAP_EXTRA + (size >> 12), cb = 3 << 2;
+		while (i < ROMMAP_SIZE >> 12)
+			tab2[i++] = pages | cb | 2;
+		clean_dcache();
+		invalidate_tlb();
+	}
+	return (uint8_t*)ROMMAP_ADDR;
+}
+#endif

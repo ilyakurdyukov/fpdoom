@@ -95,6 +95,7 @@ ifneq ($(LIBC_SDIO), 0)
 CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DFAT_DEBUG=1
 endif
+CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
 
 ifeq ($(COMPILER), clang)
 # Clang's bug workaround

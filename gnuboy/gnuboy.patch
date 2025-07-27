@@ -1,5 +1,5 @@
 diff --git a/loader.c b/loader.c
-index fb8b4a8..d1ca3a3 100644
+index fb8b4a8..042f9b4 100644
 --- a/loader.c
 +++ b/loader.c
 @@ -108,7 +108,12 @@ static void initmem(void *mem, int size)
@@ -15,7 +15,34 @@ index fb8b4a8..d1ca3a3 100644
  		while(size--) *(p++) = rand();
  	}
  	else if (memfill >= 0)
-@@ -288,12 +293,18 @@ static byte *do_unxz(byte *data, int *len) {
+@@ -117,6 +122,18 @@ static void initmem(void *mem, int size)
+ 
+ static byte *loadfile(FILE *f, int *len)
+ {
++#ifdef EMBEDDED
++	int n, l = 0; byte *d = NULL;
++	fseek(f, 0, SEEK_END);
++	n = ftell(f);
++	if (n) {
++		fseek(f, 0, SEEK_SET);
++		d = (byte*)malloc(n);
++		if (d) l = fread(d, 1, n, f);
++	}
++	*len = l;
++	return d;
++#else
+ 	int c, l = 0, p = 0;
+ 	byte *d = 0, buf[4096];
+ 
+@@ -132,6 +149,7 @@ static byte *loadfile(FILE *f, int *len)
+ 	}
+ 	*len = l;
+ 	return d;
++#endif
+ }
+ 
+ static byte *inf_buf;
+@@ -288,19 +306,29 @@ static byte *do_unxz(byte *data, int *len) {
  
  static byte *decompress(byte *data, int *len)
  {
@@ -34,7 +61,67 @@ index fb8b4a8..d1ca3a3 100644
  	return data;
  }
  
-@@ -559,7 +570,11 @@ int loader_init(char *s)
+ static FILE* rom_loadfile(char *fn, byte** data, int *len) {
+ 	FILE *f;
++#ifdef EMBEDDED
++	f = fopen(fn, "rb");
++#else
+ 	if (strcmp(fn, "-")) f = fopen(fn, "rb");
+ 	else f = stdin;
++#endif
+ 	if (!f) {
+ 	err:
+ 		loader_set_error("cannot open rom file: %s\n", fn);
+@@ -354,8 +382,15 @@ int rom_load()
+ 	FILE *f;
+ 	byte c, *data, *header;
+ 	int len = 0, rlen;
++#ifdef APP_DATA_EXCEPT
++	byte* init_rommap(const char *fn);
++	(void)f; (void)len;
++	data = init_rommap(romfile);
++	if(!data) return -1;
++#else
+ 	f = rom_loadfile(romfile, &data, &len);
+ 	if(!f) return -1;
++#endif
+ 	header = data;
+ 
+ 	memcpy(rom.name, header+0x0134, 16);
+@@ -384,8 +419,12 @@ int rom_load()
+ 	c = header[0x0143];
+ 
+ 	/* from this point on, we may no longer access data and header */
++#ifdef APP_DATA_EXCEPT
++	rom.bank = data;
++#else
+ 	rom.bank = realloc(data, rlen);
+ 	if (rlen > len) memset(rom.bank[0]+len, 0xff, rlen - len);
++#endif
+ 
+ 	ram.sbank = malloc(8192 * mbc.ramsize);
+ 
+@@ -398,7 +437,9 @@ int rom_load()
+ 	hw.cgb = ((c == 0x80) || (c == 0xc0)) && !forcedmg;
+ 	hw.gba = (hw.cgb && gbamode);
+ 
++#ifndef APP_DATA_EXCEPT
+ 	if (strcmp(romfile, "-")) fclose(f);
++#endif
+ 
+ 	return 0;
+ }
+@@ -509,7 +550,9 @@ void loader_unload()
+ 	if (romfile) FREENULL(romfile);
+ 	if (sramfile) FREENULL(sramfile);
+ 	if (saveprefix) FREENULL(saveprefix);
++#ifndef APP_DATA_EXCEPT
+ 	if (rom.bank) FREENULL(rom.bank);
++#endif
+ 	if (ram.sbank) FREENULL(ram.sbank);
+ 	if (bootrom.bank) FREENULL(bootrom.bank);
+ 	mbc.type = mbc.romsize = mbc.ramsize = mbc.batt = 0;
+@@ -559,7 +602,11 @@ int loader_init(char *s)
  	else if (romfile && *base(romfile) && strcmp(romfile, "-"))
  	{
  		name = strdup(base(romfile));
