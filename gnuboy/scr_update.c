@@ -69,19 +69,61 @@ DEF(void, scr_update_9x8d9, (uint8_t *s, void *dest)) {
 	}
 }
 
+// 012345678
+// 455445544
+
+DEF(void, scr_update_27x20d9, (uint8_t *s, void *dest)) {
+	uint16_t *d = (uint16_t*)dest;
+	uint16_t *c16 = (uint16_t*)dest - 256;
+	uint32_t m = 0x07e0f81f, r = m & ~(m << 1);
+	uint32_t x, y, k, a, b;
+
+#define X \
+	do { \
+		for (x = 160; x; x--, d += 3) { \
+			a = c16[*s++]; \
+			d[0] = a, d[1] = a, d[2] = a; d += 480; \
+			d[0] = a, d[1] = a, d[2] = a; d -= 480; \
+		} \
+		d += 480; \
+	} while (--k);
+
+	k = 1; X
+	for (y = 144 / 9 * 2; y; y--) {
+		for (x = 160; x; x--, d += 3) {
+			a = c16[*s++]; b = c16[s[160 - 1]];
+			d[0] = a; d[1] = a; d[2] = a; d += 480;
+			d[0] = a; d[1] = a; d[2] = a; d += 480;
+			a |= b << 16;
+			a = (a & m) + ((a >> 16 | a << 16) & m);
+			a += r & a >> 1; a = a >> 1 & m;
+			a |= a >> 16;
+			d[0] = a; d[1] = a; d[2] = a; d += 480;
+			d[0] = b; d[1] = b; d[2] = b; d += 480;
+			d[0] = b; d[1] = b; d[2] = b; d -= 480 * 4;
+		}
+		s += 160; d += 480 * 4;
+		k = 2; if (y != 1) k += y & 1;
+		X
+#undef X
+	}
+}
+
 #undef DEF
 #ifdef USE_ASM
-// TODO
+#define scr_update_6x5d3 scr_update_6x5d3_asm
+#define scr_update_9x8d9 scr_update_9x8d9_asm
 #endif
 
 void* framebuffer_init(unsigned size1) {
-	static const uint8_t pal_size[] = { 2, 2 };
+	static const uint8_t pal_size[] = { 2, 2, 2 };
 	static const struct {
 		void (*pal_update)(int i, int r, int g, int b);
 		void (*scr_update)(uint8_t *src, void *dest);
 	} fn[] = {
 		{ pal_update16, scr_update_6x5d3 },
 		{ pal_update16, scr_update_9x8d9 },
+		{ pal_update16, scr_update_27x20d9 },
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
@@ -102,24 +144,24 @@ void* framebuffer_init(unsigned size1) {
 
 void lcd_appinit(void) {
 	static const uint16_t dim[] = {
-		320, 240,  160, 128
+		320, 240,  160, 128,  480, 320
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
 	unsigned w = disp->w1, h = disp->h1;
 	if (h <= 68) {
-		fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
-		exit(1);
-	} else if (mode >= 2) {
+		goto err;
+	} else if (mode >= 3) {
 		switch (w) {
-		case 400: // TODO
-		case 480: // TODO
+		case 480: mode = 2; break;
+		case 400:
 		case 240: case 320:
 			mode = 0; break;
 		case 176: case 220: // TODO
 		case 128: case 160:
 			mode = 1; break;
 		default:
+err:
 			fprintf(stderr, "!!! unsupported resolution (%dx%d)\n", w, h);
 			exit(1);
 		}
