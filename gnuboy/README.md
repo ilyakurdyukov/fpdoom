@@ -34,7 +34,7 @@ Port of [gnuboy](https://github.com/rofl0r/gnuboy).
 
 ### Issues
 
-* Only common screen resolutions 320x240, 160x128 and 480x320 are supported for now.
+* Monochrome screens are not supported yet.
 
 * Some game cartridges have SRAM for saves, this memory is saved on exit or if you force save SRAM. If the device is turned off, the SRAM changes will be lost.
 
