@@ -226,6 +226,65 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 	} while ((h -= 9));
 }
 
+// 00011 12223 33444
+DEF(void, scr_update_96x68, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest, *c8 = (uint8_t*)dest - 256;
+	unsigned x, y = 0, h = 144;
+	uint32_t a0, a1, a2, t0, t1, t2, t3, t4;
+	do {
+		for (x = 0; x < 96; x += 3, s += 5, d += 3) {
+			const uint8_t *s2 = s;
+			a0 = a1 = a2 = 0;
+			do {
+				y += 36;
+				do {
+					t0 = c8[s2[0]];
+					t1 = c8[s2[1]];
+					t2 = c8[s2[2]];
+					t3 = c8[s2[3]];
+					t4 = c8[s2[4]];
+					t0 = t0 * 3 + t1 * 2;
+					t1 = t1 + t2 * 3 + t3;
+					t2 = t3 * 2 + t4 * 3;
+					s2 += 160;
+					a0 += t0 + (t0 << 4);
+					a1 += t1 + (t1 << 4);
+					a2 += t2 + (t2 << 4);
+				} while ((int)(y -= 17) > 0);
+#define X(i) a##i += t##i *= y; \
+	a##i = (a##i * 0x2d83 + (3 << 20)) >> 22; /* div180 */ \
+	d[i] = a##i; a##i = -t##i;
+				X(0) X(1) X(2) d += 96;
+#undef X
+			} while (y);
+			d -= 96 * 17;
+		}
+		s += 160 * (36 - 1); d += 96 * (17 - 1);
+	} while ((h -= 36));
+}
+
+#if LIBC_SDIO == 0
+// 00112 23344
+DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
+	uint8_t *d = (uint8_t*)dest, *c8 = d - 256;
+	unsigned x, y, h = 48;
+	for (; h; h--, s += 160 * 2)
+	for (x = 64; x; x -= 2, s += 5) {
+		const uint8_t *s2 = s;
+		uint32_t a0 = 0, a1 = 0, a2 = 0;
+		for (y = 3; y; y--, s2 += 160) {
+			a0 += c8[s2[0]] + c8[s2[1]];
+			a1 += c8[s2[2]];
+			a2 += c8[s2[3]] + c8[s2[4]];
+		}
+		a0 = a0 * 2 + a1; a1 += a2 * 2;
+#define X(i) *d++ = (a##i * 0x8889 + (3 << 18)) >> 20; /* div15 */
+		X(0) X(1)
+#undef X
+	}
+}
+#endif
+
 #undef DEF
 #ifdef USE_ASM
 #define scr_update_6x5d3 scr_update_6x5d3_asm
@@ -233,7 +292,7 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 #endif
 
 void* framebuffer_init(unsigned size1) {
-	static const uint8_t pal_size[] = { 2, 2, 2, 2, 1 };
+	static const uint8_t pal_size[] = { 2, 2, 2, 2, 1, 1, 1 };
 	static const struct {
 		void (*pal_update)(int i, int r, int g, int b);
 		void (*scr_update)(uint8_t *src, void *dest);
@@ -243,6 +302,10 @@ void* framebuffer_init(unsigned size1) {
 		{ pal_update16, scr_update_27x20d9 },
 		{ pal_update16, scr_update_99x88d72 },
 		{ pal_update8, scr_update_128x64 },
+		{ pal_update8, scr_update_96x68 },
+#if LIBC_SDIO == 0
+		{ pal_update8, scr_update_64x48 },
+#endif
 	};
 	int mode = sys_data.scaler;
 	size_t size, size2 = pal_size[mode] << 8;
@@ -268,14 +331,15 @@ void lcd_appinit(void) {
 		320, 240,  160, 128,  480, 320,
 		220, 176,
 		// monochrome
-		128, 64,
+		128, 64,  96, 68,  64, 48,
 	};
 	struct sys_display *disp = &sys_data.display;
 	unsigned mode = sys_data.scaler - 1;
 	unsigned w = disp->w1, h = disp->h1;
 	if (h <= 68) {
 		mode = GS_MODE;
-		if (h != 64) goto err;
+		if (h == 68) mode = GS_MODE + 1;
+		if (h == 48) mode = GS_MODE + 2;
 	} else if (mode >= GS_MODE) {
 		switch (w) {
 		case 480: mode = 2; break;
