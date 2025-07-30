@@ -294,6 +294,11 @@ int main(int argc, char **argv) {
 				((h % FONT_H) >> 1) * w);
 	}
 	sys_start();
+	// flush events
+	{
+		int key;
+		while (sys_event(&key) != EVENT_END);
+	}
 
 	for (;;) {
 		sys_wait_refresh();
@@ -355,8 +360,7 @@ int main(int argc, char **argv) {
 				//case 0x36: // 6
 				//case 0x07: // RIGHT
 				// TODO: page down
-				case 0x31: // 1
-				case 0x33: // 3
+				case 0x01: // DIAL
 				case 0x08: // LSOFT
 				case 0x09: // RSOFT
 				// some phones don't have a center key
@@ -401,13 +405,10 @@ void keytrn_init(void) {
 	int i, flags = sys_getkeymap(keymap);
 	(void)flags;
 
-#define FILL_KEYTRN(j) \
-	for (i = 0; i < 64; i++) { \
-		sys_data.keytrn[j][i] = keymap[i]; \
-	}
-
-	FILL_KEYTRN(0)
-	FILL_KEYTRN(1)
-#undef FILL_KEYTRN
+	for (i = 0; i < 64; i++)
+		sys_data.keytrn[0][i] = keymap[i];
+	// ignore combinations with the power key
+	for (i = 0; i < 64; i++)
+		sys_data.keytrn[1][i] = 0;
 }
 

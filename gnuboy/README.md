@@ -34,7 +34,7 @@ Port of [gnuboy](https://github.com/rofl0r/gnuboy).
 
 ### Issues
 
-* Monochrome screens are not supported yet.
+* Monochrome screens other than 128x64 are not supported yet.
 
 * Some game cartridges have SRAM for saves, this memory is saved on exit or if you force save SRAM. If the device is turned off, the SRAM changes will be lost.
 
