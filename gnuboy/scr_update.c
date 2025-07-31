@@ -203,7 +203,7 @@ DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 					t1 = c8[s2[1]] | c8[s2[3]] << 16;
 					t2 = c8[s2[2]]; t2 |= t2 << 16;
 					t0 = t0 * 4 + t1;
-					t1 = t1 * 3 + t2 * 2;
+					t2 += t1; t1 += t2 * 2;
 					s2 += 160;
 					a0 += t0 * 4;
 					a1 += t1 * 4;
@@ -285,6 +285,7 @@ DEF(void, scr_update_64x48, (uint8_t *s, void *dest)) {
 #ifdef USE_ASM
 #define scr_update_6x5d3 scr_update_6x5d3_asm
 #define scr_update_9x8d9 scr_update_9x8d9_asm
+#define scr_update_128x64 scr_update_128x64_asm
 #endif
 
 void* framebuffer_init(unsigned size1) {
