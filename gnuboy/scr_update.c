@@ -191,33 +191,29 @@ skip:
 DEF(void, scr_update_128x64, (uint8_t *s, void *dest)) {
 	uint8_t *d = (uint8_t*)dest, *c8 = (uint8_t*)dest - 256;
 	unsigned x, y = 0, h = 144;
-	uint32_t a0, a1, a2, a3, t0, t1, t2, t3, t4;
+	uint32_t a0, a1, t0, t1, t2, a, b;
 	do {
 		for (x = 0; x < 128; x += 4, s += 5, d += 4) {
 			const uint8_t *s2 = s;
-			a0 = a1 = a2 = a3 = 0;
+			a0 = a1 = 0;
 			do {
 				y += 9;
 				do {
-					t0 = c8[s2[0]];
-					t1 = c8[s2[1]];
-					t2 = c8[s2[2]];
-					t3 = c8[s2[3]];
-					t4 = c8[s2[4]];
+					t0 = c8[s2[0]] | c8[s2[4]] << 16;
+					t1 = c8[s2[1]] | c8[s2[3]] << 16;
+					t2 = c8[s2[2]]; t2 |= t2 << 16;
 					t0 = t0 * 4 + t1;
 					t1 = t1 * 3 + t2 * 2;
-					t2 = t2 * 2 + t3 * 3;
-					t3 = t3 + t4 * 4;
 					s2 += 160;
 					a0 += t0 * 4;
 					a1 += t1 * 4;
-					a2 += t2 * 4;
-					a3 += t3 * 4;
 				} while ((int)(y -= 4) > 0);
 #define X(i) a##i += t##i *= y; \
-	a##i = (a##i * 0x2d83 + (3 << 18)) >> 20; /* div45 */ \
-	d[i] = a##i; a##i = -t##i;
-				X(0) X(1) X(2) X(3) d += 128;
+	b = a##i >> 16; a = a##i ^ (b << 16); \
+	a = (a * 0x2d83 + (3 << 18)) >> 20; /* div45 */ \
+	b = (b * 0x2d83 + (3 << 18)) >> 20; /* div45 */ \
+	d[i] = a; d[3 - i] = b; a##i = -t##i;
+				X(0) X(1) d += 128;
 #undef X
 			} while (y);
 			d -= 128 * 4;
