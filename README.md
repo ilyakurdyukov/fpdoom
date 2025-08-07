@@ -136,6 +136,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Prestigio Wize J1: use `--lcd 0x80009106`, 0 and # keys not present in the keymap and implemented differently
 * Texet TM-B322: use `--lcd 0x7567`, dial key is mapped to left soft key
 * Jinga Simple F170: use `--mac 0xd8`
+* Fontel FP200: the same model name is reused for a phone on a completely different hardware, which has a type-C connector, USB device code `1e04:0920`, this is an RDA chip. The supported device on the SC6531 chip has a micro-USB connector.
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
