@@ -117,6 +117,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 61 | Bjorn P220              | SC6531   | 128x160 NV3021    | left soft  |
 | 62 | Cavion Base 1.7         | SC6531   | 128x160 NV3021    | left soft  |
 | 63 | Nokia 105 (TA-1575)     | SC6531E  | 128x160 ST7735    | *          |
+| 64 | Texet TM-408            | SC6531E  | 240x320 GC9307    | #          |
 
 * Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nobby 170B: use `--mac 0xa8` without `--rotate`
