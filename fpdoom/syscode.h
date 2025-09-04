@@ -36,7 +36,7 @@ void set_cpsr_c(uint32_t a);
 int sys_lzma_decode(const uint8_t *src, unsigned src_size,
 		uint8_t *dst, unsigned dst_size);
 void scan_firmware(intptr_t fw_addr);
-unsigned sys_timer_ms(void);
+uint32_t sys_timer_ms(void);
 void sys_wait_ms(uint32_t delay);
 void sys_wait_us(uint32_t delay);
 void sys_wait_clk(uint32_t delay);
