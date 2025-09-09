@@ -1682,6 +1682,34 @@ static const uint8_t cmd9307_chip1_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd7C89F0_cavion_init[] = {
+	//LCM_DELAY(50),
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0xb1, 3), 0x05,0x3a,0x3a,
+	LCM_CMD(0xb2, 3), 0x05,0x3a,0x3a,
+	LCM_CMD(0xb3, 6), 0x05,0x3a,0x3a,0x05,0x3a,0x3a,
+	LCM_CMD(0xb4, 1), 0x03, // Display Inversion Control
+	// Power Control 1-5
+	LCM_CMD(0xc0, 3), 0x28,0x08,0x84,
+	LCM_CMD(0xc1, 1), 0xc0,
+	LCM_CMD(0xc2, 2), 0x0d,0x00,
+	LCM_CMD(0xc3, 2), 0x8d,0x2a,
+	LCM_CMD(0xc4, 2), 0x8d,0xee,
+	LCM_CMD(0xc5, 1), 0x0c, // VCOM Control 1
+	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x05,0x1a,0x0c,0x0e,
+		0x3a,0x34,0x2d,0x2f, 0x2d,0x2a,0x2f,0x3c, 0x00,0x01,0x02,0x10,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x04,0x1b,0x0d,0x0e,
+		0x2d,0x29,0x24,0x29, 0x28,0x26,0x31,0x3b, 0x00,0x00,0x03,0x12,
+	//LCM_DATA(1), 0x8c,
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -1842,7 +1870,7 @@ static const lcd_config_t lcd_config2[] = {
 /* Vector M115 */
 
 	// Sitronix ST7735S CTC
-	X(0x7c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0_square)
+	X(0x807c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0_square)
 
 /* DZ09 */
 
@@ -1910,6 +1938,11 @@ static const lcd_config_t lcd_config2[] = {
 
 	// NewVision NV3021
 	X(0xd48066, 128,160, 0x88, 5,250,200,50,70,50, 0, cmd8066)
+
+/* Cavion Base 1.7 */
+
+	// Sitronix ST7735R
+	X(0x7c89f0, 128,160, 0xc8, 5,250,200,50,70,50, 0, cmd7C89F0_cavion)
 };
 #undef X
 #undef NO_TIMINGS

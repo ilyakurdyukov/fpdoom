@@ -603,7 +603,7 @@ static void lcd_init(const lcd_config_t *lcd) {
 	x2 = 0; w2 = w - 1;
 	y2 = 0; h2 = h - 1;
 	// fix for ST7735
-	if (lcd->id == 0x7c89f0) {
+	if ((lcd->id & 0xffffff) == 0x7c89f0) {
 		w -= x2 = w & 3;
 		h -= y2 = h & 3;
 	}

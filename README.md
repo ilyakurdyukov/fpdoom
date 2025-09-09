@@ -120,6 +120,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 64 | Texet TM-408            | SC6531E  | 240x320 GC9307    | #          |
 
 * Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
+* Vertex M115: use `--lcd 0x807c89f0`
 * Nobby 170B: use `--mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * BQ 3586 Tank Max: use `--bl_gpio 19` for backlight to work properly
