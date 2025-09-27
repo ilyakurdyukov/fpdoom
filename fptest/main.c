@@ -137,13 +137,15 @@ static void test_keypad(void) {
 		case EVENT_KEYUP:
 		case EVENT_KEYDOWN: {
 			const char *s = "???";
+			int power = key >> 15;
+			key &= 0x7fff;
 			switch (key) {
 #define X(val, name) case val: s = #name; break;
 			KEYPAD_ENUM(X)
 #undef X
 			}
-			printf("0x%02x (\"%s\") %s\n", key, s,
-					type == EVENT_KEYUP ? "release" : "press");
+			printf("%s0x%02x (\"%s\") %s\n", power ? "POWER + " : "",
+					key, s, type == EVENT_KEYUP ? "release" : "press");
 	    break;
 		}
 		case EVENT_END: sys_wait_ms(10); break;
@@ -366,7 +368,7 @@ void keytrn_init(void) {
 
 #define FILL_KEYTRN(j) \
 	for (i = 0; i < 64; i++) { \
-		sys_data.keytrn[j][i] = keymap[i]; \
+		sys_data.keytrn[j][i] = keymap[i] | j << 15; \
 	}
 
 	FILL_KEYTRN(0)

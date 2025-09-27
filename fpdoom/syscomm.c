@@ -24,7 +24,7 @@ static const char* keypad_getname(unsigned a) {
 #define M(a, b) a #b "\0"
 	const char *p = KEYPAD_CHAR_ENUM(M);
 #undef M
-	int b;
+	unsigned b;
 	while ((b = *p++)) {
 		if (a == b) return p;
 		while (*p++);
