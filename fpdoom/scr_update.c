@@ -448,7 +448,7 @@ int recalc_cache(unsigned cache_kb) {
 	cache_kb += (ram_size >> 10) - (4 << 10);
 	// 160x128 mode uses less memory for the framebuffer
 	if (sys_data.display.h2 <= 128) cache_kb += 105;
-	if (cache_kb > 6 << 10) n = 6 << 10;
+	if (cache_kb > 6 << 10) cache_kb = 6 << 10;
 #else
 	if (sizeof(void*) == 8) cache_kb *= 2;
 #endif
