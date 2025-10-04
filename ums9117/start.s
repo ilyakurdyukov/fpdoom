@@ -29,7 +29,7 @@ CODE32_FN _start
 	bic	r0, #7 // 2 + 1 + 0
 	orr	r0, #0x1000 // 12
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	msr	cpsr_c, #0xdf // SYS mode
+	msr	CPSR_c, #0xdf // SYS mode
 	ldr	sp, 1f
 
 	ldr	r2, 3f

@@ -8,11 +8,13 @@
 #if UMS9117
 #define CHIPRAM_ADDR 0
 #define KEYPAD_BASE ((keypad_base_t*)0x40250000)
+#define LCDC_BASE ((lcdc_base_t*)0x20800000)
 #else
 #define CHIPRAM_ADDR 0x40000000
 #define FIRMWARE_SIZE (4 << 20)
 
 #define KEYPAD_BASE ((keypad_base_t*)0x87000000)
+#define LCDC_BASE ((lcdc_base_t*)0x20d00000)
 #endif
 
 typedef volatile struct {
@@ -21,6 +23,30 @@ typedef volatile struct {
 	uint32_t long_key, sleep_cnt, clk_divide, key_status;
 	uint32_t sleep_stat, dbg_stat1, dbg_stat2;
 } keypad_base_t;
+
+typedef volatile struct {
+	uint32_t ctrl, disp_size, lcm_start, lcm_size;
+	uint32_t bg_color, fifo_status, sync_delay, dummy[1];
+	struct { // 0x20
+		uint32_t ctrl, y_base_addr, uv_base_addr, size_xy;
+		uint32_t pitch, disp_xy, dummy[6];
+	} img;
+	struct { // 0x50, 0x80, 0xb0
+		uint32_t ctrl, base_addr, alpha_base_addr, size_xy;
+		uint32_t pitch, disp_xy, alpha, grey_rgb;
+		uint32_t ck, dummy[3];
+	} ocd1, ocd2, ocd3;
+	struct { // 0x80
+		uint32_t ctrl, base_addr, start_xy, size_xy;
+		uint32_t pitch, dummy[3];
+	} cap;
+	struct { // 0x100
+		uint32_t ctrl, contrast, saturation, brightness;
+	} y2r;
+	struct { // 0x110
+		uint32_t en, clr, status, raw;
+	} irq;
+} lcdc_base_t;
 
 /* from assembly code */ 
 void enable_mmu(uint32_t *table, uint32_t domain);

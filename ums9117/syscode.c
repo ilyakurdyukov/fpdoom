@@ -84,43 +84,6 @@ void sys_brightness(unsigned val) {
 
 #define LCM_REG_BASE 0x20a00000
 #define LCM_CR(x) MEM4(LCM_REG_BASE + (x))
-#define LCDC_CR(x) MEM4(0x20800000 + (x))
-
-enum {
-	LCDC_CTRL = 0x00,
-	LCDC_DISP_SIZE = 0x04,
-	LCDC_LCM_START = 0x08,
-	LCDC_LCM_SIZE = 0x0c,
-	LCDC_BG_COLOR = 0x10,
-	LCDC_FIFO_STATUS = 0x14,
-
-	LCDC_OSD0_CTRL = 0x20,
-	LCDC_OSD0_BASE_ADDR = 0x24,
-	LCDC_OSD0_ALPHA_BASE_ADDR = 0x28,
-	LCDC_OSD0_SIZE_XY = 0x2c,
-	LCDC_OSD0_PITCH = 0x30,
-	LCDC_OSD0_DISP_XY = 0x34,
-
-	LCDC_OSD1_CTRL = 0x50,
-	LCDC_OSD1_BASE_ADDR = 0x54,
-	LCDC_OSD1_SIZE_XY = 0x5c,
-	LCDC_OSD1_PITCH = 0x60,
-	LCDC_OSD1_DISP_XY = 0x64,
-	LCDC_OSD1_ALPHA = 0x68,
-	LCDC_OSD1_GREY_RGB = 0x6c,
-	LCDC_OSD1_CK = 0x70,
-
-	LCDC_OSD4_CTRL = 0xe0,
-	LCDC_OSD4_LCM_ADDR = 0xe4,
-	LCDC_OSD4_DISP_XY = 0xe8,
-	LCDC_OSD4_SIZE_XY = 0xec,
-	LCDC_OSD4_PITCH = 0xf0,
-
-	LCDC_IRQ_EN = 0x110,
-	LCDC_IRQ_CLR = 0x114,
-	LCDC_IRQ_STATUS = 0x118,
-	LCDC_IRQ_RAW = 0x11c,
-};
 
 typedef struct {
 	uint32_t id, id_mask;
@@ -337,17 +300,17 @@ void sys_start_refresh(void) {
 #else
 	clean_dcache();
 #endif
-	LCDC_CR(LCDC_IRQ_EN) |= mask;
-	LCDC_CR(LCDC_CTRL) |= 8;	// start refresh
+	LCDC_BASE->irq.en |= mask;
+	LCDC_BASE->ctrl |= 8;	// start refresh
 }
 
 void sys_wait_refresh(void) {
 	int mask = 1;
 
-	if (!(LCDC_CR(LCDC_IRQ_EN) & mask)) return;
+	if (!(LCDC_BASE->irq.en & mask)) return;
 
-	while ((LCDC_CR(LCDC_IRQ_RAW) & mask) == 0);
-	LCDC_CR(LCDC_IRQ_CLR) |= mask;
+	while ((LCDC_BASE->irq.raw & mask) == 0);
+	LCDC_BASE->irq.clr |= mask;
 }
 
 static void lcd_init(const lcd_config_t *lcd) {
@@ -392,6 +355,7 @@ static void lcd_init(const lcd_config_t *lcd) {
 }
 
 static void lcdc_init(void) {
+	lcdc_base_t *lcdc = LCDC_BASE;
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1;
 	unsigned w2 = disp->w2, h2 = disp->h2;
@@ -402,15 +366,15 @@ static void lcdc_init(void) {
 	sys_wait_ms(10);
 	AHB_CR(0x2004) = 2;
 
-	LCDC_CR(LCDC_CTRL) |= 1; // lcdc_enable = 1
+	lcdc->ctrl |= 1; // lcdc_enable = 1
 
-	LCDC_CR(LCDC_CTRL) |= 2; // fmark_mode = 1
-	LCDC_CR(LCDC_CTRL) &= ~4; // fmark_pol = 0
-	LCDC_CR(LCDC_BG_COLOR) = 0x000000;
+	lcdc->ctrl |= 2; // fmark_mode = 1
+	lcdc->ctrl &= ~4; // fmark_pol = 0
+	lcdc->bg_color = 0x000000;
 
-	LCDC_CR(LCDC_DISP_SIZE) = w | h << 16;
-	LCDC_CR(LCDC_LCM_START) = 0;
-	LCDC_CR(LCDC_LCM_SIZE) = w | h << 16;
+	lcdc->disp_size = w | h << 16;
+	lcdc->lcm_start = 0;
+	lcdc->lcm_size = w | h << 16;
 
 	{
 		uint32_t addr, mode;
@@ -418,38 +382,38 @@ static void lcdc_init(void) {
 			lcm_set_mode(0x28); // 8x2 BE
 			mode = 2; addr = lcd_setup.addr | 1 << 17;
 		}
-		LCDC_CR(LCDC_OSD4_CTRL) |= 0x20;
-		LCDC_CR(LCDC_OSD4_CTRL) |= (LCDC_CR(LCDC_OSD4_CTRL) & ~(3 << 6)) | mode << 6;
-		LCDC_CR(LCDC_CTRL) &= ~(7 << 5);
-		LCDC_CR(LCDC_OSD4_LCM_ADDR) = addr >> 2;
+		lcdc->cap.ctrl |= 0x20;
+		lcdc->cap.ctrl |= (lcdc->cap.ctrl & ~(3 << 6)) | mode << 6;
+		lcdc->ctrl &= ~(7 << 5);
+		lcdc->cap.base_addr = addr >> 2;
 	}
 #if REFRESH_CLEAR_RANGE
 	sys_data.framebuf = NULL;
 #endif
 	sys_start_refresh();
 	sys_wait_refresh();
-	LCDC_CR(LCDC_IRQ_EN) &= ~1;
+	lcdc->irq.en &= ~1;
 
 	{
-		uint32_t a = LCDC_CR(LCDC_OSD0_CTRL);
+		uint32_t a = lcdc->img.ctrl;
 		int fmt = 5;
 		//a |= 1;
 		a &= ~2; // disable color key
 		//a |= 4; // block alpha
 		a = (a & ~(15 << 4)) | fmt << 4; // format
 		a = (a & ~(3 << 8)) | 2 << 8; // little endian
-		LCDC_CR(LCDC_OSD0_CTRL) = a;
+		lcdc->img.ctrl = a;
 	}
 
-	LCDC_CR(LCDC_OSD0_PITCH) = w2;
+	lcdc->img.pitch = w2;
 
 	w2 = w2 > w ? w : w2;
 	h2 = h2 > h ? h : h2;
 	w2 &= ~1;	// must be aligned
 
-	//LCDC_CR(LCDC_OSD0_BASE_ADDR) = (uint32_t)base >> 2;
-	LCDC_CR(LCDC_OSD0_SIZE_XY) = w2 | h2 << 16;
-	LCDC_CR(LCDC_OSD0_DISP_XY) = ((w - w2) >> 1) | ((h - h2) >> 1) << 16;
+	//lcdc->img.base_addr = (uint32_t)base >> 2;
+	lcdc->img.size_xy = w2 | h2 << 16;
+	lcdc->img.disp_xy = ((w - w2) >> 1) | ((h - h2) >> 1) << 16;
 }
 
 void sys_framebuffer(void *base) {
@@ -466,8 +430,8 @@ void sys_framebuffer(void *base) {
 	lcm_config_addr(sys_data.lcd_cs);
 #endif
 
-	LCDC_CR(LCDC_OSD0_BASE_ADDR) = ((uint32_t)base + offset * 2) >> 2;
-	LCDC_CR(LCDC_OSD0_CTRL) |= 1;
+	LCDC_BASE->img.y_base_addr = ((uint32_t)base + offset * 2) >> 2;
+	LCDC_BASE->img.ctrl |= 1;
 }
 
 int keypad_read_pb(void) {
@@ -605,7 +569,7 @@ void sys_start(void) {
 void sys_exit(void) {
 	if (sys_data.init_done) {
 		sys_brightness(0);
-		LCDC_CR(LCDC_CTRL) &= ~1;
+		LCDC_BASE->ctrl &= ~1;
 		AHB_PWR_OFF(0x800 | 0x1000); // LCDC, LCM
 		set_cpsr_c(0xdf); // mask interrupts
 	}
