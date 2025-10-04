@@ -725,11 +725,11 @@ CODE32_FN fastchk16
 	bx	lr
 
 CODE32_FN get_cpsr
-	mrs	r0, cpsr
+	mrs	r0, CPSR
 	bx	lr
 
 CODE32_FN set_cpsr_c
-	msr	cpsr_c, r0
+	msr	CPSR_c, r0
 	bx	lr
 
 DIV_CHECK = 1

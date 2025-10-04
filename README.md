@@ -118,6 +118,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 62 | Cavion Base 1.7         | SC6531   | 128x160 NV3021    | left soft  |
 | 63 | Nokia 105 (TA-1575)     | SC6531E  | 128x160 ST7735    | *          |
 | 64 | Texet TM-408            | SC6531E  | 240x320 GC9307    | #          |
+| 65 | CHAKEYAKE T190          | UMS9117  | 128x160 GC9106    | *          |
 
 * Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Vertex M115: use `--lcd 0x807c89f0`
@@ -129,7 +130,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 * Texet TM-B316: use `--lcd 0x8083760f --rotate 1,0`
-* Texet TM-B323, Texet TM-B208: use `--rotate 3,0 --keyflags 1`
+* Texet TM-B323, Texet TM-B208, CHAKEYAKE T190: use `--rotate 3,0 --keyflags 1`
 * Texet TM-B323: very rare resolution, not the best support for it
 * Tokky FP10, Fontel FP100: use `--lcd 0x7567`
 * Joy's S16, Vertex M114, Digma Linx A106: use `--lcd 0x1230`

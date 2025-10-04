@@ -12,6 +12,7 @@ void *memset(void *dst, int ch, size_t count);
 
 unsigned fastchk16(unsigned crc, const void *src, int len);
 
+#define MEM1(addr) *(volatile uint8_t*)(addr)
 #define MEM2(addr) *(volatile uint16_t*)(addr)
 #define MEM4(addr) *(volatile uint32_t*)(addr)
 #define DELAY(n) { \

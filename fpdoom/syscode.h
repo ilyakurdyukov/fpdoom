@@ -5,10 +5,15 @@
 #define INIT_MMU 1
 #endif
 
+#if UMS9117
+#define CHIPRAM_ADDR 0
+#define KEYPAD_BASE ((keypad_base_t*)0x40250000)
+#else
 #define CHIPRAM_ADDR 0x40000000
 #define FIRMWARE_SIZE (4 << 20)
 
 #define KEYPAD_BASE ((keypad_base_t*)0x87000000)
+#endif
 
 typedef volatile struct {
 	uint32_t ctrl, int_en, int_raw, int_mask;
@@ -16,18 +21,6 @@ typedef volatile struct {
 	uint32_t long_key, sleep_cnt, clk_divide, key_status;
 	uint32_t sleep_stat, dbg_stat1, dbg_stat2;
 } keypad_base_t;
-
-#if !CHIP
-#define CHIP_FN(name) (_chip != 1 ? sc6531_##name : sc6531e_##name)
-#elif CHIP == 1 // SC6531E
-#define CHIP_FN(name) sc6531e_##name
-#elif CHIP == 2 // SC6531DA
-#define CHIP_FN(name) sc6531_##name
-#elif CHIP == 3 // SC6530
-#define CHIP_FN(name) sc6530_##name
-#else
-#error
-#endif
 
 /* from assembly code */ 
 void enable_mmu(uint32_t *table, uint32_t domain);
@@ -59,6 +52,7 @@ void sys_wdg_reset(unsigned val);
 
 void clean_icache(void);
 void clean_dcache(void);
+void clean_dcache_range(void *start, void *end);
 void clean_invalidate_dcache(void);
 void clean_invalidate_dcache_range(void *start, void *end);
 

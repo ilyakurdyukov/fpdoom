@@ -83,6 +83,7 @@ typedef struct {
 #if USE_LIBUSB
 	libusb_device_handle *dev_handle;
 	int endp_in, endp_out;
+	int endp_in_blk, endp_out_blk;
 #else
 	int serial;
 #endif
@@ -91,8 +92,8 @@ typedef struct {
 } usbio_t;
 
 #if USE_LIBUSB
-static void find_endpoints(libusb_device_handle *dev_handle, int result[2]) {
-	int endp_in = -1, endp_out = -1;
+static void find_endpoints(libusb_device_handle *dev_handle, int result[4]) {
+	int endp_in = -1, endp_out = -1, endp_in_blk = 0, endp_out_blk = 0;
 	int i, k, err;
 	//struct libusb_device_descriptor desc;
 	struct libusb_config_descriptor *config;
@@ -121,10 +122,12 @@ static void find_endpoints(libusb_device_handle *dev_handle, int result[2]) {
 				if (addr & 0x80) {
 					if (endp_in >= 0) ERR_EXIT("more than one endp_in\n");
 					endp_in = addr;
+					endp_in_blk = endpoint->wMaxPacketSize;
 					claim = 1;
 				} else {
 					if (endp_out >= 0) ERR_EXIT("more than one endp_out\n");
 					endp_out = addr;
+					endp_out_blk = endpoint->wMaxPacketSize;
 					claim = 1;
 				}
 			}
@@ -154,6 +157,8 @@ static void find_endpoints(libusb_device_handle *dev_handle, int result[2]) {
 
 	result[0] = endp_in;
 	result[1] = endp_out;
+	result[2] = endp_in_blk;
+	result[3] = endp_out_blk;
 }
 #else
 static void init_serial(int serial) {
@@ -184,7 +189,7 @@ static usbio_t* usbio_init(int serial, int flags) {
 	uint8_t *p; usbio_t *io;
 
 #if USE_LIBUSB
-	int endpoints[2];
+	int endpoints[4];
 	find_endpoints(dev_handle, endpoints);
 #else
 	init_serial(serial);
@@ -200,6 +205,8 @@ static usbio_t* usbio_init(int serial, int flags) {
 	io->dev_handle = dev_handle;
 	io->endp_in = endpoints[0];
 	io->endp_out = endpoints[1];
+	io->endp_in_blk = endpoints[2];
+	io->endp_out_blk = endpoints[3];
 #else
 	io->serial = serial;
 #endif
@@ -261,6 +268,13 @@ static int usb_send(usbio_t *io, const void *data, int len) {
 				io->endp_out, (uint8_t*)buf, len, &ret, io->timeout);
 		if (err < 0)
 			ERR_EXIT("usb_send failed : %s\n", libusb_error_name(err));
+	}
+	// UMS9117 waits too long after a 512 byte block.
+	if (io->endp_out_blk == 512 && !((unsigned)len % 512)) {
+		int dummy;
+		// signal end of transfer
+		libusb_bulk_transfer(io->dev_handle,
+				io->endp_out, NULL, 0, &dummy, io->timeout);
 	}
 #else
 	ret = write(io->serial, buf, len);

@@ -34,7 +34,9 @@ include ../buildinc.make
 
 SYS_CFLAGS += -DCXX_SUPPORT
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
+ifneq ($(T117), 1)
 CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
+endif
 CXXFLAGS := $(CFLAGS) -std=c++14 -fno-exceptions -fno-rtti -Wno-narrowing
 
 APP_CFLAGS += -DHAVE_STRINGS_H -DHAVE_STDINT_H -DRIGHTSHIFT_IS_SAR

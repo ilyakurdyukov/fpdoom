@@ -761,7 +761,7 @@ static void lcdc_init(void) {
 		int fmt = 5;
 		//a |= 1;
 		a &= ~2; // disable color key
-		a |= 4; // block alpha
+		//a |= 4; // block alpha
 		a = (a & ~(15 << 4)) | fmt << 4; // format
 		a = (a & ~(3 << 8)) | 2 << 8; // little endian
 		LCDC_CR(LCDC_OSD0_CTRL) = a;

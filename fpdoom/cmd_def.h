@@ -16,7 +16,12 @@ enum {
 #define CHECKSUM_INIT 0x5a5a
 
 #define MAX_FILES 255
+#if UMS9117
+// FIXME: should not request more than the USB buffer size
+#define MAX_IOSIZE 0x3000
+#else
 #define MAX_IOSIZE 0x4000
+#endif
 
 #define _IO_LINEBUF 1
 #define _IO_WRITE 2

@@ -22,7 +22,7 @@ CODE32_FN _start
 // 13 : Location of exception vectors
 
 	mov	r1, #0
-	mcr	p15, #0, r1, c7, c5, #0	// Invalidate ICache
+	mcr	p15, #0, r1, c7, c5, #0 // Invalidate ICache
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
 	bic	r0, #5 // 2 + 0
 	// SR=01, read-only
@@ -30,7 +30,7 @@ CODE32_FN _start
 	orr	r0, #2 // 1
 	orr	r0, #0x3200 // 13 + 12 + 9
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	msr	cpsr_c, #0xdf // SYS mode
+	msr	CPSR_c, #0xdf // SYS mode
 .if 0 // remap flash to 0
 	adr	lr, 10f
 	ldmia	lr!, {r1-r4}

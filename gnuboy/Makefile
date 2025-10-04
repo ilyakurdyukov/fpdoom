@@ -37,7 +37,9 @@ APP_OBJS2 = $(GNUBOY_SRCS:%=$(OBJDIR)/gnuboy/%.o)
 include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
+ifneq ($(T117), 1)
 CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
+endif
 SYS_CFLAGS += -DATEXIT_MAX=2
 
 GNUBOY_CFLAGS += -std=c99 -pedantic

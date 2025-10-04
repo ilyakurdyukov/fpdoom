@@ -18,6 +18,7 @@ APPS = fpdoom fpduke3d fpsw fpblood infones \
 	gnuboy
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
+	$(patsubst %,$(BINDIR)/usb_t117/%.bin,$(APPS)) \
 	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
 	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3) \
 	$(BINDIR)/jump4m.bin \
@@ -64,49 +65,12 @@ endef
 
 # USB mode
 
-$(BINDIR)/usb/fptest.bin:
-	$(call makebin,fptest,LIBC_SDIO=0)
-
-$(BINDIR)/usb/fpdoom.bin: doom_src
-	$(call makebin,fpdoom,LIBC_SDIO=0)
-
-$(BINDIR)/usb/fpduke3d.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=duke3d)
-
-$(BINDIR)/usb/fpsw.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=sw)
-
-$(BINDIR)/usb/fpblood.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=0 GAME=blood)
-
-$(BINDIR)/usb/infones.bin: infones/InfoNES
-	$(call makebin,infones,LIBC_SDIO=0)
-
-$(BINDIR)/usb/wolf3d.bin: wolf3d/Wolf4SDL
-	$(call makebin,wolf3d,LIBC_SDIO=0)
-
-$(BINDIR)/usb/wolf3d_sw.bin: wolf3d/Wolf4SDL
-	$(call makebin,wolf3d,LIBC_SDIO=0 NAME=wolf3d_sw)
-
-$(BINDIR)/usb/snes9x.bin: snes9x/snes9x_src
-	$(call makebin,snes9x,LIBC_SDIO=0)
-
-$(BINDIR)/usb/snes9x_16bit.bin: snes9x/snes9x_src
-	$(call makebin,snes9x,LIBC_SDIO=0 NAME=snes9x_16bit)
-
-$(BINDIR)/usb/chocolate-doom.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=doom)
-
-$(BINDIR)/usb/chocolate-heretic.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=heretic)
-
-$(BINDIR)/usb/chocolate-hexen.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=0 GAME=hexen)
-
-$(BINDIR)/usb/gnuboy.bin: gnuboy/gnuboy
-	$(call makebin,gnuboy,LIBC_SDIO=0)
+$(BINDIR)/usb/%: OPTS += LIBC_SDIO=0
+$(BINDIR)/usb_t117/%: OPTS += T117=1 LIBC_SDIO=0
 
 # SD card mode
+
+$(FPBIN)/%: OPTS += LIBC_SDIO=3
 
 $(BINDIR)/sdboot1.bin:
 	$(call makebin,sdboot,CHIP=1)
@@ -127,42 +91,45 @@ $(FPBIN)/config.txt:
 	mkdir -p $(dir $@)
 	cp fpmenu/$(notdir $@) $@
 
-$(FPBIN)/fpdoom.bin: doom_src
-	$(call makebin,fpdoom,LIBC_SDIO=3)
+%/fptest.bin:
+	$(call makebin,fptest,$(OPTS))
 
-$(FPBIN)/fpduke3d.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=duke3d)
+%/fpdoom.bin: doom_src
+	$(call makebin,fpdoom,$(OPTS))
 
-$(FPBIN)/fpsw.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=sw)
+%/fpduke3d.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,$(OPTS) GAME=duke3d)
 
-$(FPBIN)/fpblood.bin: fpbuild/jfbuild
-	$(call makebin,fpbuild,LIBC_SDIO=3 GAME=blood)
+%/fpsw.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,$(OPTS) GAME=sw)
 
-$(FPBIN)/infones.bin: infones/InfoNES
-	$(call makebin,infones,LIBC_SDIO=3)
+%/fpblood.bin: fpbuild/jfbuild
+	$(call makebin,fpbuild,$(OPTS) GAME=blood)
 
-$(FPBIN)/wolf3d.bin: wolf3d/Wolf4SDL
-	$(call makebin,wolf3d,LIBC_SDIO=3)
+%/infones.bin: infones/InfoNES
+	$(call makebin,infones,$(OPTS))
 
-$(FPBIN)/wolf3d_sw.bin: wolf3d/Wolf4SDL
-	$(call makebin,wolf3d,LIBC_SDIO=3 NAME=wolf3d_sw)
+%/wolf3d.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,$(OPTS))
 
-$(FPBIN)/snes9x.bin: snes9x/snes9x_src
-	$(call makebin,snes9x,LIBC_SDIO=3)
+%/wolf3d_sw.bin: wolf3d/Wolf4SDL
+	$(call makebin,wolf3d,$(OPTS) NAME=wolf3d_sw)
 
-$(FPBIN)/snes9x_16bit.bin: snes9x/snes9x_src
-	$(call makebin,snes9x,LIBC_SDIO=3 NAME=snes9x_16bit)
+%/snes9x.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,$(OPTS))
 
-$(FPBIN)/chocolate-doom.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=doom)
+%/snes9x_16bit.bin: snes9x/snes9x_src
+	$(call makebin,snes9x,$(OPTS) NAME=snes9x_16bit)
 
-$(FPBIN)/chocolate-heretic.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=heretic)
+%/chocolate-doom.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,$(OPTS) GAME=doom)
 
-$(FPBIN)/chocolate-hexen.bin: chocolate-doom/chocolate-doom
-	$(call makebin,chocolate-doom,LIBC_SDIO=3 GAME=hexen)
+%/chocolate-heretic.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,$(OPTS) GAME=heretic)
 
-$(FPBIN)/gnuboy.bin: gnuboy/gnuboy
-	$(call makebin,gnuboy,LIBC_SDIO=3)
+%/chocolate-hexen.bin: chocolate-doom/chocolate-doom
+	$(call makebin,chocolate-doom,$(OPTS) GAME=hexen)
+
+%/gnuboy.bin: gnuboy/gnuboy
+	$(call makebin,gnuboy,$(OPTS))
 

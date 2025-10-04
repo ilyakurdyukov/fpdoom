@@ -1,5 +1,5 @@
 @ -*- tab-width: 8 -*-
-	.arch armv5te
+	.arch armv7-a
 	.syntax unified
 
 .macro CODE32_FN name
@@ -16,21 +16,15 @@ CODE32_FN _start
 //  0 : MMU enable
 //  1 : Alignment fault enable
 //  2 : Level 1 Data Cache enable
-//  8 : System protection
-//  9 : ROM protection
 // 12 : Instruction Cache enable
-// 13 : Location of exception vectors
 
 	mov	r1, #0
 	mcr	p15, #0, r1, c7, c5, #0 // Invalidate ICache
 	mrc	p15, #0, r0, c1, c0, #0 // Read Control Register
-	bic	r0, #5 // 2 + 0
-	// SR=01, read-only
-	bic	r0, #0x100 // 8
-	orr	r0, #2 // 1
-	orr	r0, #0x3200 // 13 + 12 + 9
+	bic	r0, #7 // 2 + 1 + 0
+	orr	r0, #0x1000 // 12
 	mcr	p15, #0, r0, c1, c0, #0 // Write Control Register
-	msr	CPSR_c, #0xdf // SYS mode
+	msr	cpsr_c, #0xdf // SYS mode
 	ldr	sp, 1f
 
 	ldr	r2, 3f
@@ -50,9 +44,9 @@ CODE32_FN _start
 	add	sp, #4
 	mov	r3, r0
 	mov	r0, r4
-	ldr	r1, [r4, #0x10]
-	ldr	r2, [r4, #0x14]
-	ldr	pc, [r4, #0x18] // entry_main
+	ldr	r1, [r4, #0x210]
+	ldr	r2, [r4, #0x214]
+	ldr	pc, [r4, #0x218] // entry_main
 
 1:	.long	__stack_bottom
 3:	.long	__image_start
