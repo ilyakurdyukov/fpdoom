@@ -19,6 +19,7 @@ int wm_msgbox(const char *name, const char *fmt, ...) {
 	va_start(va, fmt);
 	vprintf(fmt, va);
 	va_end(va);
+	putchar('\n');
 	return 0;
 }
 
@@ -51,6 +52,9 @@ char playanm_flag = 0;
 int main(int argc, char **argv) {
 	int i, j, ret;
 
+#if EMBEDDED == 1 || UMS9117
+	maxcache1dsize = 4 << 20;
+#else
 	{
 		uint32_t ram_addr = (uint32_t)&main & 0xfc000000;
 		uint32_t ram_size = *(volatile uint32_t*)ram_addr;
@@ -61,6 +65,7 @@ int main(int argc, char **argv) {
 		if (cachesize > 4 << 20) cachesize = 4 << 20;
 		maxcache1dsize = cachesize;
 	}
+#endif
 
 	for (i = j = 1; i < argc;) {
 		char *p = argv[i++];

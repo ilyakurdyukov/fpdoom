@@ -847,7 +847,7 @@ index a327bfa..89ae9a0 100644
  }
 +#endif
 diff --git a/i_system.c b/i_system.c
-index 1b67d51..1de37e8 100644
+index 1b67d51..8919292 100644
 --- a/i_system.c
 +++ b/i_system.c
 @@ -30,7 +30,11 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -855,7 +855,7 @@ index 1b67d51..1de37e8 100644
  #include <stdarg.h>
  #include <sys/time.h>
 +#if defined(EMBEDDED)
-+#include "../syscode.h"
++#include "syscode.h"
 +#else
  #include <unistd.h>
 +#endif
@@ -982,7 +982,7 @@ index 8954140..d814a9f 100644
  
  
 diff --git a/i_video.c b/i_video.c
-index 9b311b3..c53cb63 100644
+index 9b311b3..38d7dea 100644
 --- a/i_video.c
 +++ b/i_video.c
 @@ -25,6 +25,7 @@ static const char
@@ -1007,7 +1007,7 @@ index 9b311b3..c53cb63 100644
  
 +int screenheight = 200, patch_yadd = 0;
 +#ifdef EMBEDDED
-+#include "../syscode.h"
++#include "syscode.h"
 +extern void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 +extern void (*app_scr_update)(uint8_t *src, void *dest);
 +extern uint16_t *framebuf;
@@ -1254,7 +1254,7 @@ index 786a717..00da20b 100644
  
  
 diff --git a/m_fixed.c b/m_fixed.c
-index 4e0792d..73894f7 100644
+index 4e0792d..5f3820a 100644
 --- a/m_fixed.c
 +++ b/m_fixed.c
 @@ -35,7 +35,36 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
@@ -1270,12 +1270,12 @@ index 4e0792d..73894f7 100644
 +fixed_t FixedDiv(fixed_t a, fixed_t b) {
 +	unsigned r0 = a, r1 = b;
 +	unsigned r12 = r0 ^ r1, r2, r3;
-+	r2 = r0 ^ ((int32_t)r0 >> 31);
-+	r3 = r1 ^ ((int32_t)r1 >> 31);
-+	r2 -= ((int32_t)r0 >> 31);
-+	r3 -= ((int32_t)r1 >> 31);
++	r2 = r0 ^ ((int)r0 >> 31);
++	r3 = r1 ^ ((int)r1 >> 31);
++	r2 -= ((int)r0 >> 31);
++	r3 -= ((int)r1 >> 31);
 +	r1 = r2 >> 15; r2 <<= 17;
-+	r0 = 0x7fffffff ^ ((int32_t)r12 >> 31);
++	r0 = 0x7fffffff ^ ((int)r12 >> 31);
 +	if (r1 >= r3) return r0;
 +	r0 = 2;
 +	for (;;) {

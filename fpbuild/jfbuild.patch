@@ -246,7 +246,7 @@ index 220b37e..a30b2f8 100644
  int scriptfile_getsymbol(scriptfile *sf, int *num);
  int scriptfile_getlinum(scriptfile *sf, char *ptr);
 diff --git a/src/baselayer.c b/src/baselayer.c
-index 2982655..d90748e 100644
+index 2982655..42eadb7 100644
 --- a/src/baselayer.c
 +++ b/src/baselayer.c
 @@ -69,8 +69,10 @@ int checkvideomode(int *x, int *y, int c, int fs, int forced)
@@ -260,6 +260,16 @@ index 2982655..d90748e 100644
  	if (*x > MAXXDIM) *x = MAXXDIM;
  	if (*y > MAXYDIM) *y = MAXYDIM;
  	*x &= 0xfffffff8l;
+@@ -229,6 +231,9 @@ static int osdcmd_vars(const osdfuncparm_t *parm)
+ 
+ int baselayer_init(void)
+ {
++#if NO_OSD
++    return 0;
++#endif
+     OSD_Init();
+ 
+ 	OSD_RegisterFunction("screencaptureformat","screencaptureformat: sets the output format for screenshots (TGA, PCX, PNG)",osdcmd_vars);
 diff --git a/src/baselayer_priv.h b/src/baselayer_priv.h
 index 3537fe8..7f7ed76 100644
 --- a/src/baselayer_priv.h

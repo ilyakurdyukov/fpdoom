@@ -6,6 +6,7 @@ FPDOOM_DIR = ../fpdoom
 USE_ASM = 1
 NO_FLOAT = 1
 NO_DEH = 1
+KEYTRN_PC = 1
 
 APP_SRCS = port_hacks port_sys scr_update
 ifneq ($(USE_ASM), 0)
@@ -78,13 +79,13 @@ include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
 
-APP_CFLAGS = -std=c99 -pedantic
+APP_CFLAGS += -std=c99 -pedantic
 ifneq ($(USE_ASM), 0)
 APP_CFLAGS += -DUSE_ASM
 endif
 
 GAME_CFLAGS += -DDISABLE_SDL2NET=1 -DDISABLE_SDL2MIXER=1
-GAME_CFLAGS += -DEMBEDDED=2 -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1
+GAME_CFLAGS += -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1
 GAME_CFLAGS += -DNORANGECHECKING
 ifneq ($(NO_DEH), 0)
 GAME_CFLAGS += -DNO_DEH=1

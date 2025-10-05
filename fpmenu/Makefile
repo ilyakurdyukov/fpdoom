@@ -19,7 +19,7 @@ CFLAGS += -DSDIO_VERBOSE=0 -DSDIO_SHL=CHIPRAM_ADDR
 CFLAGS += -DMENU_DEBUG=0
 CFLAGS := $(filter-out -DFAT_WRITE=1, $(CFLAGS))
 
-APP_CFLAGS = -std=c99 -pedantic -I$(SYSDIR)
+APP_CFLAGS += -std=c99 -pedantic -I$(SYSDIR)
 
 $(OBJDIR)/$(NAME)_part1.elf: $(OBJS1)
 	$(CC) $(LFLAGS) $(OBJS1) -o $@

@@ -5,7 +5,7 @@ GAMESRC = jf$(GAME)/src
 ENGINEROOT = jfbuild
 MACTROOT = jfmact
 AUDIOLIBROOT = jfaudiolib
-USE_ASM = 1
+USE_ASM = $(if $(PCTEST),0,1)
 NO_FLOAT = 1
 
 ifeq ($(GAME), duke3d)
@@ -60,7 +60,10 @@ MACT_SRCS = \
 	util_lib file_lib control keyboard \
 	mouse mathutil scriplib animlib
 
-APP_SRCS = fp_layer unistd
+APP_SRCS = fp_layer
+ifneq ($(PCTEST), 1)
+APP_SRCS += unistd
+endif
 ifeq ($(USE_ASM), 0)
 BUILD_SRCS += a-c
 else
@@ -80,7 +83,7 @@ endif
 
 CXXFLAGS := $(CFLAGS) -std=c++14 -fno-exceptions -fno-rtti -Wno-narrowing
 
-GAME_CFLAGS = -DEMBEDDED=2 -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1 -DNO_OSD=1
+GAME_CFLAGS := $(APP_CFLAGS) -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_NET=1 -DNO_OSD=1
 ifneq ($(USE_ASM), 0)
 GAME_CFLAGS += -DUSE_ASM
 endif

@@ -134,7 +134,7 @@ index fb8b4a8..042f9b4 100644
  	}
  	else name = ldup(rom.name);
 diff --git a/main.c b/main.c
-index 9c0cf85..d8d2365 100644
+index 9c0cf85..f82619d 100644
 --- a/main.c
 +++ b/main.c
 @@ -211,6 +211,7 @@ void die(char *fmt, ...)
@@ -153,7 +153,7 @@ index 9c0cf85..d8d2365 100644
  
  
  
-@@ -257,15 +259,24 @@ int load_rom_and_rc(char *rom) {
+@@ -257,8 +259,13 @@ int load_rom_and_rc(char *rom) {
  	rom = strdup(rom);
  	sys_sanitize(rom);
  	if(loader_init(rom)) {
@@ -167,18 +167,7 @@ index 9c0cf85..d8d2365 100644
  	}
  	emu_reset();
  	return 0;
- }
- 
- 
-+#if EMBEDDED == 1
-+int app_main(int argc, char *argv[])
-+#else
- int main(int argc, char *argv[])
-+#endif
- {
- 	int i, ri = 0, sv = 0;
- 	char *opt, *arg, *cmd, *s, *rom = 0;
-@@ -298,7 +309,11 @@ int main(int argc, char *argv[])
+@@ -298,7 +305,11 @@ int main(int argc, char *argv[])
  
  	init_exports();
  
@@ -190,7 +179,7 @@ index 9c0cf85..d8d2365 100644
  	sys_sanitize(s);
  	sys_initpath(s);
  
-@@ -364,7 +379,9 @@ int main(int argc, char *argv[])
+@@ -364,7 +375,9 @@ int main(int argc, char *argv[])
  
  	/* FIXME - make interface modules responsible for atexit() */
  	atexit(shutdown);
@@ -200,7 +189,7 @@ index 9c0cf85..d8d2365 100644
  	vid_init();
  	joy_init();
  	pcm_init();
-@@ -372,9 +389,13 @@ int main(int argc, char *argv[])
+@@ -372,9 +385,13 @@ int main(int argc, char *argv[])
  
  	if(rom) load_rom_and_rc(rom);
  	else {

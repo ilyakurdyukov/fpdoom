@@ -63,6 +63,11 @@ define makebin
 	cd $(1) && $(MAKE) clean $(2)
 endef
 
+# PCTEST build
+
+$(BINDIR)/sdl1/%: OPTS += PCTEST=1 GFX_MODE=SDL1
+$(BINDIR)/sdl2/%: OPTS += PCTEST=1 GFX_MODE=SDL2
+
 # USB mode
 
 $(BINDIR)/usb/%: OPTS += LIBC_SDIO=0

@@ -1,5 +1,6 @@
 NAME = gnuboy
 GNUBOYDIR = gnuboy
+USE_FILEMAP = 1
 USE_ASM = 1
 NO_FLOAT = 1
 NO_GZ = 1
@@ -37,13 +38,10 @@ APP_OBJS2 = $(GNUBOY_SRCS:%=$(OBJDIR)/gnuboy/%.o)
 include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
-ifneq ($(T117), 1)
-CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
-endif
 SYS_CFLAGS += -DATEXIT_MAX=2
 
-GNUBOY_CFLAGS += -std=c99 -pedantic
-GNUBOY_CFLAGS += -DEMBEDDED=2 -DIS_LITTLE_ENDIAN
+APP_CFLAGS += -std=c99 -pedantic
+GNUBOY_CFLAGS = -DIS_LITTLE_ENDIAN
 ifneq ($(NO_MENU), 0)
 GNUBOY_CFLAGS += -DNO_MENU
 endif
@@ -61,8 +59,9 @@ GNUBOY_CFLAGS += -DNO_FLOAT=1
 endif
 GNUBOY_CFLAGS += -Wno-unused -Wno-sign-compare
 GNUBOY_CFLAGS += -Wno-unused-parameter -Wno-strict-prototypes -Wno-newline-eof
+GNUBOY_CFLAGS := $(APP_CFLAGS) $(GNUBOY_CFLAGS)
 
-APP_CFLAGS += $(GNUBOY_CFLAGS) -I$(SYSDIR) -I$(GNUBOYDIR)
+APP_CFLAGS := $(GNUBOY_CFLAGS) -I$(SYSDIR) -I$(GNUBOYDIR)
 ifneq ($(USE_ASM), 0)
 APP_CFLAGS += -DUSE_ASM
 endif

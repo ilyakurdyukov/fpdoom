@@ -1,7 +1,7 @@
 TWO_STAGE ?= 1
 LIBC_SDIO ?= 0
 PACK_RELOC = ../pack_reloc/pack_reloc
-OBJDIR = obj$(CHIP)
+OBJDIR ?= obj$(CHIP)
 SYSDIR = ../fpdoom
 SYSDIR_T117 = ../ums9117
 HOSTCC = cc
@@ -49,6 +49,7 @@ else
 CFLAGS = -Os
 endif
 
+APP_CFLAGS += -DEMBEDDED=2
 CFLAGS += -DUMS9117=1
 CFLAGS += -Wall -Wextra -funsigned-char
 CFLAGS += -fno-PIE -ffreestanding -mcpu=cortex-a7 -mthumb $(EXTRA_CFLAGS) -fno-strict-aliasing
@@ -68,6 +69,10 @@ ifneq ($(LIBC_SDIO), 0)
 CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DFAT_DEBUG=1
 #CFLAGS += -DCHIPRAM_ARGS=1
+endif
+ifeq ($(USE_FILEMAP), 1)
+# unsupported
+#CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
 endif
 
 SYS_CFLAGS = -std=c99 -pedantic

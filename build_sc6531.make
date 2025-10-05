@@ -3,7 +3,7 @@ CHIP = 0
 TWO_STAGE ?= 1
 LIBC_SDIO ?= 0
 PACK_RELOC = ../pack_reloc/pack_reloc
-OBJDIR = obj$(CHIP)
+OBJDIR ?= obj$(CHIP)
 SYSDIR = ../fpdoom
 HOSTCC = cc
 NM = nm
@@ -47,6 +47,7 @@ else
 CFLAGS = -Os
 endif
 
+APP_CFLAGS += -DEMBEDDED=2
 CFLAGS += -Wall -Wextra -funsigned-char
 CFLAGS += -fno-PIE -ffreestanding -march=armv5te -mthumb $(EXTRA_CFLAGS) -fno-strict-aliasing
 CFLAGS += -fomit-frame-pointer
@@ -71,6 +72,9 @@ ifneq ($(LIBC_SDIO), 0)
 CFLAGS += -DLIBC_SDIO=$(LIBC_SDIO) -DFAT_WRITE=1
 #CFLAGS += -DFAT_DEBUG=1
 #CFLAGS += -DCHIPRAM_ARGS=1
+endif
+ifeq ($(USE_FILEMAP), 1)
+CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
 endif
 
 SYS_CFLAGS = -std=c99 -pedantic

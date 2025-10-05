@@ -2,6 +2,7 @@ NAME = fpdoom
 DOOM_DIR = ../doom_src
 USE_ASM = 1
 LTO = 0
+KEYTRN_PC = 1
 
 APP_SRCS = keytrn scr_update
 ifneq ($(USE_ASM), 0)
@@ -26,17 +27,19 @@ include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
 
-APP_CFLAGS = -std=c99 -pedantic
+APP_CFLAGS += -std=c99 -pedantic
 ifneq ($(USE_ASM), 0)
 APP_CFLAGS += -DUSE_ASM
 endif
 
-DOOM_CFLAGS := $(APP_CFLAGS) -DEMBEDDED=2 -DNORMALUNIX -DLINUX
+DOOM_CFLAGS := $(APP_CFLAGS) -DNORMALUNIX -DLINUX
 DOOM_CFLAGS += -DNORANGECHECKING
 DOOM_CFLAGS += -Wno-unused-parameter -Wno-unused -Wno-missing-field-initializers
 DOOM_CFLAGS += -Wno-strict-prototypes
 
 APP_CFLAGS += -I$(SYSDIR)
+
+$(patsubst %,$(OBJDIR)/doom/%.o,i_system i_video): DOOM_CFLAGS += -I$(SYSDIR)
 
 $(OBJDIR)/doom/%.o: $(DOOM_DIR)/%.c | objdir
 	$(call compile_cc,$(DOOM_CFLAGS))

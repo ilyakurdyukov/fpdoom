@@ -9,5 +9,5 @@ APP_OBJS2 =
 
 include ../buildinc.make
 
-APP_CFLAGS = -std=c99 -pedantic
+APP_CFLAGS += -std=c99 -pedantic
 APP_CFLAGS += -I$(SYSDIR)

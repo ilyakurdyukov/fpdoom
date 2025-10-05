@@ -1,7 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if EMBEDDED == 1
+#include "../pctest/syscode.h"
+#else
 #include "syscode.h"
+#endif
 
 void (*app_pal_update)(uint8_t *pal, void *dest, const uint8_t *gamma);
 void (*app_scr_update)(uint8_t *src, void *dest);
@@ -430,11 +434,7 @@ extern char** myargv;
 void D_DoomMain(void);
 extern int screenheight;
 
-#if EMBEDDED == 1
-int app_main(int argc, char **argv) {
-#else
 int main(int argc, char **argv) {
-#endif
 	myargc = argc; myargv = argv;
 	screenheight = *(int32_t*)sys_data.user;
 	D_DoomMain();

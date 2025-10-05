@@ -1,5 +1,9 @@
-#include "common.h"
+#include <string.h>
+#if EMBEDDED == 1
+#include "../pctest/syscode.h"
+#else
 #include "syscode.h"
+#endif
 #include "doomkey.h"
 
 #define X(num, name) KEYPAD_##name = num,

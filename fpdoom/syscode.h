@@ -1,6 +1,8 @@
 #ifndef SYSCODE_H
 #define SYSCODE_H
 
+#include <stdint.h>
+
 #ifndef INIT_MMU
 #define INIT_MMU 1
 #endif
