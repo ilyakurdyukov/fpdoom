@@ -79,7 +79,7 @@ include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
 
-APP_CFLAGS += -std=c99 -pedantic
+APP_CFLAGS += -std=gnu99 -pedantic
 ifneq ($(USE_ASM), 0)
 APP_CFLAGS += -DUSE_ASM
 endif

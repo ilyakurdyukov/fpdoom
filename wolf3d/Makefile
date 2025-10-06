@@ -38,7 +38,7 @@ include ../buildinc.make
 
 CFLAGS := $(filter-out -funsigned-char, $(CFLAGS)) -fsigned-char
 
-APP_CFLAGS += -std=c99 -pedantic
+APP_CFLAGS += -std=gnu99 -pedantic
 
 GAME_CFLAGS += -DNO_SOUND=1 -DNO_MOUSE=1 -DNO_JOYSTICK=1
 GAME_CFLAGS += -DVIEWMAP -DREVEALMAP

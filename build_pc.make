@@ -3,6 +3,7 @@ SYSDIR = ../pctest
 HOSTCC = cc
 NM = nm
 
+BITS = 0
 ASAN = 1
 GFX_MODE = SDL2
 KEYTRN_PC ?= 0
@@ -22,6 +23,10 @@ CFLAGS = -O0 -Wall -Wextra -Wno-unused -Wno-sign-compare
 CFLAGS += -ffunction-sections -fdata-sections
 LFLAGS += -Wl,--gc-sections
 LFLAGS += -Wl,--wrap=main
+ifneq ($(BITS), 0)
+CFLAGS += -m$(BITS)
+LFLAGS += -m$(BITS)
+endif
 ifeq ($(USE_FILEMAP), 1)
 # unsupported
 #CFLAGS += -DAPP_MEM_RESERVE -DAPP_DATA_EXCEPT
@@ -29,10 +34,10 @@ endif
 
 ifeq ($(GFX_MODE), SDL1)
 GFX_LIB = -lSDL
-GFX_INC = /usr/include/SDL
+GFX_INC = -I/usr/include/SDL
 else ifeq ($(GFX_MODE), SDL2)
 GFX_LIB = -lSDL2
-GFX_INC = /usr/include/SDL2
+GFX_INC = -I/usr/include/SDL2
 else
 $(error unknown GFX_MODE)
 endif
@@ -72,13 +77,13 @@ compile_cc = $(CC) $(CFLAGS) $(1) -MMD -MP -MF $(@:.o=.d) $< -c -o $@
 compile_asm = $(CC) $(1) $< -c -o $@
 compile_cxx = $(CXX) $(CXXFLAGS) $(1) -MMD -MP -MF $(@:.o=.d) $< -c -o $@
 
-$(OBJDIR)/app/keytrn_pc.o: CFLAGS += -I$(GFX_INC)
+$(OBJDIR)/app/keytrn_pc.o: CFLAGS += $(GFX_INC)
 
 $(OBJDIR)/app/%.o: %.c | objdir
 	$(call compile_cc,$(APP_CFLAGS))
 
 $(OBJDIR)/sys/%.o: $(SYSDIR)/%.c | objdir
-	$(call compile_cc,$(SYS_CFLAGS) -I$(SYSDIR) -I$(GFX_INC))
+	$(call compile_cc,$(SYS_CFLAGS) -I$(SYSDIR) $(GFX_INC))
 
 $(NAME).bin: $(OBJS)
 	$(CC) $^ -o $@ $(LFLAGS)
