@@ -1,6 +1,6 @@
 ## FPDoom: Doom for feature phones
 
-Currently only for feature phones based on the SC6530/SC6531 chipset.
+Currently only for feature phones based on SC6530/SC6531 or UMS9117 chipsets.
 
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, USE AT YOUR OWN RISK!
 
@@ -119,6 +119,8 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 63 | Nokia 105 (TA-1575)     | SC6531E  | 128x160 ST7735    | *          |
 | 64 | Texet TM-408            | SC6531E  | 240x320 GC9307    | #          |
 | 65 | CHAKEYAKE T190          | UMS9117  | 128x160 GC9106    | *          |
+| 66 | Inoi 140 4G             | UMS9117  | 128x160 ST7735S   | *          |
+| 67 | BQ 1800L One            | UMS9117  | 128x160 GC9106    | 4          |
 
 * Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Vertex M115: use `--lcd 0x807c89f0`

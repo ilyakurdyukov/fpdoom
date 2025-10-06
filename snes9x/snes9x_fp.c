@@ -467,6 +467,7 @@ uint8_t* init_rommap(const char *fn) {
 }
 #endif
 
+#if EMBEDDED == 2
 time_t time(time_t *tloc) {
 	// Groundhog Day reference
 	// $ date +%s -d 1993-02-02T06:00+UTC
@@ -474,4 +475,5 @@ time_t time(time_t *tloc) {
 	if (tloc) *tloc = t;
 	return t;
 }
+#endif
 
