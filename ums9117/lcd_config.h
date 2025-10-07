@@ -1,5 +1,5 @@
 
-static const uint8_t cmd9106_init[] = {
+static const uint8_t cmd9106_chakeyake_init[] = {
 	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
@@ -57,6 +57,37 @@ static const uint8_t cmd7C89F0_inoi_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9106_bq_init[] = {
+	//LCM_DELAY(120),
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xb1, 1), 0xc0,
+	LCM_CMD(0xb3, 1), 0x03,
+	LCM_CMD(0xb6, 1), 0x01,
+	LCM_CMD(0xa3, 1), 0x11,
+	LCM_CMD(0x21, 0),
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05,
+	LCM_CMD(0xb4, 1), 0x21,
+	LCM_CMD(0xe6, 2), 0x4a,0x3d,
+	LCM_CMD(0xe7, 2), 0x3e,0x3d,
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x25,0x58,0x24,0x68,
+		0xad,0x36,0x38,0x00, 0x0b,0x15,0x15,0x17, 0x15,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x00,0x1e,0x25,0x30,
+		0x97,0x03,0x03,0x00, 0x00,0x07,0x07,0x15, 0x14,0x0f,
+	LCM_CMD(0xfe, 0),
+	LCM_CMD(0xff, 0),
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x44, 1), 0x00,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -66,12 +97,17 @@ static const lcd_config_t lcd_config_t117[] = {
 /* CHAKEYAKE T190 */
 
 	// GlaxyCore GC9106
-	X(0x009106, 128,160, 0xd0, 60,120,75,40,50,50, 0, cmd9106)
+	X(0x009106, 128,160, 0xd0, 60,120,75,40,50,50, 0, cmd9106_chakeyake)
 
-/* INOI 140 Classic Lite 4G */
+/* Inoi 140 Classic Lite 4G */
 
 	// Sitronix ST7735S
 	X(0x7c89f0, 128,160, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
+
+/* BQ 1800L One */
+
+	// GlaxyCore GC9106
+	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_bq)
 };
 #undef X
 #undef NO_TIMINGS

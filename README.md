@@ -129,7 +129,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * BQ 3586 Tank Max: use `--bl_gpio 19` for backlight to work properly
 * YX Q5 Kids Camera: use `--mac 0xa8` without `--rotate`
 * Alcatel 2019G: dial key is mapped to left soft key
-* Texet TM-122, TM-130: use `--lcd 0x80009106`, to fix LCD refresh artifacts
+* Texet TM-122, Texet TM-130, BQ 1800L One: use `--lcd 0x80009106`, to fix LCD refresh artifacts
 * Texet TM-B307: use `--gpio_init`, to prevent the flashlight from turning on
 * Texet TM-B316: use `--lcd 0x8083760f --rotate 1,0`
 * Texet TM-B323, Texet TM-B208, CHAKEYAKE T190: use `--rotate 3,0 --keyflags 1`
