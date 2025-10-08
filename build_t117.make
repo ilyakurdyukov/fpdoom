@@ -18,7 +18,7 @@ SYS_SRCS := $(filter-out $(SYS_EXTRA), $(SYS_SRCS)) $(SYS_EXTRA)
 endif
 
 # unavailable
-SYS_SRCS := $(filter-out sdio sfc, $(SYS_SRCS))
+SYS_SRCS := $(filter-out sfc, $(SYS_SRCS))
 
 ifeq ($(TWO_STAGE), 0)
 SYS_SRCS2 = start entry $(SYS_SRCS)

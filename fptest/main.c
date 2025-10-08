@@ -5,7 +5,9 @@
 #include "cmd_def.h"
 #include "usbio.h"
 #include "sdio.h"
+#if !UMS9117
 #include "sfc.h"
+#endif
 
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
@@ -155,6 +157,11 @@ static void test_keypad(void) {
 end:;
 }
 
+#if UMS9117
+static int boot_cable_check(void) { return 0; }
+static void test_sfc(void) {}
+static void test_lzma(int flags) {}
+#else
 static int boot_cable_check(void) {
 	return !(MEM4(0x205000e0) & 2);
 }
@@ -286,6 +293,7 @@ found:
 		free(dst);
 	} while (0);
 }
+#endif
 
 int main(int argc, char **argv) {
 	int i;
