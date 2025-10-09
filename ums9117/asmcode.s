@@ -23,8 +23,8 @@
 .endm
 
 CODE32_FN sys_wait_clk
-1:	subs	r0, #4	// 1
-	bhi	1b	// 3
+1:	subs	r0, #1	// 1
+	bhi	1b	// 0
 	bx	lr
 
 CODE32_FN set_mode_sp
@@ -108,6 +108,20 @@ CODE32_FN invalidate_dcache_range
 	bic	r1, r3
 	mcrne	p15, #0, r1, c7, c14, #1 // clean and invalidate
 1:	mcr	p15, #0, r0, c7, c6, #1 // invalidate
+	add	r0, r2
+	cmp	r0, r1
+	blo	1b
+	dsb	sy
+	bx	lr
+
+CODE32_FN clean_invalidate_dcache_range
+	mrc	p15, #0, r3, c0, c0, #1 // CTR
+	mov	r2, #4
+	ubfx	r3, r3, #16, #4
+	lsl	r2, r3
+	sub	r3, r2, #1
+	bic	r0, r3
+1:	mcr	p15, #0, r0, c7, c14, #1 // clean and invalidate
 	add	r0, r2
 	cmp	r0, r1
 	blo	1b

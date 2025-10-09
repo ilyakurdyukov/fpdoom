@@ -9,7 +9,7 @@
 #endif
 
 #ifndef SDIO_HIGHSPEED
-#define SDIO_HIGHSPEED 0 // TODO
+#define SDIO_HIGHSPEED 1
 #endif
 
 #if SDIO_VERBOSE > 0
@@ -28,6 +28,8 @@ int sdio_verbose = 1;
 #endif
 
 #define SDIO0_BASE ((sdio_base_t*)0x20300000)
+
+#define SDIO_BASE_FREQ 26000000
 
 typedef volatile struct {
 	uint32_t blk_cnt, blk_size, arg, tr_mode;
@@ -98,27 +100,33 @@ static inline void sdio_sdclk_off(sdio_base_t *sdio) {
 static void sdio_pin_init(void) {
 	unsigned i;
 	for (i = 0; i < 6 * 4; i += 4)
-  	MEM4(0x402a0120 + i) = 0;
+		MEM4(0x402a0120 + i) = 0;
 	for (i = 0; i < 5 * 4; i += 4)
-  	MEM4(0x402a0520 + i) = 0x100080;
-  MEM4(0x402a0520 + i) = 0x180000;
+		MEM4(0x402a0520 + i) = 0x100080;
+	MEM4(0x402a0520 + i) = 0x180000;
 }
 
 static inline
 void sdio_sdfreq_val(sdio_base_t *sdio, unsigned val) {
 	sdio_sdclk_off(sdio);
-	sdio->clk_ctrl = (sdio->clk_ctrl & ~0xffc0) | val << 8;
+	sdio->clk_ctrl = (sdio->clk_ctrl & ~0xffc0) | (val & 0xff) << 8 | (val >> 8) << 6;
 	sdio_sdclk_on(sdio);
 }
 
 __attribute__((unused))
 static void sdio_sdfreq(sdio_base_t *sdio, unsigned freq) {
-	unsigned j, base = 26000000;
+	unsigned j = 1, base = SDIO_BASE_FREQ;
 
-	j = base / (freq * 4);
-	sdio->clk_ctrl = (sdio->clk_ctrl & ~0xffc0) | j << 8;
-
-	SDIO_LOG("sdio FREQ: %u (0x%02x)\n", base / (j * 4), j);
+	// BROM, firmware and docs use different methods
+#if 1
+	j = (base - 1) / freq;
+	if (j > 0x3ff) j = 0x3ff;
+	base /= j + 1;
+#else
+	while (freq < base && j < 256) j <<= 1, base >>= 1;
+	j >>= 1;
+#endif
+	SDIO_LOG("sdio FREQ: %u -> %u (0x%02x)\n", freq, base, j);
 
 	// SDCLK_FRQ_SEL
 	sdio_sdfreq_val(sdio, j);
@@ -136,22 +144,37 @@ void sdio_init(void) {
 	sdio_base_t *sdio = SDIO0_BASE;
 
 	// enable
-  MEM4(0x20e01000) = 0x80;
+	MEM4(0x20e01000) = 0x80;
 
 	// reset
-  MEM4(0x20e01004) = 0x800;
+	MEM4(0x20e01004) = 0x800;
 	DELAY(0x100)
-  MEM4(0x20e02004) = 0x800;
+	MEM4(0x20e02004) = 0x800;
 
 	sdio_pin_init();
 
-	MEM4(0x2150006c) &= ~7;
-	MEM4(0x2150006c) |= 1;
+	// set base freq
+	{
+		unsigned freq = SDIO_BASE_FREQ;
+		int i;
+		switch (freq) {
+		case 1000000: i = 0; break;
+		case 26000000: i = 1; break; // seems to be 28M
+		case 307200000: i = 2; break;
+		case 384000000: i = 3; break;
+		case 390000000: i = 4; break;
+		case 409600000: i = 5; break;
+		default:
+			DBG_LOG("unknown SDIO base freq\n");
+			for (;;);
+		}
+		MEM4(0x2150006c) &= ~7;
+		MEM4(0x2150006c) |= i;
+	}
 
 	sdio_sw_reset(sdio);
 
 	sdio_sdfreq(sdio, 400000);
-	//sdio_sdfreq_val(sdio, 16);
 
 	sdio_data_timeout(sdio, 8);
 	sdio_cmd23_en(sdio, 0);
@@ -212,13 +235,12 @@ static uint32_t sdio_cmd_impl(uint32_t cmd_tr, uint32_t arg,
 
 	//sdio_data_timeout(sdio, 8);
 
-	tmp = 0x11ff01ff;
 	// needed for IRQ signals
-	//sdio->int_sig &= ~tmp;
-	sdio->int_en &= ~tmp;
-	sdio->int_st = tmp; // clear interrupt status
+	//sdio->int_sig = 0;
+	sdio->int_en = 0;
+	sdio->int_st = ~0; // clear interrupt status
 
-	// cmd_int = 0x11ff01ff;
+	// cmd_int = 0x1bff01ff;
 	sdio->int_en |= cmd_int;
 	//sdio->int_sig |= cmd_int;
 
@@ -239,10 +261,9 @@ static uint32_t sdio_cmd_impl(uint32_t cmd_tr, uint32_t arg,
 	SDIO_LOG("sdio INT: 0x%08x\n", cmd_int);
 
 #if 0 // unnecessary
-	tmp = 0x11ff01ff;
-	//sdio->int_sig &= ~tmp;
-	sdio->int_en &= ~tmp;
-	sdio->int_st = tmp; // clear interrupt status
+	//sdio->int_sig = 0;
+	sdio->int_en = 0;
+	sdio->int_st = ~0; // clear interrupt status
 #endif
 
 	if (!(cmd_int & SDIO_INT_ERR) && resp) {
@@ -346,7 +367,6 @@ acmd51_done:
 	}
 
 	sdio_sdfreq(sdio, 25000000);
-	//sdio_sdfreq_val(sdio, 1);
 
 	// select/deselect card
 	sd_int = sdio_cmd(SDIO_CMD7_TR, rca, SDIO_INT_COMMON, NULL, 0, resp);
@@ -378,7 +398,7 @@ acmd51_done:
 	{
 		uint8_t data[64] __attribute__((aligned(32)));
 		int i, j;
-		sdio->ctrl1 |= 4; // HI_SPD_EN
+		//sdio->ctrl1 |= 4; // HI_SPD_EN
 		for (i = 0; i < 2; i++) {
 			// memset(data, 0, 64);
 			j = 0;
@@ -397,8 +417,7 @@ acmd51_done:
 			if (!(data[0xd] & 2)) break;
 		}
 		if (i == 2) {
-			// sdio_sdfreq(sdio, 50000000);
-			sdio_sdfreq_val(sdio, 0);
+			sdio_sdfreq(sdio, 50000000);
 			DBG_LOG("sdio: high speed enabled\n");
 		}
 	}
