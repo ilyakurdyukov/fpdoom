@@ -301,7 +301,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			if (*next == ',') key = atoi(next + 1);
 			sys_data.rotate = (key & 3) << 4 | (scr & 3);
 			argc -= 2; argv += 2;
-		} else if (argc >= 2 && !strcmp(argv[0], "--cs")) {
+		} else if (argc >= 2 && !strcmp(argv[0], "--lcd_cs")) {
 			unsigned a = atoi(argv[1]);
 			if (a < 4) sys_data.lcd_cs = a;
 			argc -= 2; argv += 2;

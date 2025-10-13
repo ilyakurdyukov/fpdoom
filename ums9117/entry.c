@@ -6,6 +6,53 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#if LIBC_SDIO
+#include "sdio.h"
+#include "microfat.h"
+#include "fatfile.h"
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+static int read_args(FILE *fi, char *d, char *e) {
+	int argc = 0, j = 1, q = 0;
+	for (;;) {
+		int a = fgetc(fi);
+		if (a == '#') {
+			if (argc) break;
+			do {
+				a = fgetc(fi);
+				if (a == EOF) goto end;
+			} while (a != '\n');
+			continue;
+		}
+		if (a <= 0x20) {
+			if (a == '\r') continue;
+			if (a != ' ' && a != '\t' && a != '\n') return -1;
+			if (!q) {
+				if (a == '\n' && argc) break;
+				if (j) continue;
+				a = 0;
+			}
+		} else if (a == '"' || a == '\'') {
+			if (!q) {	q = a; argc += j; j = 0; continue; }
+			if (q == a) { q = 0; continue; }
+		} else if (a == '\\' && q != '\'') {
+			do a = fgetc(fi); while (a == '\r');
+			if (a == '\n') continue;
+			if (a == EOF || a < 0x20) return -1;
+		}
+		argc += j;
+		if (d == e) return -1;
+		*d++ = a; j = !a;
+	}
+end:
+	if (q) return -1;
+	if (!j) {
+		if (d == e) return -1;
+		*d = 0;
+	}
+	return argc;
+}
+#endif
+#endif
 
 void apply_reloc(uint32_t *image, const uint8_t *rel, uint32_t diff);
 
@@ -63,6 +110,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 
 	memset(image_addr + image_size, 0, bss_size);
 
+#if LIBC_SDIO < 3
 	{
 		static const uint8_t fdl_ack[8] = {
 			0x7e, 0, 0x80, 0, 0, 0xff, 0x7f, 0x7e };
@@ -79,6 +127,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			if (usb_read(buf, 4, 0)) t0 = t1;
 		} while (t1 - t0 < 10);
 	}
+#endif
 #if TWO_STAGE
 	_debug_msg("entry1");
 #else
@@ -101,6 +150,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			tab[i] = i << 20 | 3 << 10 | 2; // read/write
 		for (; i < 0x1000; i++) tab[i] = 0; // no access
 #if 0
+		i = 0x00000000 >> 20; // IRAM
+		tab[i] = i << 20 | 3 << 10 | cb | 2; // read/write
+#endif
+#if 0
 		i = 0xffff0000 >> 20; // ROM
 		tab[i] = i << 20 | 7 << 10 | cb | 2; // read only
 #endif
@@ -113,9 +166,15 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	{
 		char *addr = image_addr + image_size + bss_size;
 		size_t size = ram_addr + ram_size - (uint32_t)addr;
+#if LIBC_SDIO
+		fatdata_glob.buf = (uint8_t*)ram_addr + 0x8000;
+#endif
 #if TWO_STAGE
 		// reserve space to save sys_data
 		size -= sizeof(sys_data);
+#if LIBC_SDIO
+		size -= sizeof(fatdata_t);
+#endif
 		data_copy = addr + size;
 #endif
 		_malloc_init(addr, size);
@@ -126,13 +185,50 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 		printf("malloc heap: %u bytes\n", size);
 	}
+#if LIBC_SDIO
+#if LIBC_SDIO < 3
+	sdio_init();
+	if (sdcard_init())
+		ERR_EXIT("sdcard_init failed\n");
+#else
+#if SDIO_SHL != CHIPRAM_ADDR
+	sdio_shl = MEM4(CHIPRAM_ADDR);
+#endif
+#endif
+	if (fat_init(&fatdata_glob, 0))
+		ERR_EXIT("fat_init failed\n");
+#endif
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+	{
+		char *p = (char*)CHIPRAM_ADDR + 4;
+		argc1 = *(short*)p;
+#if LIBC_SDIO
+		if (!argc1) {
+			FILE *fi = fopen("fpbin/config.txt", "rb");
+			if (!fi) ERR_EXIT("failed to open fpbin/config.txt");
+			argc1 = read_args(fi, p + sizeof(short), (char*)CHIPRAM_ADDR + 0x1000);
+			if (argc1 < 0) ERR_EXIT("read_args failed");
+			fclose(fi);
+		}
+#endif
+		argc1 = _argv_copy(&argv, argc1, p + sizeof(short));
+	}
+#if LIBC_SDIO == 1 // debug
+#define PRINT_ARGS(argc) { int j; printf("argc = %u\n", argc); \
+	for (j = 0; j < argc; j++) printf("%u: \"%s\"\n", j, argv[j]); }
+	PRINT_ARGS(argc1)
+#endif
+#else
 	argc1 = _argv_init(&argv, 0);
+#endif
 	argc = argc1;
 
 	sys_data.brightness = 50;
 	// sys_data.scaler = 0;
 	// sys_data.rotate = 0x00;
+	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
+	// sys_data.spi = 0;
 	sys_data.keyrows = 8;
 	sys_data.keycols = 8;
 
@@ -150,6 +246,15 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			scr = key = strtol(argv[1], &next, 0);
 			if (*next == ',') key = atoi(next + 1);
 			sys_data.rotate = (key & 3) << 4 | (scr & 3);
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--lcd_cs")) {
+			unsigned a = atoi(argv[1]);
+			if (a < 4) sys_data.lcd_cs = a;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--spi")) {
+			unsigned a = atoi(argv[1]);
+			if (!~a) sys_data.spi = a;
+			if (a < 2) sys_data.spi = (0x68 + a) << 24;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			unsigned id = strtol(argv[1], NULL, 0);
@@ -182,7 +287,16 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			}
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--dir")) {
+#if LIBC_SDIO
+			fatdata_t *fatdata = &fatdata_glob;
+			const char *name = argv[1];
+			unsigned clust = fat_dir_clust(fatdata, name);
+			if (!clust)
+				ERR_EXIT("!!! dir \"%s\" not found\n", name);
+			fatdata->curdir = clust;
+#else
 			printf("dir option ignored\n");
+#endif
 			argc -= 2; argv += 2;
 		} else if (!strcmp(argv[0], "--")) {
 			argc -= 1; argv += 1;
@@ -196,7 +310,29 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	sys_init();
 #if TWO_STAGE
 	memcpy(data_copy, &sys_data, sizeof(sys_data));
+	data_copy += sizeof(sys_data);
+#if LIBC_SDIO
+	MEM4(CHIPRAM_ADDR) = sdio_shl;
+	memcpy(data_copy, &fatdata_glob, sizeof(fatdata_t));
+	data_copy += sizeof(fatdata_t);
+#endif
+#if CHIPRAM_ARGS || LIBC_SDIO >= 3
+	{
+		char *p = (char*)CHIPRAM_ADDR + 4;
+		*(short*)p = argc;
+		if (argc) {
+			size_t size = argv[argc - 1] - argv[0];
+			size += strlen(argv[argc - 1]) + 1;
+			memcpy(p + sizeof(short), argv[0], size);
+		}
+	}
+#if LIBC_SDIO == 1
+	PRINT_ARGS(argc)
+#endif
+	return 0;
+#else
 	return argc1 - argc;
+#endif
 #else
 #ifdef CXX_SUPPORT
 	cxx_init(argc, argv);

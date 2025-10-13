@@ -8,7 +8,9 @@
 #endif
 
 #if UMS9117
-#define CHIPRAM_ADDR 0
+//#define CHIPRAM_ADDR 0
+// not chipram, used to store app args
+#define CHIPRAM_ADDR 0x80004000
 #define KEYPAD_BASE ((keypad_base_t*)0x40250000)
 #define LCDC_BASE ((lcdc_base_t*)0x20800000)
 #else

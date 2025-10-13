@@ -23,9 +23,14 @@ uint32_t adi_read(uint32_t addr) {
 
 void adi_write(uint32_t addr, uint32_t val) {
 	uint32_t base = 0x40600000;
-	uint32_t t0 = sys_timer_ms(), n = 1000;
+	uint32_t t0 = sys_timer_ms();
 	while (MEM4(base + 0x30) & 0x800)
-		if (sys_timer_ms() - t0 > 3 || !--n) FATAL();
+		if (sys_timer_ms() - t0 > 3)
+#if NO_ADI_LOG
+			for (;;);
+#else
+			FATAL();
+#endif
 	MEM4(addr) = val;
 }
 
@@ -542,6 +547,10 @@ int sys_event(int *rkey) {
 	}
 	static_i = 0;
 	return EVENT_END;
+}
+
+void sys_set_handlers(void) {
+	// TODO
 }
 
 void sys_init(void) {

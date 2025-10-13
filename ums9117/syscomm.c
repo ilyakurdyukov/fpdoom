@@ -41,14 +41,22 @@ static int pinmap_check(uint32_t *p, uint32_t size) {
 }
 
 void scan_firmware(intptr_t fw_addr) {
+#if LIBC_SDIO
+	const char *pinmap_fn = "/fpbin/pinmap.bin";
+	const char *keymap_fn = "/fpbin/keymap.bin";
+#else
+	const char *pinmap_fn = "pinmap.bin";
+	const char *keymap_fn = "keymap.bin";
+#endif
 	size_t size;
 	(void)fw_addr;
-	pinmap_addr = (uint32_t*)loadfile("pinmap.bin", &size);
+
+	pinmap_addr = (uint32_t*)loadfile(pinmap_fn, &size);
 	if (!pinmap_addr) ERR_EXIT("pinmap not found\n");
 	if (pinmap_check(pinmap_addr, size)) ERR_EXIT("pinmap check failed\n");
 
 	if (!sys_data.keymap_addr) {
-		FILE *f = fopen("keymap.bin", "rb");
+		FILE *f = fopen(keymap_fn, "rb");
 		if (f) {
 			uint8_t *p = (uint8_t*)sys_data.keytrn;
 			printf("keymap loaded from file\n");
