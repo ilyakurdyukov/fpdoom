@@ -8,7 +8,11 @@
 #include "common.h"
 #include "syscode.h"
 
+#if UMS9117
+#include "../ums9117/sdio.c"
+#else
 #include "sdio.c"
+#endif
 #define FAT_READ_SYS \
 	if (sdio_read_block(sector, buf)) break;
 #include "microfat.c"
@@ -46,5 +50,8 @@ void entry_main(unsigned clust, unsigned size, uint8_t *ram,
 #endif
 	clean_dcache();
 	clean_icache();
+#if UMS9117
+	ram += 0x200;
+#endif
 	((void(*)(void))ram)();
 }

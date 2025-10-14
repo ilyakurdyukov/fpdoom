@@ -11,11 +11,14 @@
 //#define CHIPRAM_ADDR 0
 // not chipram, used to store app args
 #define CHIPRAM_ADDR 0x80004000
+#define FPBIN_DIR "fpbin_t117/"
+
 #define KEYPAD_BASE ((keypad_base_t*)0x40250000)
 #define LCDC_BASE ((lcdc_base_t*)0x20800000)
 #else
 #define CHIPRAM_ADDR 0x40000000
 #define FIRMWARE_SIZE (4 << 20)
+#define FPBIN_DIR "fpbin/"
 
 #define KEYPAD_BASE ((keypad_base_t*)0x87000000)
 #define LCDC_BASE ((lcdc_base_t*)0x20d00000)

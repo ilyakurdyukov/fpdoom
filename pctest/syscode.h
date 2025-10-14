@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#define FPBIN_DIR ""
+
 extern struct sys_data {
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	uint16_t keytrn[2][64];

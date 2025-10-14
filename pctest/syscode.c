@@ -213,7 +213,7 @@ extern int screenheight;
 
 int __real_main(int argc, char **argv);
 int __wrap_main(int argc, char **argv) {
-	unsigned i, w = 320, h = 240;
+	unsigned i, w = 320, h = 240; int ret;
 	static const uint16_t res[] = {
 		240, 320,  128, 160, // common
 		240, 240,  128, 128, // square
@@ -276,11 +276,12 @@ int __wrap_main(int argc, char **argv) {
 		exit(1);
 	}
 
-	__real_main(argc, argv);
+	ret = __real_main(argc, argv);
 	if (sdl_surface) SDL_FreeSurface(sdl_surface);
 #if SDL_MAJOR_VERSION >= 2
 	if (sdl_window) SDL_DestroyWindow(sdl_window);
 #endif
+	return ret;
 }
 
 #if !defined(__SANITIZE_ADDRESS__) && defined(__has_feature)

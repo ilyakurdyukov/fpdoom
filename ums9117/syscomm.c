@@ -42,8 +42,8 @@ static int pinmap_check(uint32_t *p, uint32_t size) {
 
 void scan_firmware(intptr_t fw_addr) {
 #if LIBC_SDIO
-	const char *pinmap_fn = "/fpbin/pinmap.bin";
-	const char *keymap_fn = "/fpbin/keymap.bin";
+	const char *pinmap_fn = "/" FPBIN_DIR "pinmap.bin";
+	const char *keymap_fn = "/" FPBIN_DIR "keymap.bin";
 #else
 	const char *pinmap_fn = "pinmap.bin";
 	const char *keymap_fn = "keymap.bin";

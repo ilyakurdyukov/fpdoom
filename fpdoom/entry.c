@@ -250,8 +250,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		argc1 = *(short*)p;
 #if LIBC_SDIO
 		if (!argc1) {
-			FILE *fi = fopen("fpbin/config.txt", "rb");
-			if (!fi) ERR_EXIT("failed to open fpbin/config.txt");
+			FILE *fi = fopen(FPBIN_DIR "config.txt", "rb");
+			if (!fi) ERR_EXIT("failed to open " FPBIN_DIR "config.txt");
 			argc1 = read_args(fi, p + sizeof(short), (char*)CHIPRAM_ADDR + 0x1000);
 			if (argc1 < 0) ERR_EXIT("read_args failed");
 			fclose(fi);

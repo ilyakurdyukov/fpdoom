@@ -30,7 +30,7 @@ int sdmain(void) {
 	int argc; char **argv;
 	fatdata_t fatdata;
 	fat_entry_t *p;
-	const char *bin_name = "fpbin/fpmain.bin";
+	const char *bin_name = FPBIN_DIR "fpmain.bin";
 #if LIBC_SDIO < 3
 	argc = _argv_init(&argv, 0);
 	if (argc > 1 && !strcmp(argv[0], "--bin")) {

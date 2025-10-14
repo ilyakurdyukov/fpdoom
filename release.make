@@ -12,17 +12,17 @@ $(error ZIPDIR must not contain spaces in the name)
 endif
 
 FPBIN = $(BINDIR)/sdcard/fpbin
+FPBIN_T117 = $(BINDIR)/sdcard/fpbin_t117
 APPS = fpdoom fpduke3d fpsw fpblood infones \
 	wolf3d wolf3d_sw snes9x snes9x_16bit \
 	chocolate-doom chocolate-heretic chocolate-hexen \
 	gnuboy
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
-	$(patsubst %,$(BINDIR)/usb_t117/%.bin,$(APPS)) \
-	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) \
-	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3) \
-	$(BINDIR)/jump4m.bin \
-	$(FPBIN)/config.txt
+	$(patsubst %,$(BINDIR)/usb_t117/%.bin,fptest $(APPS)) \
+	$(patsubst %,$(FPBIN)/%.bin,fpmain $(APPS)) $(FPBIN)/config.txt \
+	$(patsubst %,$(FPBIN_T117)/%.bin,fpmain $(APPS)) $(FPBIN_T117)/config.txt \
+	$(patsubst %,$(BINDIR)/sdboot%.bin,1 2 3 _t117) $(BINDIR)/jump4m.bin \
 
 .PHONY: all clean
 all: $(BINS)
@@ -76,6 +76,7 @@ $(BINDIR)/usb_t117/%: OPTS += T117=1 LIBC_SDIO=0
 # SD card mode
 
 $(FPBIN)/%: OPTS += LIBC_SDIO=3
+$(FPBIN_T117)/%: OPTS += T117=1 LIBC_SDIO=3
 
 $(BINDIR)/sdboot1.bin:
 	$(call makebin,sdboot,CHIP=1)
@@ -89,12 +90,22 @@ $(BINDIR)/sdboot3.bin:
 $(BINDIR)/jump4m.bin:
 	$(call makebin,sdboot,NAME=jump4m)
 
-$(FPBIN)/fpmain.bin:
-	$(call makebin,fpmenu,LIBC_SDIO=3 NAME=fpmain)
+$(BINDIR)/sdboot_t117.bin:
+	$(call makebin,sdboot_t117,)
 
 $(FPBIN)/config.txt:
 	mkdir -p $(dir $@)
 	cp fpmenu/$(notdir $@) $@
+
+$(FPBIN_T117)/config.txt:
+	mkdir -p $(dir $@)
+	sed 's|fpbin/|fpbin_t117/|' fpmenu/$(notdir $@) > $@
+
+%/fpmenu.bin:
+	$(call makebin,fpmenu,$(OPTS))
+
+%/fpmain.bin:
+	$(call makebin,fpmenu,$(OPTS) NAME=fpmain)
 
 %/fptest.bin:
 	$(call makebin,fptest,$(OPTS))

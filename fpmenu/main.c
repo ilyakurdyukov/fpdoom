@@ -3,8 +3,19 @@
 #include <stdint.h>
 #include <string.h>
 #include "syscode.h"
-#include "sdio.h"
 
+#if UMS9117
+#define MONOCHROME_LCD 0
+#else
+#define MONOCHROME_LCD (sys_data.mac & 0x100)
+#endif
+
+#if EMBEDDED == 1
+static uint8_t chipram_buf[0x4000];
+#define CHIPRAM_ADDR chipram_buf
+#define DBG_LOG(...) printf(__VA_ARGS__)
+#else
+#include "sdio.h"
 #if !LIBC_SDIO
 #define FAT_READ_SYS \
 	if (sdio_read_block(sector, buf)) break;
@@ -22,13 +33,14 @@ fatdata_t fatdata_glob;
 #define DBG_EXTRA_ARG(x)
 #endif
 
-#include "readconf.h"
-
 extern uint8_t __image_start[];
 
 typedef int (*printf_t)(const char *fmt, ...);
 typedef void (*readbin_t)(unsigned clust, unsigned size, uint8_t *ram,
 		fatdata_t *fatdata DBG_EXTRA_ARG(printf_t printf));
+#endif
+
+#include "readconf.h"
 
 #define FONT_W 8
 #define FONT_H 16
@@ -39,7 +51,7 @@ static const uint8_t font_data[] = {
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
 	unsigned w = disp->w1, h = disp->h1;
-	if (!(sys_data.mac & 0x100)) {
+	if (!MONOCHROME_LCD) {
 		w -= w % FONT_W;
 		h -= h % FONT_H;
 	}
@@ -65,7 +77,7 @@ static void draw_text(draw_t *draw, unsigned y0, const char *str) {
 		if ((a = *str)) str++; else a = 0x20, c = 0;
 		if (a - 0x20 >= 0x60) a = '?';
 		bm = font_data + (a - 0x20) * FONT_H;
-		if (sys_data.mac & 0x100) {
+		if (MONOCHROME_LCD) {
 			uint8_t *p = (uint8_t*)draw->framebuf + pos;
 			c = (c - 1) & 0xff;
 			for (y = 0; y < FONT_H; y++, p += st)
@@ -140,7 +152,7 @@ static char* menu_file(char *p, unsigned sel) {
 }
 
 static void do_fat_init(void) {
-#if !LIBC_SDIO
+#if !LIBC_SDIO && EMBEDDED != 1
 	static int init_done = 0;
 	if (init_done) return;
 	init_done = 1;
@@ -158,7 +170,7 @@ static void do_fat_init(void) {
 }
 
 static int run_binary(draw_t *draw) {
-	fat_entry_t *p; char *args, *name;
+	char *args, *name;
 	char *d = (char*)CHIPRAM_ADDR;
 	int argc;
 
@@ -187,14 +199,18 @@ static int run_binary(draw_t *draw) {
 	printf("\n");
 #endif
 	do_fat_init();
-	p = fat_find_path(&fatdata_glob, name);
-	if (!p || (p->entry.attr & FAT_ATTR_DIR)) {
-		DBG_LOG("file not found\n");
-		return 0;
-	}
+#if EMBEDDED == 1
+	return 0;
+#else
 	{
-		unsigned clust = fat_entry_clust(p);
-		uint32_t size = p->entry.size;
+		unsigned clust, size;
+		fat_entry_t *p = fat_find_path(&fatdata_glob, name);
+		if (!p || (p->entry.attr & FAT_ATTR_DIR)) {
+			DBG_LOG("file not found\n");
+			return 0;
+		}
+		clust = fat_entry_clust(p);
+		size = p->entry.size;
 		DBG_LOG("start = 0x%x, size = 0x%x\n", clust, size);
 		if (size > (2 << 20) - 0x10000) {
 			DBG_LOG("binary is too big\n");
@@ -204,6 +220,7 @@ static int run_binary(draw_t *draw) {
 		draw->fatfile.size = size;
 	}
 	return 1;
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -214,8 +231,11 @@ int main(int argc, char **argv) {
 
 	{
 		FILE *fi;
-		fi = fopen("fpbin/config.txt", "rb");
-		if (!fi) return 1;
+		fi = fopen(FPBIN_DIR "config.txt", "rb");
+		if (!fi) {
+			DBG_LOG("config not found\n");
+			return 1;
+		}
 		menu = parse_config(fi, 0x10000);
 		fclose(fi);
 	}
@@ -284,10 +304,10 @@ int main(int argc, char **argv) {
 	draw.mrows = menu_count(draw.menu, ~0);
 	if (draw.mrows <= 0) return 1;
 
-	if (sys_data.mac & 0x100)
+	if (MONOCHROME_LCD)
 		sys_data.mac &= ~1; // disable irq refresh
 	sys_framebuffer(draw.framebuf);
-	if (sys_data.mac & 0x100) {
+	if (MONOCHROME_LCD) {
 		struct sys_display *disp = &sys_data.display;
 		unsigned w = disp->w2, h = disp->h2;
 		draw.framebuf = (uint16_t*)((uint8_t*)draw.framebuf +
@@ -306,7 +326,7 @@ int main(int argc, char **argv) {
 			unsigned size = draw.st * draw.rows * FONT_H;
 			uint16_t *p = draw.framebuf;
 			draw.flags &= ~1;
-			if (sys_data.mac & 0x100) {
+			if (MONOCHROME_LCD) {
 				memset(p, 0x80, size);
 			} else {
 				unsigned a = draw.pal[0].u16[0];
@@ -329,6 +349,9 @@ int main(int argc, char **argv) {
 		for (;;) {
 			int type, key;
 			type = sys_event(&key);
+#if EMBEDDED == 1
+			if (type == EVENT_QUIT) return 1;
+#endif
 			if (type == EVENT_END) break;
 			if (type == EVENT_KEYUP) {
 				switch (key) {
@@ -384,11 +407,18 @@ int main(int argc, char **argv) {
 	}
 loop_end:
 	free(draw.framebuf_mem);
+#if EMBEDDED != 1
 	sys_brightness(0);
 	if (draw.fatfile.size) {
+#if UMS9117
+		uint8_t *ram = (uint8_t*)0x80100000;
+		uint32_t size = *(uint32_t*)(ram + 0x204) - 0x208;
+		void *readbin = ram + 0x208;
+#else
 		uint8_t *ram = (uint8_t*)((intptr_t)__image_start & 0xfc000000);
 		uint32_t size = *(uint32_t*)(ram + 4) - 8;
 		void *readbin = ram + 8;
+#endif
 		uint8_t *dst = (uint8_t*)CHIPRAM_ADDR + 0x4000;
 		DBG_LOG("readbin = %p, size = 0x%x\n", readbin, size);
 		memcpy(dst, readbin, size);
@@ -397,6 +427,7 @@ loop_end:
 		((readbin_t)dst)(draw.fatfile.clust, draw.fatfile.size, ram,
 				&fatdata_glob DBG_EXTRA_ARG(&printf));
 	}
+#endif
 	return 0;
 }
 

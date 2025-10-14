@@ -204,8 +204,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		argc1 = *(short*)p;
 #if LIBC_SDIO
 		if (!argc1) {
-			FILE *fi = fopen("fpbin/config.txt", "rb");
-			if (!fi) ERR_EXIT("failed to open fpbin/config.txt");
+			FILE *fi = fopen(FPBIN_DIR "config.txt", "rb");
+			if (!fi) ERR_EXIT("failed to open " FPBIN_DIR "config.txt");
 			argc1 = read_args(fi, p + sizeof(short), (char*)CHIPRAM_ADDR + 0x1000);
 			if (argc1 < 0) ERR_EXIT("read_args failed");
 			fclose(fi);
@@ -229,6 +229,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
 	// sys_data.spi = 0;
+	sys_data.charge = -1;
 	sys_data.keyrows = 8;
 	sys_data.keycols = 8;
 
@@ -263,6 +264,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--mac")) {
 			unsigned a = strtol(argv[1], NULL, 0);
 			if (a < 0x100) sys_data.mac = a | 0x100;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
+			sys_data.charge = atoi(argv[1]);
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--keyflags")) {
 			sys_data.keyflags = ~atoi(argv[1]);
