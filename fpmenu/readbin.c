@@ -49,7 +49,7 @@ void entry_main(unsigned clust, unsigned size, uint8_t *ram,
 	memcpy(ram, ram + RAM_SHIFT, size);
 #endif
 	clean_dcache();
-	clean_icache();
+	invalidate_icache();
 #if UMS9117
 	ram += 0x200;
 #endif

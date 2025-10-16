@@ -84,7 +84,7 @@ void entry_main(void) {
 #if INIT_MMU
 	{
 		volatile uint32_t *tab = (uint32_t*)ram_addr;
-		uint32_t cb = 3 << 2; // cached=1, buffered=1
+		uint32_t cb = 3 << 2; // Outer and Inner Write-Back, no Write-Allocate
 		unsigned i;
 		for (i = 0; i < 0x200; i++) tab[i] = 0; // no access
 		for (; i < 0x800 + (ram_size >> 20); i++)
@@ -96,8 +96,14 @@ void entry_main(void) {
 
 		for (i = 0; i < ram_size >> 20; i++)
 			tab[ram_addr >> 20 | i] |= cb;
+#if 0 // !NO_ACTLR
+		// setup ACTLR
+		__asm__ __volatile__(
+			"mcr p15, #0, %0, c1, c0, #1"
+			:: "r"(0x6040));
+#endif
 		// domains: 0 - manager, 1..3 - client, 4..15 - no access
-		enable_mmu((uint32_t*)tab, 0x57);
+		enable_mmu((uint32_t*)((uint32_t)tab | 0x49), 0x57);
 	}
 #endif
 #if LIBC_SDIO < 3

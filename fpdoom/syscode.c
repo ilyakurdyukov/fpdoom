@@ -1016,7 +1016,7 @@ void sys_set_handlers(void) {
 	MEM4(p + 0x28) = (intptr_t)&undef_handler;
 #endif
 	clean_invalidate_dcache();
-	clean_icache();
+	invalidate_icache();
 }
 
 void sys_init(void) {

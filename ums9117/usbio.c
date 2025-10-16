@@ -162,6 +162,8 @@ void usb_init(void) {
 		tr->len2 = USB_BUFSIZE;
 		tr->flags = 5;
 
+		// clean the cache from zeroing the BSS
+		clean_dcache_range(usb_recv_buf, usb_recv_buf + USB_BUFSIZE);
 		// orig code don't do this
 		clean_dcache_range(tr, (char*)tr + 12);
 	}

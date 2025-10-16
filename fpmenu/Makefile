@@ -32,6 +32,9 @@ include ../buildinc.make
 
 CFLAGS += -DSDIO_VERBOSE=0 -DSDIO_SHL=CHIPRAM_ADDR
 CFLAGS += -DMENU_DEBUG=0
+ifeq ($(T117), 1)
+CFLAGS += -DNO_ACTLR=1
+endif
 CFLAGS := $(filter-out -DFAT_WRITE=1, $(CFLAGS))
 
 APP_CFLAGS += -std=c99 -pedantic -I$(SYSDIR)

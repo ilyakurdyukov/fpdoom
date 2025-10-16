@@ -143,7 +143,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #if INIT_MMU
 	{
 		volatile uint32_t *tab = (uint32_t*)ram_addr;
-		uint32_t cb = 3 << 2; // cached=1, buffered=1
+		uint32_t cb = 3 << 2; // Outer and Inner Write-Back, no Write-Allocate
 		unsigned i;
 		for (i = 0; i < 0x200; i++) tab[i] = 0; // no access
 		for (; i < 0x800 + (ram_size >> 20); i++)
@@ -155,12 +155,19 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #endif
 #if 0
 		i = 0xffff0000 >> 20; // ROM
-		tab[i] = i << 20 | 7 << 10 | cb | 2; // read only
+		tab[i] = i << 20 | 0x23 << 10 | cb | 2; // read only
 #endif
 		for (i = 0; i < ram_size >> 20; i++)
 			tab[ram_addr >> 20 | i] |= cb;
+// TODO: binaries don't start when ACTLR.SMP is enabled for fpmenu
+#if !NO_ACTLR
+		// setup ACTLR
+		__asm__ __volatile__(
+			"mcr p15, #0, %0, c1, c0, #1"
+			:: "r"(0x6040));
+#endif
 		// domains: 0 - manager, 1..3 - client, 4..15 - no access
-		enable_mmu((uint32_t*)tab, 0x57);
+		enable_mmu((uint32_t*)((uint32_t)tab | 0x49), 0x57);
 	}
 #endif
 	{

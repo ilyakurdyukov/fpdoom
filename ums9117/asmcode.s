@@ -36,14 +36,33 @@ CODE32_FN set_mode_sp
 CODE32_FN enable_mmu
 	mcr	p15, #0, r0, c2, c0, #0 // TTBR0
 	mcr	p15, #0, r1, c3, c0, #0 // DACR
+
+	// to indicate that only TTBR0 is used
+	mrc	p15, #0, r0, c2, c0, #2 // TTBCR
+	bic	r0, #3 // N = 0
+	mcr	p15, #0, r0, c2, c0, #2 // TTBCR
+
+.if 0
+	// Read-Allocate will not work on Cortex-A7 without this bit set
+	mrc	p15, #0, r0, c1, c0, #1 // ACTLR
+	orr	r0, #0x40 // SMP
+	mcr	p15, #0, r0, c1, c0, #1 // ACTLR
+.endif
+
 	mrc	p15, #0, r0, c1, c0, #0 // SCTLR
-	orr	r0, #5
+	orr	r0, #5 // C, M
+	bic	r0, #1 << 28 // TRE
 	mcr	p15, #0, r0, c1, c0, #0 // SCTLR
 	bx	lr
 
-CODE32_FN clean_icache
+CODE32_FN invalidate_tlb
 	mov	r0, #0
-	mcr	p15, #0, r0, c7, c5, #0
+	mcr	p15, #0, r0, c8, c7, #0 // TLBIALL
+	bx	lr
+
+CODE32_FN invalidate_icache
+	mov	r0, #0
+	mcr	p15, #0, r0, c7, c5, #0 // ICIALLU
 	bx	lr
 
 CODE32_FN clean_dcache
@@ -68,6 +87,41 @@ CODE32_FN clean_dcache
 2:	orr	r1, r8, r4, lsl r5 // level + way
 	orr	r1, r1, r6, lsl r2 // set
 	mcr	p15, #0, r1, c7, c10, #2 // DCCSW
+	subs	r6, #1 << 4
+	bpl	2b
+	subs	r4, #1
+	bpl	1b
+8:	add	r8, #2
+	cmp	r8, r3
+	blo	0b
+9:	mov	r8, #0
+	mcr	p15, #2, r8, c0, c0, #0 // CCSR
+	dsb	st
+	isb
+	pop	{r4-r8,pc}
+
+CODE32_FN clean_invalidate_dcache
+	push	{r4-r8,lr}
+	dmb
+	mrc	p15, #1, r0, c0, c0, #1 // CLIDR
+	mov	r3, r0, lsr #23
+	ands	r3, #7 << 1 // LoC * 2
+	beq	9f
+	mov	r8, #0
+0:	tst	r0, #6
+	beq	8f
+	lsr	r0, #3
+	mcr	p15, #2, r8, c0, c0, #0 // CCSR
+	isb
+	mrc	p15, #1, r1, c0, c0, #0 // CCSIDR
+	and	r2, r1, #7 // line size
+	ubfx	r4, r1, #2, #10 // ways - 1
+	ubfx	r7, r1, #13, #15 // sets - 1
+	clz	r5, r4
+1:	lsl	r6, r7, #4
+2:	orr	r1, r8, r4, lsl r5 // level + way
+	orr	r1, r1, r6, lsl r2 // set
+	mcr	p15, #0, r1, c7, c14, #2 // DCCISW
 	subs	r6, #1 << 4
 	bpl	2b
 	subs	r4, #1

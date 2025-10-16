@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 	int i, j, ret;
 
 #if EMBEDDED == 1 || UMS9117
-	maxcache1dsize = 4 << 20;
+	maxcache1dsize = 8 << 20;
 #else
 	{
 		uint32_t ram_addr = (uint32_t)&main & 0xfc000000;

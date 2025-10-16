@@ -423,7 +423,7 @@ loop_end:
 		DBG_LOG("readbin = %p, size = 0x%x\n", readbin, size);
 		memcpy(dst, readbin, size);
 		clean_dcache();
-		clean_icache();
+		invalidate_icache();
 		((readbin_t)dst)(draw.fatfile.clust, draw.fatfile.size, ram,
 				&fatdata_glob DBG_EXTRA_ARG(&printf));
 	}

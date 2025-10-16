@@ -83,7 +83,7 @@ __attribute__((noreturn))
 #define SYS_RESET_DELAY (0x8000 / 2) /* 0.5 sec */
 void sys_wdg_reset(unsigned val);
 
-void clean_icache(void);
+void invalidate_icache(void);
 void clean_dcache(void);
 void clean_dcache_range(void *start, void *end);
 void clean_invalidate_dcache(void);

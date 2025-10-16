@@ -95,6 +95,12 @@ int sdmain(void) {
 		argc = 0;
 #endif
 		*(short*)p = argc;
+#if 0
+		// reset ACTLR to default
+		__asm__ __volatile__(
+			"mcr p15, #0, %0, c1, c0, #1"
+			:: "r"(0x6000));
+#endif
 		clean_dcache();
 		((void(*)(void))(bin_addr + 0x200))();
 	}

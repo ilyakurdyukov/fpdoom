@@ -45,9 +45,9 @@ CODE32_FN _start
 	bic	r3, #3
 
 	ldr	r2, 5f
-	push	{r4}
+	push	{r4-r5} // r5 for alignement
 	bl	entry_main
-	add	sp, #4
+	add	sp, #8
 	mov	r3, r0
 	mov	r0, r4
 	ldr	r1, [r4, #0x10]

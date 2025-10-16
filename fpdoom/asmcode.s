@@ -100,7 +100,7 @@ CODE32_FN invalidate_tlb_mva
 	mcr	p15, #0, r0, c8, c7, #1
 	bx	lr
 
-CODE32_FN clean_icache
+CODE32_FN invalidate_icache
 	mov	r0, #0
 	mcr	p15, #0, r0, c7, c5, #0
 	bx	lr
