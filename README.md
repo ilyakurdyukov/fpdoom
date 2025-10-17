@@ -31,11 +31,13 @@ Apply the patch: `$ patch -d doom_src -p1 -i ../doom.patch`.
 
 ### How to run FPDoom
 
+* [Here](ums9117/README.md) are additional instructions for the UMS9117 chipset for 4G feature phones.
+
 1. Figure out how to run `spd_dump` on your feature phone.
 2. Create a working directory `workdir` and place the Doom resource file here, for example [doom1.wad](http://distro.ibiblio.org/pub/linux/distributions/slitaz/sources/packages/d/doom1.wad) from the shareware version of Doom 1.
 3. Put these commands in a script, run it and then connect your phone:
 ```
-$ ./spd_dump --wait 300 fdl nor_fdl1.bin 0x40004000 fdl fpdoom.bin ram
+$ ./spd_dump fdl nor_fdl1.bin 0x40004000 fdl fpdoom.bin ram
 $ cd workdir && ../libc_server -- --bright 50 --rotate 3 doom
 ```
 
