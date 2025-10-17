@@ -1,6 +1,8 @@
-## SD card boot
+## SD card boot (SC6530/SC6531)
 
-This is a small section that is added to the free space in the firmware. The code is executed when the phone is powered/rebooted, if one of the keys at positions (0,1), (1,0) or (1,1) is pressed and a FAT32 formatted SD card is inserted, then the binary `fpbin/fpmain.bin` is executed. The command line to the application is read from the file `fpbin/config.txt`. This application can be either one of the games or a menu for selecting games (`fpmenu`).
+* SD boot for UMS9117 in the [sdboot_t117](../sdboot_t117) directory.
+
+This is a small section that is added to the free space in the firmware. The code is executed when the phone is powered/rebooted, if one of the keys at positions (0,1), (1,0) or (1,1) is hold down. If a FAT32 formatted SD card is inserted, then the binary `fpbin/fpmain.bin` is executed. The command-line arguments for the application is read from the file `fpbin/config.txt`. This application can be either one of the games or a menu for selecting games (`fpmenu`).
 
 * The key for booting from USB is (0,0). The key positions are the intersections of traces on the PCB, not the physical buttons you see.
 

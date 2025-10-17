@@ -17,7 +17,7 @@ There are other ports that reuse code written for FPDoom:
 
 ### Installation on SD card
 
-Please read the instructions [here](sdboot/README.md).
+Please read the instructions [here](sdboot/README.md) for SC6530/SC6531, or [here](sdboot_t117/README.md) for UMS9117.
 
 ### Build
 
