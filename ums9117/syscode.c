@@ -46,11 +46,63 @@ static void init_chip_id(void) {
 	DBG_LOG("chip_id: %s = 0x%x\n", "num", t0);
 }
 
+#define GPIO_BASE 0x40280000
+
+#define gpio_get(id, off) gpio_set(id, off, -1)
+static int gpio_set(unsigned id, unsigned off, int state) {
+	uint32_t addr, tmp, shl = id & 0xf;
+	if (id >= 0x80) FATAL();
+	addr = GPIO_BASE + ((id >> 4) << 7);
+	addr += off;
+	tmp = MEM4(addr);
+	if (state < 0) return tmp >> shl & 1;
+	tmp &= ~(1u << shl);
+	tmp |= state << shl;
+	MEM4(addr) = tmp;
+	return 0;
+}
+
+extern uint16_t gpio_data[];
+
+static void gpio_init(void *ptr) {
+	struct {
+		int16_t id, val; uint32_t dir, mode;
+	} *tab = ptr;
+	int i;
+
+	APB_CR(0x1000) = 8;
+
+	for (i = 0; tab[i].id != -1; i++) {
+		int a = tab[i].id, val;
+		gpio_set(a, 4, 1);	// GPIO_DMSK
+		if (!tab[i].dir) {
+			gpio_set(a, 8, 1); // GPIO_DIR
+			gpio_set(a, 0x28, 0); // GPIO_INEN
+			val = tab[i].val;
+			val = val != -1 && (val & 0xff);
+			gpio_set(a, 0, val); // GPIO_DATA
+		} else {
+			gpio_set(a, 8, 0); // GPIO_DIR
+			gpio_set(a, 0x28, 1); // GPIO_INEN
+		}
+	}
+
+	{
+		uint16_t *p = gpio_data;
+		unsigned a;
+		while ((a = *p++) != 0xffff) {
+			gpio_set(a & 0x7fff, 0, a >> 15);
+		}
+	}
+}
+
+extern uint32_t *pinmap_addr, *gpiomap_addr;
+
 static void pin_init(void) {
 	const volatile uint32_t *pinmap = pinmap_addr;
 
-	MEM4(0x402e1000) = 0x100000;
-	MEM4(0x402e10b0) = 0x1000;
+	APB_CR(0x1000) = 0x100000;
+	APB_CR(0x10b0) = 0x1000;
 	for (;;) {
 		uint32_t addr = pinmap[0], val = pinmap[1];
 		pinmap += 2;
@@ -61,30 +113,45 @@ static void pin_init(void) {
 		} else break;
 	}
 	MEM4(0x402a0018) &= 0xe0000000;
+
+	if (sys_data.gpio_init)
+		gpio_init((void*)gpiomap_addr);
 }
 
 static void backlight_init(void) {
+	uint32_t tmp;
 	adi_write(0x40608c08, adi_read(0x40608c08) | 0x200);
 	adi_write(0x40608c10, adi_read(0x40608c10) | 0x80 | 0x1000);
 	adi_write(0x40608dec, adi_read(0x40608dec) & ~5);
 	adi_write(0x406081c8, adi_read(0x406081c8) & ~0xff);
-	adi_write(0x40608df4, (adi_read(0x40608df4) & ~0xf) | 9);
-	adi_write(0x406081b8, adi_read(0x406081b8) & ~0x3f);
-	adi_write(0x406081bc, adi_read(0x406081bc) & ~0x3f);
-	adi_write(0x406081c0, adi_read(0x406081c0) & ~0x3f);
-	adi_write(0x406081c4, adi_read(0x406081c4) & ~0x3f);
+	tmp = sys_data.bl_extra[0];
+	adi_write(0x40608df4, (adi_read(0x40608df4) & ~0xf) | tmp);
+	tmp = sys_data.bl_extra[1];
+	adi_write(0x406081b8, (adi_read(0x406081b8) & ~0x3f) | tmp);
+	adi_write(0x406081bc, (adi_read(0x406081bc) & ~0x3f) | tmp);
+	adi_write(0x406081c0, (adi_read(0x406081c0) & ~0x3f) | tmp);
+	tmp = sys_data.bl_extra[2];
+	adi_write(0x406081c4, (adi_read(0x406081c4) & ~0x3f) | tmp);
 }
 
 void sys_brightness(unsigned val) {
-	uint32_t tmp;
+	uint32_t tmp, mask = 0;
 	if (val > 100) val = 100;
 
 	tmp = adi_read(0x40608180);
-	if (val) tmp |= 0x3000; else tmp &= ~0x1000;
+	if (sys_data.bl_extra[1]) mask |= 0x111;
+	if (sys_data.bl_extra[2]) mask |= 0x1000;
+	if (val) tmp |= mask << 1 | mask; else tmp &= ~mask;
 	adi_write(0x40608180, tmp);
-	adi_write(0x406081c4, (adi_read(0x406081c4) & ~0x3f) | 0x2f);
-	val >>= 1;
-	adi_write(0x406081cc, val << 8 | 50);
+
+	tmp = 100;
+	if (sys_data.bl_extra[1]) {
+		adi_write(0x40608188, val << 8 | tmp);
+		adi_write(0x40608198, val << 8 | tmp);
+		adi_write(0x406081a8, val << 8 | tmp);
+	}
+	if (sys_data.bl_extra[2])
+		adi_write(0x406081cc, val << 8 | tmp);
 }
 
 #define LCM_REG_BASE 0x20a00000

@@ -77,6 +77,8 @@ static uint32_t get_ram_size(uint32_t addr) {
 	exit(1); \
 } while (0)
 
+uint16_t gpio_data[16];
+
 #if TWO_STAGE
 struct entry2 {
 	uint32_t dhtb[0x200 / 4];
@@ -236,9 +238,19 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.lcd_cs = 0;
 	// sys_data.mac = 0;
 	// sys_data.spi = 0;
+	// sys_data.gpio_init = 0;
 	sys_data.charge = -1;
 	sys_data.keyrows = 8;
 	sys_data.keycols = 8;
+
+	gpio_data[0] = ~0;
+
+	// CHAKEYAKE T190: 9,0,0x2f
+	// Inoi 284 Flip: 1,0x16,0x16
+	// Nokia 110 4G (TA-1543): 0,0xe,0
+	sys_data.bl_extra[0] = 9;
+	// sys_data.bl_extra[1] = 0;
+	sys_data.bl_extra[2] = 0x2f;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -271,6 +283,35 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--mac")) {
 			unsigned a = strtol(argv[1], NULL, 0);
 			if (a < 0x100) sys_data.mac = a | 0x100;
+			argc -= 2; argv += 2;
+		} else if (!strcmp(argv[0], "--gpio_init")) {
+			sys_data.gpio_init = 1;
+			argc -= 1; argv += 1;
+		} else if (argc >= 2 && !strcmp(argv[0], "--gpio_data")) {
+			char *s = argv[1];
+			int i = 0, a, val;
+			for (;;) {
+				a = strtol(s, &s, 0);
+				val = 0;
+				if (a < 0) val = 1, a = -a;
+				if (a >= 0x80) ERR_EXIT("invalid gpio_data num\n");
+				gpio_data[i++] = a | val << 15;
+				if ((unsigned)i >= sizeof(gpio_data) / sizeof(*gpio_data))
+					ERR_EXIT("too many gpio_data\n");
+				a = *s++;
+				if (!a) break;
+				if (a != ',') ERR_EXIT("invalid separator\n");
+			}
+			gpio_data[i] = ~0;
+			sys_data.gpio_init = 1;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--bl_extra")) {
+			char *s = argv[1];
+			sys_data.bl_extra[0] = strtol(s, &s, 0) & 0xf;
+			if (*s++ != ',') ERR_EXIT("invalid separator\n");
+			sys_data.bl_extra[1] = strtol(s, &s, 0) & 0x3f;
+			if (*s++ != ',') ERR_EXIT("invalid separator\n");
+			sys_data.bl_extra[2] = strtol(s, &s, 0) & 0x3f;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
 			sys_data.charge = atoi(argv[1]);

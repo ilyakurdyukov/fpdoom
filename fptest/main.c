@@ -160,7 +160,7 @@ end:;
 #if UMS9117
 static int boot_cable_check(void) { return 0; }
 static void test_sfc(void) {}
-static void test_lzma(int flags) {}
+static void test_lzma(int flags) { (void)flags; }
 #else
 static int boot_cable_check(void) {
 	return !(MEM4(0x205000e0) & 2);

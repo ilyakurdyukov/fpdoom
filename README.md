@@ -124,6 +124,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 66 | Inoi 140 4G             | UMS9117  | 128x160 ST7735S   | *          |
 | 67 | BQ 1800L One            | UMS9117  | 128x160 GC9106    | 4          |
 | 68 | IPRO K6                 | UMS9117  | 240x320 GC9306    | *          |
+| 69 | Inoi 284 Flip           | UMS9117  | 240x320 GC9306    | 2          |
 
 * Nokia phones: add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Vertex M115: use `--lcd 0x807c89f0`
@@ -145,6 +146,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Texet TM-B322: use `--lcd 0x7567`, dial key is mapped to left soft key
 * Jinga Simple F170: use `--mac 0xd8`
 * Fontel FP200: the same model name is reused for a phone on a completely different hardware, which has a type-C connector, USB device code `1e04:0920`, this is an RDA chip. The supported device on the SC6531 chip has a micro-USB connector.
+* Inoi 284 Flip: use `--rotate 1,3 --gpio_data 0x28,-0x6d,-0x67,0x68` to play on the front screen, or `--rotate 3 --gpio_data -0x28,0x6d,0x67,-0x68` to play on the back screen.
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 

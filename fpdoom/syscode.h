@@ -95,8 +95,6 @@ enum {
 
 // extern
 
-extern uint32_t *pinmap_addr;
-
 extern struct sys_data {
 	short *keymap_addr;
 	struct { uint32_t num, ver, adi; } chip_id;
@@ -110,7 +108,11 @@ extern struct sys_data {
 	uint8_t spi_mode;
 	int8_t charge;
 	uint8_t gpio_init;
+#if UMS9117
+	uint8_t bl_extra[3];
+#else
 	uint8_t bl_gpio;
+#endif
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;

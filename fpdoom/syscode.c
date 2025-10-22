@@ -143,7 +143,7 @@ static int gpio_set(unsigned id, unsigned off, int state) {
 
 static void gpio_init(void *ptr) {
 	struct {
-		int16_t id, val; uint32_t x04, x08;
+		int16_t id, val; uint32_t dir, mode;
 	} *tab = ptr;
 	int i;
 
@@ -151,17 +151,19 @@ static void gpio_init(void *ptr) {
 
 	for (i = 0; tab[i].id != -1; i++) {
 		int a = tab[i].id;
-		gpio_set(a, 4, 1);	// GPIODMSK
-		if (!tab[i].x04) {
-			gpio_set(a, 8, 1); // GPIODIR
-			gpio_set(a, 0x18, 0);	// GPIOIE
+		gpio_set(a, 4, 1);	// GPIO_DMSK
+		if (!tab[i].dir) {
+			gpio_set(a, 8, 1); // GPIO_DIR
+			gpio_set(a, 0x18, 0);	// GPIO_IE
 			if (tab[i].val != -1)
-				gpio_set(a, 0, (tab[i].val & 0xff) != 0); // GPIODATA
+				gpio_set(a, 0, (tab[i].val & 0xff) != 0); // GPIO_DATA
 		} else {
-			gpio_set(a, 8, 0); // GPIODIR
+			gpio_set(a, 8, 0); // GPIO_DIR
 		}
 	}
 }
+
+extern uint32_t *pinmap_addr;
 
 static void pin_init(void) {
 	const volatile uint32_t *pinmap = pinmap_addr;

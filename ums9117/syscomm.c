@@ -9,7 +9,7 @@
 #define ERR_EXIT(...) \
 	do { fprintf(stderr, "!!! " __VA_ARGS__); exit(1); } while (0)
 
-uint32_t *pinmap_addr;
+uint32_t *pinmap_addr, *gpiomap_addr;
 
 static uint8_t* loadfile(const char *fn, size_t *num) {
 	size_t n, j = 0; uint8_t *buf = 0;
@@ -28,15 +28,34 @@ static uint8_t* loadfile(const char *fn, size_t *num) {
 	return buf;
 }
 
+
+static uint32_t* gpiomap_check(uint32_t *p, unsigned size) {
+	uint32_t *p0;
+	if (size < 8 + 12) return NULL;
+	// skip empty GPIO related table
+	if (~p[0] || p[1] != 0xffff) return NULL;
+	p0 = p += 2; size -= 8;
+	for (; size >= 12; p += 3, size -= 12) {
+		uint32_t a = p[0];
+		if (a & 0xfffeff80) {
+			if (a != 0xffff || p[1] != 2 || p[2] != 5) break;
+			return p0;
+		}
+		if (p[1] >= 2 || p[2] >= 6) break;
+	}
+	return NULL;
+}
+
 static int pinmap_check(uint32_t *p, uint32_t size) {
-	if ((size < 8) || (size & 7)) return -1;
+	if ((size < 8) || (size & 3)) return -1;
 	for (; size > 8; size -= 8, p += 2) {
 		uint32_t addr = p[0];
 		if (!(addr - 0x40608000 < 0x1000) &&
 				!(addr - 0x402a0000 < 0x1000))
-			return -1;
+			break;
 	}
 	if (~(p[0] & p[1])) return -1;
+	gpiomap_addr = gpiomap_check(p + 2, size - 8);
 	return 0;
 }
 
@@ -54,6 +73,8 @@ void scan_firmware(intptr_t fw_addr) {
 	pinmap_addr = (uint32_t*)loadfile(pinmap_fn, &size);
 	if (!pinmap_addr) ERR_EXIT("pinmap not found\n");
 	if (pinmap_check(pinmap_addr, size)) ERR_EXIT("pinmap check failed\n");
+	if (sys_data.gpio_init && !gpiomap_addr)
+		ERR_EXIT("gpiomap not found\n");
 
 	if (!sys_data.keymap_addr) {
 		FILE *f = fopen(keymap_fn, "rb");

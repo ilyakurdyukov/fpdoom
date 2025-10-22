@@ -9,7 +9,7 @@ So, first you need to dump the kernel part of the firmware from the phone (hints
 ```
 ./spd_dump \
 	keep_charge 1  fdl fdl1.bin 0x6200 \
-	blk_size 0x1000  fdl fdl2.bin 0x80100000 \
+	blk_size 0x1000  fdl fdl2.bin 0x801M \
 	read_flash 0x80000003 0 auto kernel.bin
 ```
 
