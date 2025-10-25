@@ -98,6 +98,8 @@ static uint32_t get_ram_size(uint32_t addr) {
 	exit(1); \
 } while (0)
 
+uint16_t gpio_data[16];
+
 #if TWO_STAGE
 struct entry2 {
 	uint32_t code[3];
@@ -286,6 +288,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// But the Children's Camera use 7.
 	//sys_data.keycols = _chip != 1 ? 5 : 8;
 
+	gpio_data[0] = ~0;
+
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
 			unsigned a = atoi(argv[1]);
@@ -327,6 +331,26 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (!strcmp(argv[0], "--gpio_init")) {
 			sys_data.gpio_init = 1;
 			argc -= 1; argv += 1;
+		} else if (argc >= 2 && !strcmp(argv[0], "--gpio_data")) {
+			char *s = argv[1];
+			int i = 0, a, val;
+			unsigned n = 0x4c;
+			if (_chip >= 2) { n = 0x90; if (_chip == 3) n = 0xa0; }
+			for (;;) {
+				a = strtol(s, &s, 0);
+				val = 0;
+				if (a < 0) val = 1, a = -a;
+				if (a >= n) ERR_EXIT("invalid gpio_data num\n");
+				gpio_data[i++] = a | val << 15;
+				if ((unsigned)i >= sizeof(gpio_data) / sizeof(*gpio_data))
+					ERR_EXIT("too many gpio_data\n");
+				a = *s++;
+				if (!a) break;
+				if (a != ',') ERR_EXIT("invalid separator\n");
+			}
+			gpio_data[i] = ~0;
+			sys_data.gpio_init = 1;
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--bl_gpio")) {
 			sys_data.gpio_init = 1;
 			sys_data.bl_gpio = atoi(argv[1]);

@@ -301,6 +301,8 @@ static const lcd_config_t* lcd_find_conf(uint32_t id, int mode) {
 	return lcd_config + i;
 }
 
+#include "lcd_spi.h"
+
 static void lcm_exec(const uint8_t *cmd) {
 	void (*send_fn)(unsigned, unsigned) = lcd_setup.send;
 
@@ -330,6 +332,24 @@ static const lcd_config_t* lcm_init(void) {
 	uint32_t id, clk_rate, cs = sys_data.lcd_cs;
 	const lcd_config_t *lcd;
 
+	// auto detect SPI1 display
+	if (!sys_data.spi) {
+		uint32_t x = 0x402a00b8;
+		DBG_LOG("LCD: pins = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
+				MEM4(x), MEM4(x + 4), MEM4(x + 8), MEM4(x + 12), MEM4(x + 16));
+
+		// REG: 0xb8, 0xbc, 0xc0, 0xc4, 0xc8
+		// CHAKEYAKE T190: 0x10, 0x0, 0x30, 0x30, 0x10
+		// common SPI: (0x30 or 0), 0, 0, 0, 0
+		// common LCM: (0x30 or 0x10), 0x10, 0x10, 0x10, 0x10
+
+		// SPI0_CD/LCM_CD/---/GPIO44
+		if (MEM4(0x402a00c8) == 0) {
+			sys_data.spi = 0x70b << 20;
+		}
+	}
+	if (!~sys_data.spi) sys_data.spi = 0;
+
 	AHB_PWR_ON(0x1000);	// LCM enable
 
 	LCM_CR(0) = 0;
@@ -340,6 +360,12 @@ static const lcd_config_t* lcm_init(void) {
 
 	clk_rate = get_ahb_freq();
 	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
+
+	if (sys_data.spi) {
+		lcd = lcd_spi_init(sys_data.spi, clk_rate);
+		lcd_setup.send = spi_send;
+		return lcd;
+	}
 
 	lcm_set_safe_freq(cs);
 	lcm_config_addr(cs);
@@ -360,7 +386,8 @@ void sys_start_refresh(void) {
 
 	// Workaround for a buggy LCD controller
 	// that doesn't reset the page counter.
-	lcm_send_cmd(0x2c2c); // Memory Write
+	if (!sys_data.spi)
+		lcm_send_cmd(0x2c); // Memory Write
 
 #if REFRESH_CLEAR_RANGE
 	{
@@ -372,6 +399,8 @@ void sys_start_refresh(void) {
 #else
 	clean_dcache();
 #endif
+	if (sys_data.spi)
+		spi_refresh_next(sys_data.spi);
 	LCDC_BASE->irq.en |= mask;
 	LCDC_BASE->ctrl |= 8;	// start refresh
 }
@@ -450,9 +479,12 @@ static void lcdc_init(void) {
 
 	{
 		uint32_t addr, mode;
-		{
+		if (!sys_data.spi) {
 			lcm_set_mode(0x28); // 8x2 BE
 			mode = 2; addr = lcd_setup.addr | 1 << 17;
+		} else {
+			spi_refresh_init(sys_data.spi);
+			mode = 0; addr = sys_data.spi + SPI_TXD;
 		}
 		lcdc->cap.ctrl |= 0x20;
 		lcdc->cap.ctrl |= (lcdc->cap.ctrl & ~(3 << 6)) | mode << 6;

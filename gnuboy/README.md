@@ -34,6 +34,8 @@ Port of [gnuboy](https://github.com/rofl0r/gnuboy).
 
 ### Issues
 
+* The emulator needs a patch with frame skip support to prevent slowing down on screens with slow refresh rate.
+
 * Some game cartridges have SRAM for saves, this memory is saved on exit or if you force save SRAM. If the device is turned off, the SRAM changes will be lost.
 
 * The FAT32 file system driver can't create files with long names, if you want to save SRAM the ROM file name must be in DOS 8.3 format or you need to create an empty file with the ROM name and the `.sav` extension in advance.

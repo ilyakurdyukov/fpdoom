@@ -240,6 +240,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	// sys_data.spi = 0;
 	// sys_data.gpio_init = 0;
 	sys_data.charge = -1;
+	sys_data.spi_mode = 3;
 	sys_data.keyrows = 8;
 	sys_data.keycols = 8;
 
@@ -274,7 +275,11 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--spi")) {
 			unsigned a = atoi(argv[1]);
 			if (!~a) sys_data.spi = a;
-			if (a < 2) sys_data.spi = (0x68 + a) << 24;
+			if (a < 2) sys_data.spi = (0x70a + a) << 20;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--spi_mode")) {
+			unsigned a = atoi(argv[1]);
+			if (a - 1 < 4) sys_data.spi_mode = a;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			unsigned id = strtol(argv[1], NULL, 0);

@@ -141,6 +141,8 @@ static int gpio_set(unsigned id, unsigned off, int state) {
 	return 0;
 }
 
+extern uint16_t gpio_data[];
+
 static void gpio_init(void *ptr) {
 	struct {
 		int16_t id, val; uint32_t dir, mode;
@@ -159,6 +161,14 @@ static void gpio_init(void *ptr) {
 				gpio_set(a, 0, (tab[i].val & 0xff) != 0); // GPIO_DATA
 		} else {
 			gpio_set(a, 8, 0); // GPIO_DIR
+		}
+	}
+
+	{
+		uint16_t *p = gpio_data;
+		unsigned a;
+		while ((a = *p++) != 0xffff) {
+			gpio_set(a & 0x7fff, 0, a >> 15);
 		}
 	}
 }

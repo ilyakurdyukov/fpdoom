@@ -128,7 +128,7 @@ static const uint8_t cmd9306_ipro_init[] = {
 	LCM_END
 };
 
-static const uint8_t cmd9307_unknown_init[] = {
+static const uint8_t cmd9307_itop_init[] = {
 	LCM_CMD(0xfe, 0), // Inter Register Enable 1
 	LCM_CMD(0xef, 0), // Inter Register Enable 2
 	//LCM_CMD(0x36, 1), 0x48, // Memory Access Control
@@ -190,6 +190,35 @@ static const uint8_t cmd8966_unknown_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd7735_nokia_init[] = {
+	LCM_CMD(0xf0, 1), 0x11,
+	LCM_CMD(0xd6, 1), 0xcb,
+	LCM_CMD(0xb1, 3), 0x05,0x4a,0x4a,
+	LCM_CMD(0xb2, 3), 0x05,0x3c,0x3c,
+	LCM_CMD(0xb3, 6), 0x05,0x3c,0x3c,0x05,0x3c,0x3c,
+	LCM_CMD(0xb4, 2), 0x03,0x02,
+	LCM_CMD(0xc0, 3), 0xa1,0x04,0x84,
+	LCM_CMD(0xc1, 1), 0xc4,
+	LCM_CMD(0xc2, 2), 0x0d,0x00,
+	LCM_CMD(0xc3, 2), 0x8d,0x2a,
+	LCM_CMD(0xc4, 2), 0x8d,0xee,
+	LCM_CMD(0xc5, 1), 0x27,
+	LCM_CMD(0xe0, 16), 0x07,0x3f,0x0d,0x07,
+		0x14,0x0f,0x08,0x0e, 0x0e,0x0c,0x18,0x24, 0x00,0x0b,0x03,0x1f,
+	LCM_CMD(0xe1, 16), 0x01,0x3f,0x01,0x00,
+		0x07,0x03,0x04,0x0c, 0x10,0x14,0x23,0x2e, 0x00,0x00,0x05,0x1f,
+	LCM_CMD(0x2a, 4), 0x00,0x00,0x00,0x7f,
+	LCM_CMD(0x2b, 4), 0x00,0x00,0x00,0x9f,
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x3a, 1), 0x05,
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x21, 0),
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -216,15 +245,20 @@ static const lcd_config_t lcd_config_t117[] = {
 	// GlaxyCore GC9306
 	X(0x009306, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9306_ipro)
 
-/* FW: T22_LS_GB2358_WB158_LB135782028AB_V01_20250121 */
+/* i-TOP P100 */
 
 	// GlaxyCore GC9307
-	X(0x009307, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9307_unknown)
+	X(0x009307, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9307_itop)
 
 /* FW: L400_JS_K18B_ISR_V15 */
 
 	// Sitronix ST7789V3A
 	X(0x898966, 240,320, 0x00, 50,55,110,20,70,35, 0, cmd8966_unknown)
+
+/* Nokia 110 4G (TA-1543) */
+
+	// Sitronix ST7735P3 LX HKC
+	X(0x773503, 128,160, 0xd0, NO_TIMINGS, 48000000, cmd7735_nokia)
 };
 #undef X
 #undef NO_TIMINGS
