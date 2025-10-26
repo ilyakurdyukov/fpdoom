@@ -386,8 +386,15 @@ void sys_start_refresh(void) {
 
 	// Workaround for a buggy LCD controller
 	// that doesn't reset the page counter.
-	if (!sys_data.spi)
+	if (!sys_data.spi) {
+#if 0
+		lcm_send_cmd(0x2c2c); // Memory Write
+#else // safer way
+		lcm_set_mode(1); // 8
 		lcm_send_cmd(0x2c); // Memory Write
+		lcm_set_mode(0x28); // 8x2 BE
+#endif
+	}
 
 #if REFRESH_CLEAR_RANGE
 	{
