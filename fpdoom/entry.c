@@ -333,8 +333,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			argc -= 1; argv += 1;
 		} else if (argc >= 2 && !strcmp(argv[0], "--gpio_data")) {
 			char *s = argv[1];
-			int i = 0, a, val;
-			unsigned n = 0x4c;
+			int i = 0, a, val, n = 0x4c;
 			if (_chip >= 2) { n = 0x90; if (_chip == 3) n = 0xa0; }
 			for (;;) {
 				a = strtol(s, &s, 0);

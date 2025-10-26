@@ -130,7 +130,7 @@ static void lcdc_init(void);
 
 static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	const lcd_config_t *lcd;
-	uint32_t id, cs = 0;
+	uint32_t id, cs = 0, tmp;
 
 	(void)clk_rate;
 
@@ -138,9 +138,20 @@ static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		MEM4(0x71301000) = 0x20; // SPI0 enable
 		// freq: 0 - 26M, 1 - 128M, 2 - 153.6M, 3 - 192M
 		MEM4(0x21500048) = 3;
+		tmp = 0x20;
 	} else {
 		APB_CR(0x1134) = 0x200; // SPI1 enable
 		MEM4(0x21500054) = 3;
+		tmp = 0x40;
+	}
+	DELAY(100)
+
+	// SPI reset
+	if (tmp) {
+		MEM4(0x71301004) = tmp;
+		DELAY(1000)
+		MEM4(0x71302004) = tmp;
+		DELAY(1000)
 	}
 
 	{
