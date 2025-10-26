@@ -127,6 +127,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 69 | Inoi 284 Flip           | UMS9117  | 240x320 GC9306    | 2          |
 | 70 | i-TOP P100              | UMS9117  | 240x320 GC9307    | dial       |
 | 71 | Nokia 110 4G (TA-1543)  | UMS9117  | 128x160 ST7735P3  | *          |
+| 72 | Nokia 106 4G (TA-1553)  | UMS9117  | 128x160 ST7735P3  | *          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
@@ -151,7 +152,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Fontel FP200: the same model name is reused for a phone on a completely different hardware, which has a type-C connector, USB device code `1e04:0920`, this is an RDA chip. The supported device on the SC6531 chip has a micro-USB connector.
 * Inoi 284 Flip: use `--rotate 1,3 --gpio_data 0x28,-0x6d,-0x67,0x68` to play on the front screen, or `--gpio_data -0x28,0x6d,0x67,-0x68` to play on the back screen.
 * i-TOP P100: use `--bl_extra 9,0x20,0`
-* Nokia 110 4G (TA-1543): use `--bl_extra 0,0xe,0`
+* Nokia 110 4G (TA-1543), Nokia 106 4G (TA-1553): use `--bl_extra 0,0xe,0`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
