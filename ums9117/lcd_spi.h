@@ -46,7 +46,7 @@ static void spi_set_spi_cd_bit(uint32_t spi, int val) {
 	MEM4(spi + SPI_CTL8) = (MEM4(spi + SPI_CTL8) & ~(1 << 15)) | val << 15;
 }
 
-// cd = 0..3
+// cs = 0..3
 static void spi_select_cs(uint32_t spi, unsigned cs, unsigned state) {
 	uint32_t tmp = MEM4(spi + SPI_CTL0) | 1 << (cs += 8);
 	MEM4(spi + SPI_CTL0) = tmp & ~(state << cs);
@@ -130,7 +130,7 @@ static void lcdc_init(void);
 
 static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 	const lcd_config_t *lcd;
-	uint32_t id, cs = 0, tmp;
+	uint32_t id, tmp;
 
 	(void)clk_rate;
 
@@ -159,18 +159,18 @@ static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		mode = (mode & 1 ? 1 : 2) | (mode & 2 ? 1 << 13 : 0);
 		MEM4(spi + SPI_INT_EN) = 0;
 		MEM4(spi + SPI_CTL0) = 0xf00 | mode | 8 << 2;
-		MEM4(spi + SPI_CTL1) = MEM4(spi + SPI_CTL1) & ~0x3000;
+		MEM4(spi + SPI_CTL1) &= ~0x3000;
 		MEM4(spi + SPI_CTL4) = 0x8000;
 		MEM4(spi + SPI_CTL5) = 0;
 	}
 
-	spi_set_clkd(spi, 15);
+	spi_set_clkd(spi, 19);
 	spi_set_mode(spi, sys_data.spi_mode < 3 ? 5 : 6);
 	spi_set_chnl_len(spi, 16);
 	spi_set_s3w_rd_strt(spi, 7);
 	spi_set_rtx_mode(spi, 3);
 	spi_set_spi_cd_bit(spi, 0);
-	spi_select_cs(spi, cs, 1);
+	spi_select_cs(spi, sys_data.lcd_cs, 1);
 
 	id = sys_data.lcd_id;
 	if (!id) {
