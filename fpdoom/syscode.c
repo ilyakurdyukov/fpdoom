@@ -506,14 +506,14 @@ static const lcd_config_t* lcm_init(void) {
 
 	if (IS_SC6530 || !is_whtled_on()) lcm_reset(32, 0);
 
-	clk_rate = get_ahb_freq();
-	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
-
 	if (sys_data.spi) {
-		lcd = lcd_spi_init(sys_data.spi, clk_rate);
+		lcd = lcd_spi_init(sys_data.spi);
 		lcd_setup.send = spi_send;
 		return lcd;
 	}
+
+	clk_rate = get_ahb_freq();
+	DBG_LOG("LCD: clk_rate = %u\n", clk_rate);
 
 	lcm_set_safe_freq(cs);
 	lcm_config_addr(cs);
