@@ -148,14 +148,14 @@ static const lcd_config_t* lcd_spi_init(uint32_t spi, uint32_t clk_rate) {
 		tmp = _chip == 1 ? 0x800 : 0;
 		if (_chip == 1) {
 			// freq: 3 - 75.6M, 4 - 104M, 5 - 104M (APLL)
-			MEM4(0x8d200054) = (MEM4(0x8d200054) & 0x307) | 5;
+			MEM4(0x8d200054) = (MEM4(0x8d200054) & ~0x307) | 5;
 		}
 	} else {
 		AHB_PWR_ON(0x80000); // SPI1 enable
 		tmp = IS_SC6530 ? 0x20 : 0x8000;
 		if (_chip == 1) {
 			// freq: 3 - 48M, 4 - 75.6M, 5 - 104M, 6 - 104M (APLL)
-			MEM4(0x8d200058) = (MEM4(0x8d200058) & 0x307) | 6;
+			MEM4(0x8d200058) = (MEM4(0x8d200058) & ~0x307) | 6;
 		}
 	}
 	DELAY(100)
