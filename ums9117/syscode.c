@@ -384,8 +384,9 @@ static const lcd_config_t* lcm_init(void) {
 void sys_start_refresh(void) {
 	int mask = 1;
 
-	// Workaround for a buggy LCD controller
-	// that doesn't reset the page counter.
+	// Workaround for buggy LCD controllers
+	// that don't reset the page counter.
+	// Found on: GC9106, NV3030B
 	if (!sys_data.spi) {
 #if 0
 		lcm_send_cmd(0x2c2c); // Memory Write
@@ -394,6 +395,8 @@ void sys_start_refresh(void) {
 		lcm_send_cmd(0x2c); // Memory Write
 		lcm_set_mode(0x28); // 8x2 BE
 #endif
+	} else {
+		spi_send(0, 0x2c);
 	}
 
 #if REFRESH_CLEAR_RANGE
