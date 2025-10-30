@@ -102,7 +102,11 @@ static void spi_refresh_init(uint32_t spi_base) {
 	spi_base_t *spi = (spi_base_t*)spi_base;
 	spi->ctl7 |= 0x80;	// SPI_TX_HLD_EN
 	spi_set_spi_cd_bit(spi, 1);
-	if (sys_data.spi_mode < 3) {
+	if (sys_data.spi_mode == 2) {
+		spi->ctl8 |= 1 << 13; // CD_DATA2_SEL
+		spi->ctl7 |= 3 << 14; // DATA_LINE2_EN, RGB565_EN
+		spi_set_chnl_len(spi, 8);
+	} else if (sys_data.spi_mode < 3) {
 		spi->ctl7 |= 1 << 14;	// RGB565_EN
 		spi_set_chnl_len(spi, 17);
 	} else {
