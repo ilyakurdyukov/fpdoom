@@ -246,12 +246,16 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 
 	gpio_data[0] = ~0;
 
-	// CHAKEYAKE T190: 9,0,0x2f
-	// Inoi 284 Flip: 1,0x16,0x16
-	// Nokia 110 4G (TA-1543): 0,0xe,0
-	sys_data.bl_extra[0] = 9;
-	// sys_data.bl_extra[1] = 0;
-	sys_data.bl_extra[2] = 0x2f;
+	// CHAKEYAKE T190: w=0x2f
+	// Inoi 284 Flip: rgbw=0x16
+	// Nokia 110 4G (TA-1543): rgb=0xe
+#if 1
+	sys_data.bl_extra[0] = 0x1f;
+	sys_data.bl_extra[1] = 0x1f;
+	sys_data.bl_extra[2] = 0x1f;
+#else
+	sys_data.bl_extra[3] = 0x2f;
+#endif
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -311,12 +315,32 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			sys_data.gpio_init = 1;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--bl_extra")) {
-			char *s = argv[1];
-			sys_data.bl_extra[0] = strtol(s, &s, 0) & 0xf;
-			if (*s++ != ',') ERR_EXIT("invalid separator\n");
-			sys_data.bl_extra[1] = strtol(s, &s, 0) & 0x3f;
-			if (*s++ != ',') ERR_EXIT("invalid separator\n");
-			sys_data.bl_extra[2] = strtol(s, &s, 0) & 0x3f;
+			char *s = argv[1]; unsigned i;
+			for (i = 0; i < 4; i++)
+				sys_data.bl_extra[i] = 0;
+			for (;;) {
+				unsigned mask = 0, a;
+				a = *s;
+				if ((a - '0') < 10) mask = 15;
+				else
+				for (;;) {
+					a = *s++;
+					if (a == 'r') mask |= 1;
+					else if (a == 'g') mask |= 2;
+					else if (a == 'b') mask |= 4;
+					else if (a == 'w') mask |= 8;
+					else if (a != '=' || !mask)
+						ERR_EXIT("bad bl_extra value\n");
+					else break;
+				}
+				a = strtol(s, &s, 0);
+				if (a >> 6) ERR_EXIT("bad bl_extra value\n");
+				for (i = 0; i < 4; i++)
+					if (mask >> i & 1) sys_data.bl_extra[i] = a;
+				a = *s++;
+				if (!a) break;
+				if (a != ',') ERR_EXIT("invalid separator\n");
+			}
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--charge")) {
 			sys_data.charge = atoi(argv[1]);

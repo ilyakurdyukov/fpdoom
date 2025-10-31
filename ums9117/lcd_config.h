@@ -427,62 +427,64 @@ static const uint8_t cmd3001_philips_init[] = {
 #define NO_TIMINGS 0,0,0,0,0,0
 
 static const lcd_config_t lcd_config_t117[] = {
-/* CHAKEYAKE T190 */
+/* CHAKEYAKE T190  | --bl_extra w=0x2f */
 
 	// GlaxyCore GC9106
 	X(0x009106, 128,160, 0xd0, 60,120,75,40,50,50, 0, cmd9106_chakeyake)
 
-/* Inoi 140 Classic Lite 4G */
+/* Inoi 140 Classic Lite 4G | --bl_extra rgb=0x1f */
 
 	// Sitronix ST7735S
 	X(0x7c89f0, 128,160, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
 
-/* BQ 1800L One */
+/* BQ 1800L One | --bl_extra rgbw=0x16 */
 
 	// GlaxyCore GC9106
 	X(0x80009106, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9106_bq)
 
-/* IPRO K6 */
+/* IPRO K6 | --bl_extra rgb=0x1f */
 
 	// GlaxyCore GC9306
 	X(0x009306, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9306_ipro)
 
-/* i-TOP P100 */
+/* Inoi 284 Flip | --bl_extra rgbw=0x16 */
+
+/* i-TOP P100 | --bl_extra rgb=0x20 */
 
 	// GlaxyCore GC9307
 	X(0x009307, 240,320, 0x48, 30,150,150,40,50,50, 0, cmd9307_itop)
 
-/* FW: L400_JS_K18B_ISR_V15 */
+/* FW: L400_JS_K18B_ISR_V15 | --bl_extra rgbw=0x18 */
 
 	// Sitronix ST7789V3A
 	X(0x898966, 240,320, 0x00, 50,55,110,20,70,35, 0, cmd8966_unknown)
 
-/* Nokia 110 4G (TA-1543) */
+/* Nokia 110 4G (TA-1543) | --bl_extra rgb=0xe */
 
 	// Sitronix ST7735P3 LX HKC
 	X(0x773503, 128,160, 0xd0, NO_TIMINGS, 48000000, cmd7735_nokia)
 
-/* Nokia 106 4G (TA-1553) */
+/* Nokia 106 4G (TA-1553) | --bl_extra rgb=0xe */
 
 	// Sitronix ST7735P3 HKC
 	X(0x83760f, 128,160, 0xd0, NO_TIMINGS, 48000000, cmd8376_nokia)
 
-/* QLYX Q8 */
+/* QLYX Q8 | --spi_mode 1 --bl_extra rg=0x2f */
 
 	// GlaxyCore GC9307
 	X(0x009307, 240,320, 0x48, NO_TIMINGS, 48000000, cmd9307_qlyx)
 
-/* QLYX Q7 */
+/* QLYX Q7 | --spi_mode 1 --bl_extra rgbw=0x16 */
 
 	// GlaxyCore GC9306
 	X(0x009306, 240,320, 0x48, NO_TIMINGS, 48000000, cmd9306_qlyx)
 
-/* Nokia 220 4G (TA-1617) */
+/* Nokia 220 4G (TA-1617) | --spi_mode 1 --bl_extra rgbw=0x14 */
 
 	// Sitronix ST7789P3 SL BOE
 	X(0x8888b6, 240,320, 0x00, NO_TIMINGS, 24000000, cmd88B6_nokia)
 
-/* Philips Xenium E6500 */
+/* Philips Xenium E6500 | --spi_mode 1 --bl_extra rw=0x34 */
 
 	// NewVision NV3030B
 	X(0x303001, 240,320, 0x00, NO_TIMINGS, 48000000, cmd3001_philips)

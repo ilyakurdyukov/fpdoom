@@ -118,40 +118,67 @@ static void pin_init(void) {
 		gpio_init((void*)gpiomap_addr);
 }
 
+#define BACKLIGHT_METHOD 1
+
 static void backlight_init(void) {
-	uint32_t tmp;
+	unsigned i;
 	adi_write(0x40608c08, adi_read(0x40608c08) | 0x200);
-	adi_write(0x40608c10, adi_read(0x40608c10) | 0x80 | 0x1000);
+	// 0x80 - backlight, 0x1000 - flash
+	adi_write(0x40608c10, adi_read(0x40608c10) | 0x80);
 	adi_write(0x40608dec, adi_read(0x40608dec) & ~5);
 	adi_write(0x406081c8, adi_read(0x406081c8) & ~0xff);
-	tmp = sys_data.bl_extra[0];
-	adi_write(0x40608df4, (adi_read(0x40608df4) & ~0xf) | tmp);
-	tmp = sys_data.bl_extra[1];
-	adi_write(0x406081b8, (adi_read(0x406081b8) & ~0x3f) | tmp);
-	adi_write(0x406081bc, (adi_read(0x406081bc) & ~0x3f) | tmp);
-	adi_write(0x406081c0, (adi_read(0x406081c0) & ~0x3f) | tmp);
-	tmp = sys_data.bl_extra[2];
-	adi_write(0x406081c4, (adi_read(0x406081c4) & ~0x3f) | tmp);
+	//adi_write(0x40608df4, (adi_read(0x40608df4) & ~0xf) | flash_val);
+#if BACKLIGHT_METHOD
+	for (i = 0; i < 4; i++)
+		adi_write(0x406081b8 + i * 4,
+				adi_read(0x406081b8 + i * 4) & ~0x3f);
+#else
+	for (i = 0; i < 4; i++) {
+		uint32_t tmp = sys_data.bl_extra[i];
+		adi_write(0x406081b8 + i * 4,
+				(adi_read(0x406081b8 + i * 4) & ~0x3f) | tmp);
+	}
+#endif
 }
 
 void sys_brightness(unsigned val) {
 	uint32_t tmp, mask = 0;
+	unsigned i;
+
 	if (val > 100) val = 100;
 
+#if BACKLIGHT_METHOD
+	// new method (less levels, no flickering)
+	tmp = adi_read(0x406081d8) | 1;
+	if (val) {
+		for (i = 0; i < 4; i++)
+			if (sys_data.bl_extra[i]) mask |= 0xc << (i * 4);
+		tmp &= ~1;
+	}
+	adi_write(0x406081d8, tmp);
+	adi_write(0x40608180, mask);
+
+	for (i = 0; i < 4; i++) {
+		tmp = sys_data.bl_extra[i];
+		if (!tmp) continue;
+		tmp = (val * tmp + 50) / 100;
+		adi_write(0x406081b8 + i * 4,
+				(adi_read(0x406081b8 + i * 4) & ~0x3f) | tmp);
+	}
+#else // old method (PWM, flickering)
 	tmp = adi_read(0x40608180);
-	if (sys_data.bl_extra[1]) mask |= 0x111;
-	if (sys_data.bl_extra[2]) mask |= 0x1000;
+	for (i = 0; i < 4; i++)
+		if (sys_data.bl_extra[i]) mask |= 1 << (i * 4);
 	if (val) tmp |= mask << 1 | mask; else tmp &= ~mask;
 	adi_write(0x40608180, tmp);
 
-	tmp = 100;
-	if (sys_data.bl_extra[1]) {
-		adi_write(0x40608188, val << 8 | tmp);
-		adi_write(0x40608198, val << 8 | tmp);
-		adi_write(0x406081a8, val << 8 | tmp);
-	}
-	if (sys_data.bl_extra[2])
+	tmp = 100; // max 255
+	for (i = 0; i < 3; i++)
+		if (sys_data.bl_extra[i])
+			adi_write(0x40608188 + i * 16, val << 8 | tmp);
+	if (sys_data.bl_extra[3])
 		adi_write(0x406081cc, val << 8 | tmp);
+#endif
 }
 
 #define LCM_REG_BASE 0x20a00000
@@ -396,6 +423,9 @@ void sys_start_refresh(void) {
 		lcm_set_mode(0x28); // 8x2 BE
 #endif
 	} else {
+		spi_base_t *spi = (spi_base_t*)sys_data.spi;
+		while (!(spi->sts2 & 1 << 7));	// TXF_REAL_EMPTY
+		while (spi->sts2 & 1 << 8);	// BUSY
 		spi_send(0, 0x2c);
 	}
 

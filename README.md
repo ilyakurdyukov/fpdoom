@@ -153,10 +153,10 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Jinga Simple F170: use `--mac 0xd8`
 * Fontel FP200: the same model name is reused for a phone on a completely different hardware, which has a type-C connector, USB device code `1e04:0920`, this is an RDA chip. The supported device on the SC6531 chip has a micro-USB connector.
 * Inoi 284 Flip: use `--rotate 1,3 --gpio_data 0x28,-0x6d,-0x67,0x68` to play on the front screen, or `--gpio_data -0x28,0x6d,0x67,-0x68` to play on the back screen.
-* i-TOP P100: use `--bl_extra 9,0x20,0`
-* Nokia 110 4G (TA-1543), Nokia 106 4G (TA-1553): use `--bl_extra 0,0xe,0`
-* Nokia 220 4G (TA-1617): use `--spi_mode 1 --bl_extra 0,0,0x16`
-* Philips Xenium E6500: use `--spi_mode 1`
+* i-TOP P100: use `--bl_extra rgb=0x20`
+* Nokia 110 4G (TA-1543), Nokia 106 4G (TA-1553): use `--bl_extra rgb=0xe`
+* Nokia 220 4G (TA-1617): use `--spi_mode 1 --bl_extra rgbw=0x14`
+* Philips Xenium E6500: use `--spi_mode 1 --bl_extra rw=0x34`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 

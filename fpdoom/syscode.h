@@ -109,7 +109,7 @@ extern struct sys_data {
 	int8_t charge;
 	uint8_t gpio_init;
 #if UMS9117
-	uint8_t bl_extra[3];
+	uint8_t bl_extra[4];
 #else
 	uint8_t bl_gpio;
 #endif
