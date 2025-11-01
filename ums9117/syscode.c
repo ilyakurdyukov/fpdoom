@@ -172,12 +172,12 @@ void sys_brightness(unsigned val) {
 	if (val) tmp |= mask << 1 | mask; else tmp &= ~mask;
 	adi_write(0x40608180, tmp);
 
-	tmp = 100; // max 255
+	tmp = val << 8 | 100; // max 255
 	for (i = 0; i < 3; i++)
 		if (sys_data.bl_extra[i])
-			adi_write(0x40608188 + i * 16, val << 8 | tmp);
+			adi_write(0x40608188 + i * 16, tmp);
 	if (sys_data.bl_extra[3])
-		adi_write(0x406081cc, val << 8 | tmp);
+		adi_write(0x406081cc, tmp);
 #endif
 }
 

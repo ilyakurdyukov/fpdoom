@@ -301,8 +301,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			int i = 0, a, val;
 			for (;;) {
 				a = strtol(s, &s, 0);
-				val = 0;
-				if (a < 0) val = 1, a = -a;
+				val = 1;
+				if (a < 0) val = 0, a = -a;
 				if (a >= 0x80) ERR_EXIT("invalid gpio_data num\n");
 				gpio_data[i++] = a | val << 15;
 				if ((unsigned)i >= sizeof(gpio_data) / sizeof(*gpio_data))

@@ -337,8 +337,8 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 			if (_chip >= 2) { n = 0x90; if (_chip == 3) n = 0xa0; }
 			for (;;) {
 				a = strtol(s, &s, 0);
-				val = 0;
-				if (a < 0) val = 1, a = -a;
+				val = 1;
+				if (a < 0) val = 0, a = -a;
 				if (a >= n) ERR_EXIT("invalid gpio_data num\n");
 				gpio_data[i++] = a | val << 15;
 				if ((unsigned)i >= sizeof(gpio_data) / sizeof(*gpio_data))
