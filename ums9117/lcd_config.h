@@ -435,7 +435,7 @@ static const lcd_config_t lcd_config_t117[] = {
 /* Inoi 140 Classic Lite 4G | --bl_extra rgb=0x1f */
 
 	// Sitronix ST7735S
-	X(0x7c89f0, 128,160, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
+	X(0x7c89f0, 128+2,160+1, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
 
 /* BQ 1800L One | --bl_extra rgbw=0x16 */
 
