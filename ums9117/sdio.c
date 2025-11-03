@@ -151,7 +151,18 @@ void sdio_init(void) {
 	DELAY(0x100)
 	MEM4(0x20e02004) = 0x800;
 
+	// LDO: 3V
+	//adi_write(0x40608d04, ((3000 - 2000) * 2 + 24) / 25); // sdcore
+	//adi_write(0x40608d10, ((3000 - 1613) * 2 + 24) / 25); // sdio
+	SDIO_LOG("SD power: core = %dmV, io = %dmV\n",
+		(adi_read(0x40608d04) * 25) / 2 + 2000,
+		(adi_read(0x40608d10) * 25) / 2 + 1613);
+
 	sdio_pin_init();
+
+	// SD power on
+	adi_write(0x40608d00, adi_read(0x40608d00) & ~1); // sdcore
+	adi_write(0x40608d0c, adi_read(0x40608d0c) & ~1); // sdio
 
 	// set base freq
 	{

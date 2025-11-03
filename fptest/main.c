@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "syscode.h"
 #include "cmd_def.h"
 #include "usbio.h"
@@ -8,6 +9,12 @@
 #if !UMS9117
 #include "sfc.h"
 #endif
+
+#define FAT_READ_SYS \
+	if (sdio_read_block(sector, buf)) break;
+#include "microfat.h"
+fatdata_t fatdata_glob;
+#include "fatfile.h"
 
 void lcd_appinit(void) {
 	struct sys_display *disp = &sys_data.display;
@@ -62,6 +69,17 @@ static void test_refresh(void) {
 	t2 = t3 / t1;
 	t3 = (t3 - t2 * t1) * 1000 / t1;
 	printf("%d.%03d frames per second\n", t2, t3);
+}
+
+void test_display(void) {
+	struct sys_display *disp = &sys_data.display;
+	unsigned w = disp->w2, h = disp->h2;
+	framebuf_alloc();
+	sys_framebuffer(framebuf);
+	sys_start();
+	gen_image(framebuf, w, h, w);
+	test_refresh();
+	free(framebuf_mem);
 }
 
 static void usbio_bench(int arg, unsigned len, unsigned n) {
@@ -295,6 +313,92 @@ found:
 }
 #endif
 
+static void test_timer(void) {
+	unsigned t0, t1, delay = 100000;
+	t0 = sys_timer_ms();
+	sys_wait_us(delay);
+	t1 = sys_timer_ms();
+	printf("sys_wait_us(%u): %ums\n", delay, t1 - t0);
+}
+
+static void test_cpuid(void) {
+	uint32_t id0, id1;
+	__asm__ __volatile__(
+#ifdef __thumb__
+		".p2align 2\nbx pc\n.p2align 2\n.code 32\n"
+#endif
+		"mrc p15, #0, %0, c0, c0, #0\n" // MIDR
+		"mrc p15, #0, %1, c0, c0, #1\n" // CTR
+#ifdef __thumb__
+		"blx 1f\n.code 16\n1:\n"
+#endif
+		: "=r"(id0), "=r"(id1) :: "lr");
+	printf("ARM: id = 0x%08x, cache = 0x%08x\n", id0, id1);
+	// id = 0x41069265
+	// SC6530C/SC6531: cache = 0x1d152152 (16+16KB)
+	// SC6531E: cache = 0x1d112112 (8+8KB)
+
+	// UMS9117:
+	// id = 0x410fc075 (Cortex-A7 MPCore, r0p5)
+	// cache = 0x84448003
+#if UMS9117
+	{
+		uint32_t i, n, x, clidr;
+
+		__asm__ __volatile__(
+			"mrc p15, #1, %0, c0, c0, #1\n"
+			: "=r"(clidr));
+		printf("ARM: CLIDR = 0x%08x\n", clidr);
+
+		n = clidr >> 24 & 7; // LoC
+		for (i = 0; i < n; i++) {
+			__asm__ __volatile__(
+				"mcr p15, #2, %1, c0, c0, #0\n"
+				"isb\n"
+				"mrc p15, #1, %0, c0, c0, #0\n"
+				: "=r"(x) : "r"(i * 2));
+			printf("ARM: CCSIDR(%u) = 0x%08x\n", i, x);
+		}
+		// ARM: CLIDR = 0x0a200023 (LoUU = 1, LoC = 2, Ctype2 = 4, Ctype1 = 3)
+		// ARM: CCSIDR(0) = 0x700fe01a (NumSets = 0x7f, Associativity = 3, LineSize = 2)
+		// ARM: CCSIDR(1) = 0x701fe03a (NumSets = 0xff, Associativity = 7, LineSize = 2)
+		if (n > 1) {
+			__asm__ __volatile__(
+				"mcr p15, #2, %0, c0, c0, #0\n"
+				"isb\n" :: "r"(0));
+		}
+	}
+#endif
+}
+
+static int sdtest_init(int target) {
+	static int init_done = 0;
+
+	do {
+		if (!(init_done & 1)) {
+			sdio_init();
+			init_done |= 1;
+		}
+		if (!(init_done & 2)) {
+			if (sdcard_init()) {
+				printf("!!! sdcard_init failed\n");
+				break;
+			}
+			SDIO_VERBOSITY(0);
+			init_done |= 2;
+		}
+		if (!(init_done & 4)) {
+			fatdata_glob.buf = (uint8_t*)CHIPRAM_ADDR + 0x9000;
+			if (fat_init(&fatdata_glob, 0)) {
+				printf("!!! fat_init failed\n");
+				break;
+			}
+			init_done |= 4;
+		}
+	} while (0);
+	return ~init_done & target;
+}
+
 int main(int argc, char **argv) {
 	int i;
 
@@ -307,65 +411,82 @@ int main(int argc, char **argv) {
 			printf("[%i] = %s\n", i, argv[i]);
 	}
 
-	if (1) {
-		uint32_t id0, id1;
-		__asm__ __volatile__(
-#ifdef __thumb__
-			".p2align 2\nbx pc\n.p2align 2\n.code 32\n"
-#endif
-			"mrc p15, #0, %0, c0, c0, #0\n"
-			"mrc p15, #0, %1, c0, c0, #1\n"
-#ifdef __thumb__
-			"blx 1f\n.code 16\n1:\n"
-#endif
-			: "=r"(id0), "=r"(id1) :: "lr");
-		printf("ARM: id = 0x%08x, cache = 0x%08x\n", id0, id1);
-		// id = 0x41069265
-		// SC6530C/SC6531: cache = 0x1d152152 (16+16KB)
-		// SC6531E: cache = 0x1d112112 (8+8KB)
+	if (argc < 2) {
+		static const char * const tab[] = {
+			"fptest", "cpuid", "display", "timer",
+			"sfc", "lzma", "usb", "sdio",
+			"keypad", NULL };
+		argv = (char**)tab;
+		argc = sizeof(tab) / sizeof(*tab) - 1;
 	}
 
-	if (1) {
-		struct sys_display *disp = &sys_data.display;
-		unsigned w = disp->w2, h = disp->h2;
-		framebuf_alloc();
-		sys_framebuffer(framebuf);
-		sys_start();
-		gen_image(framebuf, w, h, w);
-		test_refresh();
-		free(framebuf_mem);
-	}
+	while (argc > 1) {
+		if (!strcmp(argv[1], "display")) {
+			test_display();
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "keypad")) {
+			test_keypad();
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "cpuid")) {
+			test_cpuid();
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "timer")) {
+			test_timer();
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "usb")) {
+			usbio_bench(0, 1024, 1 << 20);
+			usbio_bench(1, 1024, 1 << 20);
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "sfc")) {
+			test_sfc();
+			argc -= 1; argv += 1;
+		} else if (!strcmp(argv[1], "lzma")) {
+			test_lzma(0);
+			argc -= 1; argv += 1;
+		}	else if (!strcmp(argv[1], "sdio")) {
+			if (!sdtest_init(3)) {
+				sdio_bench(1 << 20, 1 << 20);
+				if (0) sdio_write_test(1);
+			}
+			argc -= 1; argv += 1;
+		}	else if (argc >= 3 && !strcmp(argv[1], "sdread")) {
+			if (!sdtest_init(7)) {
+				unsigned clust, size;
+				fat_entry_t *p = fat_find_path(&fatdata_glob, argv[2]);
+				if (!p || (p->entry.attr & FAT_ATTR_DIR)) {
+					printf("file not found\n");
+				} else {
+					const char *out_fn;
+					uint8_t *mem, *buf;
+					unsigned n;
 
-	if (1) { // check sys_wait_us()
-		unsigned t0, t1, delay = 100000;
-		t0 = sys_timer_ms();
-		sys_wait_us(delay);
-		t1 = sys_timer_ms();
-		printf("sys_wait_us(%u): %ums\n", delay, t1 - t0);
-	}
+					clust = fat_entry_clust(p);
+					size = p->entry.size;
+					printf("start = 0x%x, size = 0x%x\n", clust, size);
 
-	if (1) test_sfc();
+					buf = mem = malloc(((size + 0x1ff) & ~0x1ff) + 31);
+					buf += -(intptr_t)buf & 31;
+					n = fat_read_simple(&fatdata_glob, clust, buf, size);
+					printf("nread = 0x%x\n", n);
 
-	if (1) test_lzma(0);
-
-	if (1) {
-		usbio_bench(0, 1024, 1 << 20);
-		usbio_bench(1, 1024, 1 << 20);
-	}
-
-	if (1) {
-		sdio_init();
-		if (!sdcard_init()) {
-			SDIO_VERBOSITY(0);
-			sdio_bench(1 << 20, 1 << 20);
-			if (0) sdio_write_test(1);
+					out_fn = argv[3];
+					if (*out_fn && strcmp(out_fn, "-")) {
+						FILE *fo;
+						fo = fopen(out_fn, "wb");
+						if (fo) {
+							fwrite(buf, 1, size, fo);
+							fclose(fo);
+						}
+					}
+					free(mem);
+				}
+			}
+			argc -= 3; argv += 3;
+		} else {
+			printf("unknown command (\"%s\")\n", argv[1]);
+			return 1;
 		}
 	}
-
-	if (1) {
-		test_keypad();
-	}
-
 	return 0;
 }
 
