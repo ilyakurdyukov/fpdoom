@@ -479,7 +479,7 @@ static const lcd_config_t lcd_config_t117[] = {
 	// GlaxyCore GC9306
 	X(0x009306, 240,320, 0x48, NO_TIMINGS, 48000000, cmd9306_qlyx)
 
-/* Nokia 220 4G (TA-1617) | --spi_mode 1 --bl_extra rgbw=0x14 */
+/* Nokia 3210 4G (TA-1618) | --spi_mode 1 --bl_extra rgbw=0x14 */
 
 	// Sitronix ST7789P3 SL BOE
 	X(0x8888b6, 240,320, 0x00, NO_TIMINGS, 24000000, cmd88B6_nokia)

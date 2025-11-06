@@ -35,7 +35,9 @@ CFLAGS += -DMENU_DEBUG=0
 ifeq ($(T117), 1)
 CFLAGS += -DNO_ACTLR=1
 endif
+ifneq ($(LIBC_SDIO), 1)
 CFLAGS := $(filter-out -DFAT_WRITE=1, $(CFLAGS))
+endif
 
 APP_CFLAGS += -std=c99 -pedantic -I$(SYSDIR)
 

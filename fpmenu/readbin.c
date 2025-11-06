@@ -13,6 +13,9 @@
 #else
 #include "sdio.c"
 #endif
+#ifdef FAT_WRITE
+#define FAT_WRITE_SYS break;
+#endif
 #define FAT_READ_SYS \
 	if (sdio_read_block(sector, buf)) break;
 #include "microfat.c"
@@ -38,6 +41,11 @@ void entry_main(unsigned clust, unsigned size, uint8_t *ram,
 	do ((uint32_t*)&fatdata)[i] = ((uint32_t*)old_fatdata)[i];
 	while (i++ < n);
 
+#if UMS9117
+	// Nokia TA-1543: Something is not synced properly.
+	// Sometimes binaries fail to run, this delay helps.
+	DELAY(1000)
+#endif
 	DBG_LOG("clust = 0x%x, size = 0x%x, ram = %p\n", clust, size, ram);
 	ram += RAM_SHIFT;
 
