@@ -45,17 +45,19 @@ CODE32_FN _start
 .endif
 	ldr	sp, 1f
 
-	ldr	r2, 3f
-	ldr	r1, 4f
 	adr	r0, _start
-	subs	r2, r0, r2
-	push	{r0-r1}
+	// Must be read before relocating, because GCC toolchain
+	// marks absolute values ​​as relocatable.
+	ldr	r1, 4f
+	ldr	r2, 5f
+	push	{r0-r3}
+	ldr	r3, 3f
+	subs	r2, r0, r3
 	add	r1, r0
 	blne	apply_reloc
-	pop	{r0-r1}
-
-	ldr	r2, 5f
+	pop	{r0-r3}
 	ldr	pc, 2f
+
 2:	.long	entry_main
 1:	.long	__stack_bottom
 3:	.long	__image_start

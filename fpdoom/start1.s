@@ -33,18 +33,20 @@ CODE32_FN _start
 	msr	CPSR_c, #0xdf // SYS mode
 	ldr	sp, 1f
 
-	ldr	r2, 3f
-	ldr	r1, 4f
 	adr	r0, _start
-	subs	r2, r0, r2
-	push	{r0-r1}
+	// Must be read before relocating, because GCC toolchain
+	// marks absolute values ​​as relocatable.
+	ldr	r1, 4f
+	ldr	r2, 5f
+	push	{r0-r3}
+	ldr	r3, 3f
+	subs	r2, r0, r3
 	add	r1, r0
 	blne	apply_reloc
 	add	r3, r1, #3
-	pop	{r0-r1}
-	bic	r3, #3
+	pop	{r0-r2,r5}
+	bic	r3, #3	// next reloc
 
-	ldr	r2, 5f
 	push	{r4-r5} // r5 for alignement
 	bl	entry_main
 	add	sp, #8

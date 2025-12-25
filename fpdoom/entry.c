@@ -145,7 +145,15 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	{
 		// must be done before zeroing BSS
 		uint32_t diff = (uint32_t)entry2 - entry2->image_start;
-		if (diff) apply_reloc((uint32_t*)entry2, entry2_rel, diff);
+		if (diff) {
+			// Must be saved and restored after relocating,
+			// because GCC toolchain marks absolute values ​​as relocatable.
+			uint32_t image_size = entry2->image_size;
+			uint32_t bss_size = entry2->bss_size;
+			apply_reloc((uint32_t*)entry2, entry2_rel, diff);
+			entry2->image_size = image_size;
+			entry2->bss_size = bss_size;
+		}
 	}
 #endif
 

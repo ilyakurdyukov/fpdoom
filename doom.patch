@@ -446,18 +446,19 @@ index bab5e00..f9b3926 100644
  
  
 diff --git a/doomdef.h b/doomdef.h
-index 1850477..3b45d84 100644
+index 1850477..a84767e 100644
 --- a/doomdef.h
 +++ b/doomdef.h
-@@ -25,6 +25,7 @@
+@@ -25,6 +25,8 @@
  
  #include <stdio.h>
  #include <string.h>
++#include <strings.h> // r_data.c: strncasecmp
 +#include <stdint.h>
  
  //
  // Global parameters/defines.
-@@ -72,7 +73,9 @@ typedef enum
+@@ -72,7 +74,9 @@ typedef enum
  
  // If rangecheck is undefined,
  // most parameter validation debugging code will not be compiled
@@ -467,7 +468,7 @@ index 1850477..3b45d84 100644
  
  // Do or do not use external soundserver.
  // The sndserver binary to be run separately
-@@ -81,7 +84,7 @@ typedef enum
+@@ -81,7 +85,7 @@ typedef enum
  //  and unfinished. Default is synchronous.
  // Experimental asynchronous timer based is
  //  handled by SNDINTR. 
@@ -476,7 +477,7 @@ index 1850477..3b45d84 100644
  //#define SNDINTR  1
  
  
-@@ -109,8 +112,13 @@ typedef enum
+@@ -109,8 +113,13 @@ typedef enum
  // So there.
  #define SCREENWIDTH  320
  //SCREEN_MUL*BASE_WIDTH //320
@@ -1253,6 +1254,18 @@ index 786a717..00da20b 100644
  
  
  
+diff --git a/m_argv.c b/m_argv.c
+index 1595671..aa6689d 100644
+--- a/m_argv.c
++++ b/m_argv.c
+@@ -25,6 +25,7 @@ rcsid[] = "$Id: m_argv.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
+ 
+ 
+ #include <string.h>
++#include <strings.h> // strcasecmp
+ 
+ int		myargc;
+ char**		myargv;
 diff --git a/m_fixed.c b/m_fixed.c
 index 4e0792d..5f3820a 100644
 --- a/m_fixed.c
@@ -3293,16 +3306,17 @@ index 9b30e64..0fb5971 100644
      for (i=0 ; i<4 ; i++)
  	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
 diff --git a/w_wad.c b/w_wad.c
-index 178f5cb..b5e05cc 100644
+index 178f5cb..ffd3e46 100644
 --- a/w_wad.c
 +++ b/w_wad.c
-@@ -28,14 +28,9 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
+@@ -28,14 +28,10 @@ rcsid[] = "$Id: w_wad.c,v 1.5 1997/02/03 16:47:57 b1 Exp $";
  
  #ifdef NORMALUNIX
  #include <ctype.h>
 -#include <sys/types.h>
  #include <string.h>
 -#include <unistd.h>
++#include <strings.h> // strcasecmp
  #include <malloc.h>
 -#include <fcntl.h>
 -#include <sys/stat.h>
@@ -3311,7 +3325,7 @@ index 178f5cb..b5e05cc 100644
  #endif
  
  #include "doomtype.h"
-@@ -71,6 +66,7 @@ void strupr (char* s)
+@@ -71,6 +67,7 @@ void strupr (char* s)
      while (*s) { *s = toupper(*s); s++; }
  }
  
@@ -3319,7 +3333,7 @@ index 178f5cb..b5e05cc 100644
  int filelength (int handle) 
  { 
      struct stat	fileinfo;
-@@ -80,6 +76,7 @@ int filelength (int handle)
+@@ -80,6 +77,7 @@ int filelength (int handle)
  
      return fileinfo.st_size;
  }
@@ -3327,7 +3341,7 @@ index 178f5cb..b5e05cc 100644
  
  
  void
-@@ -143,12 +140,12 @@ void W_AddFile (char *filename)
+@@ -143,12 +141,12 @@ void W_AddFile (char *filename)
      wadinfo_t		header;
      lumpinfo_t*		lump_p;
      unsigned		i;
@@ -3342,7 +3356,7 @@ index 178f5cb..b5e05cc 100644
      
      // open the file and add to directory
  
-@@ -160,7 +157,7 @@ void W_AddFile (char *filename)
+@@ -160,7 +158,7 @@ void W_AddFile (char *filename)
  	reloadlump = numlumps;
      }
  		
@@ -3351,7 +3365,7 @@ index 178f5cb..b5e05cc 100644
      {
  	printf (" couldn't open %s\n",filename);
  	return;
-@@ -174,14 +171,16 @@ void W_AddFile (char *filename)
+@@ -174,14 +172,16 @@ void W_AddFile (char *filename)
  	// single lump file
  	fileinfo = &singleinfo;
  	singleinfo.filepos = 0;
@@ -3370,7 +3384,7 @@ index 178f5cb..b5e05cc 100644
  	if (strncmp(header.identification,"IWAD",4))
  	{
  	    // Homebrew levels?
-@@ -195,10 +194,16 @@ void W_AddFile (char *filename)
+@@ -195,10 +195,16 @@ void W_AddFile (char *filename)
  	}
  	header.numlumps = LONG(header.numlumps);
  	header.infotableofs = LONG(header.infotableofs);
@@ -3389,7 +3403,7 @@ index 178f5cb..b5e05cc 100644
  	numlumps += header.numlumps;
      }
  
-@@ -211,10 +216,19 @@ void W_AddFile (char *filename)
+@@ -211,10 +217,19 @@ void W_AddFile (char *filename)
  
      lump_p = &lumpinfo[startlump];
  	
@@ -3410,7 +3424,7 @@ index 178f5cb..b5e05cc 100644
  	lump_p->handle = storehandle;
  	lump_p->position = LONG(fileinfo->filepos);
  	lump_p->size = LONG(fileinfo->size);
-@@ -222,7 +236,7 @@ void W_AddFile (char *filename)
+@@ -222,7 +237,7 @@ void W_AddFile (char *filename)
      }
  	
      if (reloadname)
@@ -3419,7 +3433,7 @@ index 178f5cb..b5e05cc 100644
  }
  
  
-@@ -239,23 +253,28 @@ void W_Reload (void)
+@@ -239,23 +254,28 @@ void W_Reload (void)
      int			lumpcount;
      lumpinfo_t*		lump_p;
      unsigned		i;
@@ -3453,7 +3467,7 @@ index 178f5cb..b5e05cc 100644
      
      // Fill in lumpinfo
      lump_p = &lumpinfo[reloadlump];
-@@ -267,11 +286,20 @@ void W_Reload (void)
+@@ -267,11 +287,20 @@ void W_Reload (void)
  	if (lumpcache[i])
  	    Z_Free (lumpcache[i]);
  
@@ -3475,7 +3489,7 @@ index 178f5cb..b5e05cc 100644
  }
  
  
-@@ -435,7 +463,7 @@ W_ReadLump
+@@ -435,7 +464,7 @@ W_ReadLump
  {
      int		c;
      lumpinfo_t*	l;
@@ -3484,7 +3498,7 @@ index 178f5cb..b5e05cc 100644
  	
      if (lump >= numlumps)
  	I_Error ("W_ReadLump: %i >= numlumps",lump);
-@@ -444,24 +472,24 @@ W_ReadLump
+@@ -444,24 +473,24 @@ W_ReadLump
  	
      // ??? I_BeginRead ();
  	
@@ -3516,7 +3530,7 @@ index 178f5cb..b5e05cc 100644
  		
      // ??? I_EndRead ();
  }
-@@ -513,6 +541,7 @@ W_CacheLumpName
+@@ -513,6 +542,7 @@ W_CacheLumpName
  }
  
  
@@ -3524,7 +3538,7 @@ index 178f5cb..b5e05cc 100644
  //
  // W_Profile
  //
-@@ -573,5 +602,6 @@ void W_Profile (void)
+@@ -573,5 +603,6 @@ void W_Profile (void)
      }
      fclose (f);
  }
