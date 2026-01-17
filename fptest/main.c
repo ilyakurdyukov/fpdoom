@@ -175,15 +175,24 @@ static void test_keypad(void) {
 end:;
 }
 
+static int boot_cable_check(void) {
 #if UMS9117
-static int boot_cable_check(void) { return 0; }
+	uint32_t tmp = MEM4(0x402e002c);
+	const char *s = "nand, sdio";
+	if ((tmp & 3) == 1) s = "sdio";
+	else if ((tmp & 3) == 2) s = "spi nand, sdio";
+	if (!(tmp & 4)) s = "usb (no wait)";
+	printf("boot mode: %s\n", s);
+	return ~tmp & 0x10;
+#else
+	return !(MEM4(0x205000e0) & 2);
+#endif
+}
+
+#if UMS9117
 static void test_sfc(void) {}
 static void test_lzma(int flags) { (void)flags; }
 #else
-static int boot_cable_check(void) {
-	return !(MEM4(0x205000e0) & 2);
-}
-
 static void test_sfc(void) {
 	unsigned cs = 0; // SFC_BASE->cs & 1;
 	uint32_t id; const char *name;

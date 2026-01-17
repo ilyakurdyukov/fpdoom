@@ -415,14 +415,10 @@ void sys_start_refresh(void) {
 	// that don't reset the page counter.
 	// Found on: GC9106, NV3030B
 	if (!sys_data.spi) {
-#if 0
-		lcm_send_cmd(0x2c2c); // Memory Write
-#else // safer way
 		lcm_set_mode(1); // 8
 		lcm_send_cmd(0x2c); // Memory Write
 		lcm_set_mode(0x28); // 8x2 BE
-#endif
-	} else {
+	} else if ((sys_data.lcd_id & 0xffffff) == 0x303001) {
 		spi_base_t *spi = (spi_base_t*)sys_data.spi;
 		while (!(spi->sts2 & 1 << 7));	// TXF_REAL_EMPTY
 		while (spi->sts2 & 1 << 8);	// BUSY
