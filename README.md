@@ -132,6 +132,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 74 | Philips Xenium E6500    | UMS9117  | 240x320 NV3030B   | 2          |
 | 75 | Itel it2160             | SC6531E  | 128x160 ST7735S   | left soft  |
 | 76 | Alcatel 2040D           | SC6531   | 240x320 ILI9341   | dial       |
+| 77 | Alcatel 2051X           | SC6531   | 240x320 GC9305    | dial       |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
