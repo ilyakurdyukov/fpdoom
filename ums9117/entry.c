@@ -256,6 +256,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 #else
 	sys_data.bl_extra[3] = 0x2f;
 #endif
+	sys_data.page_reset = 1;
 
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--bright")) {
@@ -284,6 +285,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--spi_mode")) {
 			unsigned a = atoi(argv[1]);
 			if (a - 1 < 4) sys_data.spi_mode = a;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--page_reset")) {
+			unsigned a = atoi(argv[1]);
+			sys_data.page_reset = a;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			unsigned id = strtol(argv[1], NULL, 0);

@@ -388,6 +388,8 @@ static const lcd_config_t* lcm_init(void) {
 	if (sys_data.spi) {
 		lcd = lcd_spi_init(sys_data.spi);
 		lcd_setup.send = spi_send;
+		if (!(sys_data.spi_mode & 1)) // 2, 4
+			sys_data.page_reset = 0;
 		return lcd;
 	}
 
@@ -414,15 +416,24 @@ void sys_start_refresh(void) {
 	// Workaround for buggy LCD controllers
 	// that don't reset the page counter.
 	// Found on: GC9106, NV3030B
-	if (!sys_data.spi) {
+	if (!sys_data.page_reset) (void)0;
+	else if (!sys_data.spi) {
 		lcm_set_mode(1); // 8
 		lcm_send_cmd(0x2c); // Memory Write
 		lcm_set_mode(0x28); // 8x2 BE
-	} else if ((sys_data.lcd_id & 0xffffff) == 0x303001) {
+	} else {
 		spi_base_t *spi = (spi_base_t*)sys_data.spi;
 		while (!(spi->sts2 & 1 << 7));	// TXF_REAL_EMPTY
 		while (spi->sts2 & 1 << 8);	// BUSY
+		spi->ctl7 &= ~(1 << 14); // RGB565_EN
+		spi_set_chnl_len(spi, 8);
 		spi_send(0, 0x2c);
+		if (sys_data.spi_mode < 3) {
+			spi->ctl7 |= 1 << 14;	// RGB565_EN
+			spi_set_chnl_len(spi, 17);
+		} else {
+			spi_set_chnl_len(spi, 16);
+		}
 	}
 
 #if REFRESH_CLEAR_RANGE

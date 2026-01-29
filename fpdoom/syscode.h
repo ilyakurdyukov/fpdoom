@@ -110,6 +110,7 @@ extern struct sys_data {
 	uint8_t gpio_init;
 #if UMS9117
 	uint8_t bl_extra[4];
+	uint8_t page_reset;
 #else
 	uint8_t bl_gpio;
 #endif

@@ -615,12 +615,12 @@ static const lcd_config_t lcd_config_t117[] = {
 	// NewVision NV3030B
 	X(0x303001, 240,320, 0x00, NO_TIMINGS, 48000000, cmd3001_philips)
 
-/* HMD 2660 Flip 4G | --gpio_data 0x28,-0x5f --bl_extra w=0x2d */
+/* HMD 2660 Flip 4G (TA-1711) | --gpio_data 0x28,-0x5f --bl_extra w=0x2d */
 
 	// GlaxyCore GC9104
 	X(0x009104, 128,160, 0xd8, NO_TIMINGS, 48000000, cmd9104_hmd)
 
-/* HMD 2660 Flip 4G | --gpio_data -0x28,0x5f --bl_extra rgb=0x19 */
+/* HMD 2660 Flip 4G (TA-1711) | --gpio_data -0x28,0x5f --bl_extra rgb=0x19 */
 
 	// GlaxyCore GC9307
 	X(0x009307, 240,320, 0x48, NO_TIMINGS, 48000000, cmd9307_hmd)
