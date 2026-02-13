@@ -110,10 +110,10 @@ extern struct sys_data {
 	uint8_t gpio_init;
 #if UMS9117
 	uint8_t bl_extra[4];
-	uint8_t page_reset;
 #else
 	uint8_t bl_gpio;
 #endif
+	uint8_t page_reset;
 	uint16_t mac;
 	uint32_t spi;
 	uint32_t lcd_id;

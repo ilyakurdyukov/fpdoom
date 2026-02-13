@@ -509,6 +509,7 @@ static const lcd_config_t* lcm_init(void) {
 	if (sys_data.spi) {
 		lcd = lcd_spi_init(sys_data.spi);
 		lcd_setup.send = spi_send;
+		sys_data.page_reset = 0;
 		return lcd;
 	}
 
@@ -529,6 +530,8 @@ static const lcd_config_t* lcm_init(void) {
 	if (!id) id = lcd_cmdret(0xd3, 4) & 0xffffff; // ILI9341
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
+	if (sys_data.page_reset > 1)
+		sys_data.page_reset = (id & 0xffffff) == 0x009106;
 	lcd = lcd_find_conf(id, 0);
 
 	lcm_set_freq(cs, clk_rate, lcd);
@@ -538,6 +541,16 @@ static const lcd_config_t* lcm_init(void) {
 
 void sys_start_refresh(void) {
 	int mask = 1;	// osd == 3 ? 2 : /* osd0 */ 1
+
+	// Workaround for buggy LCD controllers
+	// that don't reset the page counter.
+	// Found on: GC9106
+	if (!sys_data.page_reset) (void)0;
+	else if (!sys_data.spi) {
+		lcm_set_mode(1); // 8
+		lcm_send_cmd(0x2c); // Memory Write
+		lcm_set_mode(0x28); // 8x2 BE
+	}
 	if (sys_data.mac & 0x100) {
 		if (!(sys_data.mac & 1))
 			lcd_refresh_mono(sys_data.framebuf);
@@ -793,6 +806,10 @@ void sys_framebuffer(void *base) {
 	}
 
 	if (w2 < w) offset = 0;
+
+#if TWO_STAGE
+	lcm_config_addr(sys_data.lcd_cs);
+#endif
 
 	LCDC_BASE->img.y_base_addr = ((uint32_t)base + offset * 2) >> 2;
 	LCDC_BASE->img.ctrl |= 1;

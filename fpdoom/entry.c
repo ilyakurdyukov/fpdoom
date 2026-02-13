@@ -289,6 +289,7 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 	sys_data.charge = -1;
 	sys_data.spi_mode = 3;
 	sys_data.bl_gpio = 0xff;
+	sys_data.page_reset = 0xff;
 	// Usually nrow = 5 for SC6531E.
 	// But F+ F197 and Alcatel 2003D use 8.
 	//sys_data.keyrows = _chip != 1 ? 8 : 5;
@@ -325,6 +326,10 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 		} else if (argc >= 2 && !strcmp(argv[0], "--spi_mode")) {
 			unsigned a = atoi(argv[1]);
 			if (a - 1 < 4) sys_data.spi_mode = a;
+			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--page_reset")) {
+			unsigned a = atoi(argv[1]);
+			sys_data.page_reset = a != 0;
 			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--lcd")) {
 			unsigned id = strtol(argv[1], NULL, 0);
