@@ -133,6 +133,8 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 75 | Itel it2160             | SC6531E  | 128x160 ST7735S   | left soft  |
 | 76 | Alcatel 2040D           | SC6531   | 240x320 ILI9341   | dial       |
 | 77 | Alcatel 2051X           | SC6531   | 240x320 GC9305    | dial       |
+| 78 | HMD 2660 Flip (TA-1711) | UMS9117  | 240x320 GC9307    | *          |
+| 79 | IPRO A1 Mini            | SC6531E  | 128x160 GC9106    | 2          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
@@ -160,6 +162,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Nokia 110 4G (TA-1543), Nokia 106 4G (TA-1553): use `--bl_extra rgb=0xe`
 * Nokia 3210 4G (TA-1618): use `--spi_mode 1 --bl_extra rgbw=0x14`
 * Philips Xenium E6500: use `--spi_mode 1 --bl_extra rw=0x34`
+* HMD 2660 Flip (TA-1711): use `--gpio_data -0x28,0x5f --bl_extra rgb=0x19` to play on the front screen, or `--gpio_data 0x28,-0x5f --bl_extra w=0x2d` to play on the back screen.
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
