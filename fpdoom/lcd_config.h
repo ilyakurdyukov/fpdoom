@@ -1744,6 +1744,35 @@ static const uint8_t cmd7C89F0_itel_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd5DB0F1_init[] = {
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	// Frame Rate Control 1
+	LCM_CMD(0xb1, 3), 0x03,0x0c,0x0c,
+	LCM_CMD(0xb2, 3), 0x03,0x0c,0x0c,
+	LCM_CMD(0xb3, 6), 0x03,0x0c,0x0c,0x03,0x0c,0x0c,
+	LCM_CMD(0xb4, 1), 0x07,	// Display Inversion Control
+	LCM_CMD(0xb6, 2), 0x87,0xf0, // Display Function Setting
+	// Power Control 1-3
+	LCM_CMD(0xc0, 3), 0xc0,0x00,0x04,
+	LCM_CMD(0xc1, 1), 0xc2,
+	LCM_CMD(0xc2, 2), 0x1c,0x00,
+	LCM_CMD(0xc3, 2), 0x8d,0xaa,
+	LCM_CMD(0xc4, 2), 0x0a,0x00,
+	LCM_CMD(0xc5, 1), 0x08, // VCOM Control 1
+	//LCM_CMD(0x36, 1), 0xd8, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	// Set Gamma 1
+	LCM_CMD(0xe0, 16), 0x0a,0x1d,0x02,0x19,
+		0x2d,0x2a,0x24,0x27, 0x26,0x23,0x2b,0x36, 0x00,0x00,0x01,0x0d,
+	// Set Gamma 2
+	LCM_CMD(0xe1, 16), 0x0a,0x1d,0x02,0x19,
+		0x2d,0x2a,0x24,0x27, 0x26,0x24,0x2b,0x36, 0x00,0x01,0x01,0x0d,
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_DELAY(120),
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -1982,6 +2011,19 @@ static const lcd_config_t lcd_config2[] = {
 
 	// Sitronix ST7735R
 	X(0x7c89f0, 128,160, 0xc8, 5,250,200,50,70,50, 0, cmd7C89F0_cavion)
+
+/* Samsung GT-E1200R */
+
+	// Sitronix ST7735 BYD
+	X(0x5db0f1, 128,128+32, 0xd8, 15,45,90,5,15,40, 0, cmd5DB0F1)
+#if 0 // alternative LCDs
+	// Sitronix ST7735
+	X(0x5db8f1, 128+2,128, 0xd8, 15,45,90,5,15,40, 0, cmd5DB8F1)
+	// Sitronix ST7735 TNM
+	X(0x5ca0f1, 128,128+32, 0x00, 15,45,90,5,15,40, 0, cmd5CA0F1)
+	// Sitronix ST7735 DTC
+	X(0x5cc0f1, 128,128, 0xc8, 15,45,90,5,15,60, 0, cmd5CC0F1)
+#endif
 };
 #undef X
 #undef NO_TIMINGS

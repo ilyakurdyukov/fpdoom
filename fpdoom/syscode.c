@@ -584,16 +584,22 @@ static void lcd_init(const lcd_config_t *lcd) {
 	if (sys_data.mac)
 		mac_arg = (mac_arg & ~0xff) | (sys_data.mac & 0xff);
 	mac_arg ^= rtab[rotate];
+	// disable 90-degree rotation for monochrome screens
 	if (mac_arg & 0x100) mac_arg &= ~0x20;
 	if (mac_arg & 0x20) {
 		unsigned t = w; w = h; h = t;
 	}
 	x2 = 0; w2 = w - 1;
 	y2 = 0; h2 = h - 1;
-	// fix for ST7735
+	// fix for ST7735 (132x162 -> 128x160)
 	if ((lcd->id & 0xffffff) == 0x7c89f0) {
-		w -= x2 = w & 3;
-		h -= y2 = h & 3;
+		w -= x2 = w & 7; // 0..4
+		h -= y2 = h & 7; // 0..2
+	}
+	// another fix for ST7735 (132x162 -> 128x128)
+	if (lcd->id == 0x5db0f1) {
+		w -= x2 = w & 0x3f; // 0..4
+		h -= y2 = h & 0x3f; // 0..34
 	}
 	sys_data.mac = mac_arg;
 	sys_data.display.w1 = w;
