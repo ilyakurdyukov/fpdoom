@@ -821,9 +821,19 @@ void sys_framebuffer(void *base) {
 	LCDC_BASE->img.ctrl |= 1;
 }
 
+// External Interrupt Controller
+int eic_read(unsigned ch) {
+	uint32_t addr = 0x82001200;
+	if (_chip != 1) addr += 0x82001900 - 0x82001200;
+	// EIC_DBNC_DMSK
+	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
+	// EIC_DBNC_DATA
+	return adi_read(addr) >> ch & 1;
+}
+
 int keypad_read_pb(void) {
 	uint32_t val, addr = 0x82001200, ch = 1;
-	if (_chip != 1) addr = 0x82001900, ch = 3;
+	if (_chip != 1) addr += 0x82001900 - 0x82001200, ch = 3;
 	// EIC_DBNC_DMSK
 	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
 	// EIC_DBNC_DATA

@@ -590,13 +590,16 @@ void sys_framebuffer(void *base) {
 	LCDC_BASE->img.ctrl |= 1;
 }
 
-int keypad_read_pb(void) {
-	uint32_t val, addr = 0x40608280, ch = 1;
+int eic_read(unsigned ch) {
+	uint32_t addr = 0x40608280;
 	// EIC_DBNC_DMSK
 	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
 	// EIC_DBNC_DATA
-	val = adi_read(addr) >> ch & 1;
-	return val ^ 1;
+	return adi_read(addr) >> ch & 1;
+}
+
+int keypad_read_pb(void) {
+	return eic_read(1) ^ 1;
 }
 
 static void eic_enable(void) {

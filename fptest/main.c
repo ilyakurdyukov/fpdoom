@@ -408,6 +408,23 @@ static int sdtest_init(int target) {
 	return ~init_done & target;
 }
 
+int eic_read(unsigned ch);
+
+static void eic_test(unsigned mask) {
+	unsigned i, val, last = 0, start = 1;
+	// may give incorrect results on first read
+	for (i = 0; i < 16; i++) if (mask >> i & 1) eic_read(i);
+	for (;; start = 0)
+		for (i = 0; i < 16; i++)
+			if (mask >> i & 1) {
+				val = eic_read(i);
+				if (start || val != (last >> i & 1)) {
+					last = (last & ~(1 << i)) | val << i;
+					printf("eic[%u] = %u%s\n", i, val, start ? " (start)" : "");
+				}
+			}
+}
+
 int main(int argc, char **argv) {
 	int i;
 
@@ -458,6 +475,9 @@ int main(int argc, char **argv) {
 				if (0) sdio_write_test(1);
 			}
 			argc -= 1; argv += 1;
+		}	else if (!strcmp(argv[1], "eic")) {
+			eic_test(strtol(argv[2], NULL, 0));
+			argc -= 2; argv += 2;
 		}	else if (argc >= 3 && !strcmp(argv[1], "sdread")) {
 			if (!sdtest_init(7)) {
 				unsigned clust, size;
