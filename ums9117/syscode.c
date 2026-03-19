@@ -34,6 +34,10 @@ void adi_write(uint32_t addr, uint32_t val) {
 	MEM4(addr) = val;
 }
 
+void adi_write_or(uint32_t addr, uint32_t val) {
+	adi_write(addr, adi_read(addr) | val);
+}
+
 #define AHB_CR(x) MEM4(0x20e00000 + (x))
 #define AHB_PWR_ON(x) AHB_CR(0x1000) = (x)
 #define AHB_PWR_OFF(x) AHB_CR(0x2000) = (x)
@@ -590,24 +594,33 @@ void sys_framebuffer(void *base) {
 	LCDC_BASE->img.ctrl |= 1;
 }
 
-int eic_read(unsigned ch) {
+void eic_mask_or(unsigned val) {
 	uint32_t addr = 0x40608280;
 	// EIC_DBNC_DMSK
-	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
+	adi_write_or(addr + 4, val);
+}
+
+int eic_read(void) {
+	uint32_t addr = 0x40608280;
 	// EIC_DBNC_DATA
-	return adi_read(addr) >> ch & 1;
+	return adi_read(addr);
 }
 
 int keypad_read_pb(void) {
-	return eic_read(1) ^ 1;
+	int ch = 1;
+	return eic_read() >> ch ^ 1;
 }
 
 static void eic_enable(void) {
-	adi_write(0x406080c8, adi_read(0x406080c8) | 0x10);
+	adi_write_or(0x406080c8, 0x10);
 	adi_write(0x40608298, 0);
-	adi_write(0x40608c08, adi_read(0x40608c08) | 8);
-	adi_write(0x40608e40, adi_read(0x40608e40) | 1);
-	adi_write(0x40608c10, adi_read(0x40608c10) | 8);
+	adi_write_or(0x40608c08, 8);
+	adi_write_or(0x40608e40, 1);
+	adi_write_or(0x40608c10, 8);
+	{
+		int ch = 1;
+		eic_mask_or(1 << ch);
+	}
 }
 
 static void keypad_init(void) {
@@ -742,18 +755,18 @@ void sys_exit(void) {
 void sys_wdg_reset(unsigned val) {
 	uint32_t wdg;
 	// watchdog enable
-	adi_write(0x40608c08, adi_read(0x40608c08) | 4);
-	adi_write(0x40608c10, adi_read(0x40608c10) | 4);
+	adi_write_or(0x40608c08, 4);
+	adi_write_or(0x40608c10, 4);
 	wdg = 0x40608040;
 	// set reset timer
 	adi_write(wdg + 0x20, 0xe551); // LOCK
 	DELAY(10000)
-	adi_write(wdg + 8, adi_read(wdg + 8) | 9); // CTRL
-	adi_write(wdg + 8, adi_read(wdg + 8) | 4);
+	adi_write_or(wdg + 8, 9); // CTRL
+	adi_write_or(wdg + 8, 4);
 	// 1 / 32768
 	adi_write(wdg + 0, val & 0xffff); // LOAD_LOW
 	adi_write(wdg + 4, val >> 16); // LOAD_HIGH
-	adi_write(wdg + 8, adi_read(wdg + 8) | 2);
+	adi_write_or(wdg + 8, 2);
 	adi_write(wdg + 0x20, ~0xe551);
 	for (;;);
 }

@@ -66,6 +66,10 @@ void adi_write(uint32_t addr, uint32_t val) {
 	ADI_WAIT(!(MEM4(fifo_sts) & bit >> 1)) // BIT_FIFO_EMPTY
 }
 
+void adi_write_or(uint32_t addr, uint32_t val) {
+	adi_write(addr, adi_read(addr) | val);
+}
+
 // ANA_REG_BASE
 // SC6531E: 0x82001400
 // SC6530, SC6531DA: 0x82001000
@@ -822,20 +826,23 @@ void sys_framebuffer(void *base) {
 }
 
 // External Interrupt Controller
-int eic_read(unsigned ch) {
+void eic_mask_or(unsigned val) {
 	uint32_t addr = 0x82001200;
 	if (_chip != 1) addr += 0x82001900 - 0x82001200;
 	// EIC_DBNC_DMSK
-	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
+	adi_write_or(addr + 4, val);
+}
+
+int eic_read(void) {
+	uint32_t addr = 0x82001200;
+	if (_chip != 1) addr += 0x82001900 - 0x82001200;
 	// EIC_DBNC_DATA
-	return adi_read(addr) >> ch & 1;
+	return adi_read(addr);
 }
 
 int keypad_read_pb(void) {
 	uint32_t val, addr = 0x82001200, ch = 1;
 	if (_chip != 1) addr += 0x82001900 - 0x82001200, ch = 3;
-	// EIC_DBNC_DMSK
-	adi_write(addr + 4, adi_read(addr + 4) | 1 << ch);
 	// EIC_DBNC_DATA
 	val = adi_read(addr) >> ch & 1;
 	// inverted on SC6531DA
@@ -846,8 +853,8 @@ int keypad_read_pb(void) {
 static void eic_enable(void) {
 	// EIC_A
 	if (_chip == 1) {
-		adi_write(0x82001410, adi_read(0x82001410) | 8);
-		adi_write(0x82001408, adi_read(0x82001408) | 8);
+		adi_write_or(0x82001410, 8);
+		adi_write_or(0x82001408, 8);
 	} else {
 		adi_write(0x820010e4, 0x20);
 		adi_write(0x820010e0, 0x80);
@@ -855,6 +862,11 @@ static void eic_enable(void) {
 	// EIC_D, not really needed
 	//APB_PWR_ON(0x4000000);
 	//APB_PWR_ON(0x2000000);
+	{
+		int ch = 1;
+		if (_chip != 1) ch = 3;
+		eic_mask_or(1 << ch);
+	}
 }
 
 static void keypad_init(void) {
@@ -1101,8 +1113,8 @@ void sys_wdg_reset(unsigned val) {
 	uint32_t wdg;
 	// watchdog enable
 	if (_chip == 1) {
-		adi_write(0x82001408, adi_read(0x82001408) | 4);
-		adi_write(0x82001410, adi_read(0x82001410) | 4);
+		adi_write_or(0x82001408, 4);
+		adi_write_or(0x82001410, 4);
 		wdg = 0x82001040;
 	} else {
 		adi_write(0x820010e0, 4);
@@ -1111,11 +1123,11 @@ void sys_wdg_reset(unsigned val) {
 	}
 	// set reset timer
 	adi_write(wdg + 0x20, 0xe551); // LOCK
-	adi_write(wdg + 8, adi_read(wdg + 8) | 9); // CTRL
+	adi_write_or(wdg + 8, 9); // CTRL
 	// 1 / 32768
 	adi_write(wdg + 0, val & 0xffff); // LOAD_LOW
 	adi_write(wdg + 4, val >> 16); // LOAD_HIGH
-	adi_write(wdg + 8, adi_read(wdg + 8) | 2);
+	adi_write_or(wdg + 8, 2);
 	adi_write(wdg + 0x20, ~0xe551);
 	for (;;);
 }

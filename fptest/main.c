@@ -408,21 +408,21 @@ static int sdtest_init(int target) {
 	return ~init_done & target;
 }
 
-int eic_read(unsigned ch);
+void eic_mask_or(unsigned val);
+int eic_read(void);
 
 static void eic_test(unsigned mask) {
-	unsigned i, val, last = 0, start = 1;
-	// may give incorrect results on first read
-	for (i = 0; i < 16; i++) if (mask >> i & 1) eic_read(i);
-	for (;; start = 0)
+	unsigned i, val, prev = 0, start = mask, cond;
+	eic_mask_or(mask);
+	sys_wait_ms(2); // wait for update
+	for (;; start = 0, prev = val) {
+		val = eic_read() & mask;
+		cond = start | (val ^ prev);
 		for (i = 0; i < 16; i++)
-			if (mask >> i & 1) {
-				val = eic_read(i);
-				if (start || val != (last >> i & 1)) {
-					last = (last & ~(1 << i)) | val << i;
-					printf("eic[%u] = %u%s\n", i, val, start ? " (start)" : "");
-				}
-			}
+			if (cond >> i & 1)
+				printf("eic[%u] = %u%s\n", i,
+						val >> i & 1, start ? " (start)" : "");
+	}
 }
 
 int main(int argc, char **argv) {
