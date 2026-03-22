@@ -28,6 +28,42 @@ static uint8_t* loadfile(const char *fn, size_t *num) {
 	return buf;
 }
 
+static int keymap_compare5x5(short *keymap, const int8_t *keymap2) {
+	unsigned x, y;
+	for (y = 0; y < 5; y++)
+	for (x = 0; x < 5; x++)
+		if (keymap[y * 8 + x] != keymap2[y * 5 + x]) return 1;
+	return 0;
+}
+
+static int detect_eic9(short *keymap) {
+	static const int8_t keys_ta1276[] = {
+		0x08, 0x01, 0x04, 0x31, 0x06,
+		0x23, 0x33, 0x09, 0x39, 0x36,
+		0x30, 0x32, 0x07, 0x38, 0x35,
+		0x2a,   -1, 0x05, 0x37, 0x34,
+		  -1,   -1,   -1,   -1,   -1 };
+	uint32_t m0 = 0x23f2, m1 = 0x3ff0408;
+	unsigned x, y; int key = 0;
+	if (sys_data.keyrows != 8 || sys_data.keycols != 8) return 0;
+
+	for (y = 0; y < 8; y++)
+	for (x = 0; x < 8; x++) {
+		unsigned a = keymap[y * 8 + x];
+		if (y >= 5 || x >= 5) {
+			if ((int)a != -1) return 0;
+		}
+		if (a < 32) m0 &= ~(1 << a);
+		a -= 32;
+		if (a < 32) m1 &= ~(1 << a);
+	}
+	// if (m0 | m1) DBG_LOG("missing keys: 0x%08x%08x\n", m1, m0);
+	if (!m0) m0 = m1, m1 = 0, key = 32;
+	if (!m0 || m1 || (m0 & (m0 - 1))) return 0;
+	key += __builtin_ctz(m0);
+	if (key == 0x0d && keymap_compare5x5(keymap, keys_ta1276)) key = 0;
+	return key;
+}
 
 static uint32_t* gpiomap_check(uint32_t *p, unsigned size) {
 	uint32_t *p0;
@@ -80,12 +116,20 @@ void scan_firmware(intptr_t fw_addr) {
 		FILE *f = fopen(keymap_fn, "rb");
 		if (f) {
 			uint8_t *p = (uint8_t*)sys_data.keytrn;
-			printf("keymap loaded from file\n");
+			DBG_LOG("keymap loaded from file\n");
 			sys_data.keymap_addr = (short*)p;
 			memset(p, -1, 64 * 2);
 			fread(p, 1, 64 * 2, f);
 			fclose(f);
 		}
+	}
+	{
+		short *keymap = sys_data.keymap_addr;
+		unsigned key = sys_data.eic9_key;
+		if (keymap && !key) key = detect_eic9(keymap);
+		if (key - 1 >= 0x39) key = 0;
+		if (key) DBG_LOG("eic9_key = 0x%02x\n", key);
+		sys_data.eic9_key = key;
 	}
 }
 
@@ -133,6 +177,13 @@ int sys_getkeymap(uint8_t *dest) {
 		if (a > 0xff) a = 0xff;
 		dest[j * 8 + i] = a;
 		if (a == KEYPAD_CENTER) flags = 1;
+	}
+	{
+		unsigned a = sys_data.eic9_key;
+		if (a) {
+			if (a == KEYPAD_CENTER) flags = 1;
+			dest[0x3f] = a;
+		}
 	}
 	if (sys_data.keyflags)
 		flags = sys_data.keyflags;

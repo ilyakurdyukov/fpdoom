@@ -372,6 +372,9 @@ void entry_main(char *image_addr, uint32_t image_size, uint32_t bss_size) {
 				fclose(f);
 			}
 			argc -= 2; argv += 2;
+		} else if (argc >= 2 && !strcmp(argv[0], "--eic9_key")) {
+			sys_data.eic9_key = strtol(argv[1], NULL, 0);
+			argc -= 2; argv += 2;
 		} else if (argc >= 2 && !strcmp(argv[0], "--dir")) {
 #if LIBC_SDIO
 			fatdata_t *fatdata = &fatdata_glob;

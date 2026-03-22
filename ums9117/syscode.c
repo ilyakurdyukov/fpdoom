@@ -606,9 +606,10 @@ int eic_read(void) {
 	return adi_read(addr);
 }
 
+#define EIC_PB 1
+
 int keypad_read_pb(void) {
-	int ch = 1;
-	return eic_read() >> ch ^ 1;
+	return eic_read() >> EIC_PB ^ 1;
 }
 
 static void eic_enable(void) {
@@ -618,8 +619,9 @@ static void eic_enable(void) {
 	adi_write_or(0x40608e40, 1);
 	adi_write_or(0x40608c10, 8);
 	{
-		int ch = 1;
-		eic_mask_or(1 << ch);
+		int mask = 1 << EIC_PB;
+		if (sys_data.eic9_key) mask |= 1 << 9;
+		eic_mask_or(mask);
 	}
 }
 
@@ -671,9 +673,11 @@ int sys_event(int *rkey) {
 	static int static_i = 0;
 	static uint32_t static_ev, static_st;
 	static uint8_t pb_saved[8] = { 0 };
+	static uint8_t eic9_saved = 0;
 	uint32_t event, status;
 	int i = static_i;
 	uint16_t *keytrn;
+	unsigned k, down;
 
 	if (!sys_data.keymap_addr) return EVENT_END;
 	event = static_ev;
@@ -683,20 +687,40 @@ int sys_event(int *rkey) {
 		event = kpd->int_raw;
 		status = kpd->key_status;
 		event &= 0xff;
-		if (!event) return EVENT_END;
+		if (!event) {
+			if (sys_data.eic9_key) {
+				int eic = eic_read(), x = eic >> 9 & 1;
+				if ((eic9_saved ^ x) & 1) {
+					eic9_saved = down = x;
+					event = (~eic >> EIC_PB & 1) << 12;
+					k = 0x3f; i = 8;
+					goto found_key;
+				}
+			}
+			return EVENT_END;
+		}
 		kpd->int_clr = 0xfff;
 		if (status & 8) return EVENT_END;
-		event = (event & 0xfff) | keypad_read_pb() << 12;
+		{
+			int eic = eic_read();
+			event |= (~eic >> EIC_PB & 1) << 12;
+			if (sys_data.eic9_key) {
+				int x = eic >> 9 & 1;
+				eic9_saved = (eic9_saved ^ x) << 1 | x;
+			}
+		}
 		static_ev = event;
 		static_st = status;
 	}
 
 	for (; i < 8; i++) {
 		if (event >> i & 1) {
-			uint32_t k = status >> ((i & 3) * 8);
-			keytrn = sys_data.keytrn[0];
+			k = status >> (i & 3) * 8;
+			down = i < 4;
 			k = (k & 0x70) >> 1 | (k & 7);
-			if (i < 4) {
+found_key:
+			keytrn = sys_data.keytrn[0];
+			if (down) {
 				if (event >> 12)
 					pb_saved[k >> 3] |= 1 << (k & 7), keytrn += 64;
 			} else {
@@ -708,9 +732,13 @@ int sys_event(int *rkey) {
 			if (k) {
 				*rkey = k;
 				static_i = i + 1;
-				return i < 4 ? EVENT_KEYDOWN : EVENT_KEYUP;
+				return down ? EVENT_KEYDOWN : EVENT_KEYUP;
 			}
 		}
+	}
+	if ((eic9_saved & 2) && i == 8) {
+		k = 0x3f; down = eic9_saved & 1;
+		goto found_key;
 	}
 	static_i = 0;
 	return EVENT_END;

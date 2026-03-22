@@ -165,9 +165,9 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * Nokia 110 4G (TA-1543), Nokia 106 4G (TA-1553): use `--bl_extra rgb=0xe`
 * Nokia 3210 4G (TA-1618): use `--spi_mode 1 --bl_extra rgbw=0x14`
 * Philips Xenium E6500: use `--spi_mode 1 --bl_extra rw=0x34`
-* HMD 2660 Flip (TA-1711), Nokia 2660 Flip (TA-1474): use `--gpio_data -0x28,0x5f --bl_extra rgb=0x19` to play on the front screen, or `--gpio_data 0x28,-0x5f --bl_extra w=0x2d` to play on the back screen. The 8 key is not present in the keymap and implemented differently.
+* HMD 2660 Flip (TA-1711), Nokia 2660 Flip (TA-1474): use `--gpio_data -0x28,0x5f --bl_extra rgb=0x19` to play on the front screen, or `--gpio_data 0x28,-0x5f --bl_extra w=0x2d` to play on the back screen.
 * Samsung GT-E1200R: use `--keymap keymap_gt_e1200r.bin`, take the file from Releases
-* Nokia 215 4G (TA-1278): use `--spi_mode 1 --bl_extra rgbw=0x16`. The center key is not present in the keymap and implemented differently.
+* Nokia 215 4G (TA-1278): use `--spi_mode 1 --bl_extra rgbw=0x16`
 * HMD 130 Music: use `--spi_mode 1 --gpio_data -0x1c`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
