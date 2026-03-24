@@ -9,6 +9,7 @@
 #if !UMS9117
 #include "sfc.h"
 #endif
+#include "efuse.h"
 
 #define FAT_READ_SYS \
 	if (sdio_read_block(sector, buf)) break;
@@ -411,7 +412,7 @@ static int sdtest_init(int target) {
 void eic_mask_or(unsigned val);
 int eic_read(void);
 
-static void eic_test(unsigned mask) {
+static void test_eic(unsigned mask) {
 	unsigned i, val, prev = 0, start = mask, cond;
 	eic_mask_or(mask);
 	sys_wait_ms(2); // wait for update
@@ -423,6 +424,45 @@ static void eic_test(unsigned mask) {
 				printf("eic[%u] = %u%s\n", i,
 						val >> i & 1, start ? " (start)" : "");
 	}
+}
+
+static void test_efuse(void) {
+	unsigned i;
+#if !UMS9117
+	if (_chip != 1) {
+		printf("efuse reading is not implemented for this chip\n");
+		return;
+	}
+#endif
+	efuse_init();
+#if UMS9117
+	printf("efuse data (double):\n");
+	for (i = 0; i < EFUSE_MAX / 2; i++) {
+		if (!(i & 3)) printf("0x%02x:", i);
+		printf(" %08x", efuse_read(i, 1));
+		if ((i & 3) == 3) printf("\n");
+	}
+	printf("efuse data (raw):\n");
+	for (i = 0; i < EFUSE_MAX; i++) {
+		if (!(i & 3)) printf("0x%02x:", i);
+		printf(" %08x", efuse_read(i, 0));
+		if ((i & 3) == 3) printf("\n");
+	}
+#else
+	printf("efuse data:\n");
+	for (i = 0; i < EFUSE_MAX; i++) {
+		uint32_t val;
+		if (efuse_read(i, &val)) {
+			if (i & 3) printf("\n");
+			printf("efuse_read(%u) failed\n", i);
+			break;
+		}
+		if (!(i & 3)) printf("0x%02x:", i);
+		printf(" %08x", val);
+		if ((i & 3) == 3) printf("\n");
+	}
+#endif
+	efuse_off();
 }
 
 int main(int argc, char **argv) {
@@ -476,8 +516,11 @@ int main(int argc, char **argv) {
 			}
 			argc -= 1; argv += 1;
 		}	else if (!strcmp(argv[1], "eic")) {
-			eic_test(strtol(argv[2], NULL, 0));
+			test_eic(strtol(argv[2], NULL, 0));
 			argc -= 2; argv += 2;
+		}	else if (!strcmp(argv[1], "efuse")) {
+			test_efuse();
+			argc -= 1; argv += 1;
 		}	else if (argc >= 3 && !strcmp(argv[1], "sdread")) {
 			if (!sdtest_init(7)) {
 				unsigned clust, size;
