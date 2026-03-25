@@ -1848,6 +1848,11 @@ static const lcd_config_t lcd_config1[] = {
 	// Sitronix ST7735 (from another factory)
 	X(0x7c80f3, 128,160, 0xd8, NO_TIMINGS, 13000000, cmd1C80F3)
 
+/* Nokia TA-1192 */
+
+	// Sitronix ST7735
+	X(0x1c90f3, 128,160, 0xd8, NO_TIMINGS, 13000000, cmd1C80F3)
+
 /* BQ 3586 Tank Max */
 
 	// RenesasSP R61529

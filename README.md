@@ -138,6 +138,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 80 | Samsung GT-E1200R       | SC6530C  | 128x128 ST7735    | center     |
 | 81 | Nokia 215 4G (TA-1278)  | UMS9117  | 240x320 GC9305    | left soft  |
 | 82 | HMD 130 Music           | SC6531E  | 240x320 GC9307    | *          |
+| 83 | Texet TM-D109           | SC6531   | 128x160 ST7735R   | dial       |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands

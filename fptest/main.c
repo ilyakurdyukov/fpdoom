@@ -427,30 +427,25 @@ static void test_eic(unsigned mask) {
 }
 
 static void test_efuse(void) {
-	unsigned i;
-#if !UMS9117
-	if (_chip != 1) {
-		printf("efuse reading is not implemented for this chip\n");
-		return;
-	}
-#endif
+	unsigned i, n;
 	efuse_init();
+	n = EFUSE_MAX;
 #if UMS9117
 	printf("efuse data (double):\n");
-	for (i = 0; i < EFUSE_MAX / 2; i++) {
+	for (i = 0; i < n / 2; i++) {
 		if (!(i & 3)) printf("0x%02x:", i);
 		printf(" %08x", efuse_read(i, 1));
 		if ((i & 3) == 3) printf("\n");
 	}
 	printf("efuse data (raw):\n");
-	for (i = 0; i < EFUSE_MAX; i++) {
+	for (i = 0; i < n; i++) {
 		if (!(i & 3)) printf("0x%02x:", i);
 		printf(" %08x", efuse_read(i, 0));
 		if ((i & 3) == 3) printf("\n");
 	}
 #else
 	printf("efuse data:\n");
-	for (i = 0; i < EFUSE_MAX; i++) {
+	for (i = 0; i < n; i++) {
 		uint32_t val;
 		if (efuse_read(i, &val)) {
 			if (i & 3) printf("\n");
