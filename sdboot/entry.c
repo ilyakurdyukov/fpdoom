@@ -119,6 +119,12 @@ void entry_main(uint32_t load_addr) {
 	}
 #endif
 
+	// Secure Boot disables some devices on exit
+	if (chip == 1) {
+		uint32_t tmp = 0x8b0010a8;
+		MEM4(tmp) = 0x8000 | 0x200200; // enable pinmap and timer
+	}
+
 #if LIBC_SDIO < 3
 	sys_wait_ms(1000);
 #endif
