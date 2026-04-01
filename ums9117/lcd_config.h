@@ -610,6 +610,32 @@ static const uint8_t cmd9305_nokia_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9106_nokia_init[] = {
+	//LCM_DELAY(120),
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xb3, 1), 0x03,
+	LCM_CMD(0x21, 0),
+	LCM_CMD(0xb6, 1), 0x01,
+	LCM_CMD(0xa3, 1), 0x11,
+	//LCM_CMD(0x36, 1), 0xd0, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0x35, 1), 0x00,
+	LCM_CMD(0x44, 1), 0x20,
+	LCM_CMD(0xb4, 1), 0x21,
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x22,0x48,0x35,0x55,
+		0xeb,0x22,0x24,0x00, 0x15,0x10,0x11,0x19, 0x18,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x06,0x2c,0x1c,0x3f,
+		0x7a,0x14,0x16,0x00, 0x01,0x0e,0x0e,0x14, 0x13,0x0f,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(150),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -697,6 +723,11 @@ static const lcd_config_t lcd_config_t117[] = {
 
 	// GlaxyCore GC9305
 	X(0x009305, 240,320, 0x48, NO_TIMINGS, 48000000, cmd9305_nokia)
+
+/* Nokia 105 4G (TA-1381) | --spi_mode 1 --bl_extra w=0x22 */
+
+	// GlaxyCore GC9106
+	X(0x009106, 128,160, 0xd0, NO_TIMINGS, 13000000, cmd9106_nokia)
 };
 #undef X
 #undef NO_TIMINGS

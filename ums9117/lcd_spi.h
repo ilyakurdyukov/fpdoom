@@ -179,6 +179,8 @@ static const lcd_config_t* lcd_spi_init(uint32_t spi_base) {
 		id |= spi_send_recv(spi, 0xdc << 8, 1, 0) & 0xff;
 		DBG_LOG("LCD(SPI%u): id = 0x%06x\n", SPI_ID(spi), id);
 	}
+	if (id == 0x00ff00 && sys_data.spi_mode == 3)
+		ERR_EXIT("invalid LCD ID, try using --spi_mode 1\n");
 	lcd = lcd_find_conf(id, 1);
 
 	{

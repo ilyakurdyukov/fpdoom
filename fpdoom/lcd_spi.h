@@ -189,6 +189,7 @@ static const lcd_config_t* lcd_spi_init(uint32_t spi_base) {
 
 	id = sys_data.lcd_id;
 	if (!id) {
+		// doesn't work on SPI0 for some reason (DZ09, Fly FF177)
 		id = (spi_send_recv(spi, 0xda << 8, 1, 0) & 0xff) << 16;
 		id |= (spi_send_recv(spi, 0xdb << 8, 1, 0) & 0xff) << 8;
 		id |= spi_send_recv(spi, 0xdc << 8, 1, 0) & 0xff;
