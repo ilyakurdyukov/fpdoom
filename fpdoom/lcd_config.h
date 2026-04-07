@@ -1840,6 +1840,127 @@ static const uint8_t cmd7C89_fly_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9226_bqm_init[] = {
+	LCM_DELAY(100),
+#define X(a, b) LCM_CMD(a >> 8, 0), LCM_CMD(a & 0xff, 2), b >> 8, b & 0xff,
+	X(0xd0, 0x0003)
+	X(0xeb, 0x0b00)
+	X(0xec, 0x004f)
+	X(0x01, 0x011c) // Driver Output Control
+	X(0x02, 0x0100) // LCD Driving Waveform Control
+	X(0x03, 0x1030) // Entry Mode
+	X(0x08, 0x0808) // Display Control 2
+	X(0x0c, 0x0000)
+	X(0x0f, 0x0d01) // Oscillator Control
+	//X(0x20, 0x0000) // RAM Address Set 1
+	//X(0x21, 0x0000) // RAM Address Set 2
+	LCM_DELAY(50),
+	X(0x10, 0x0000) // Power Control 1
+	X(0x11, 0x1b41) // Power Control 2
+	LCM_DELAY(50),
+	X(0x12, 0x200e) // Power Control 3
+	X(0x13, 0x0058) // Power Control 4
+	X(0x14, 0x455b) // Power Control 5
+	X(0x30, 0x0000) // Gate Scan Control
+	X(0x31, 0x00db) // Vertical Scroll Control 1
+	X(0x32, 0x0000) // Vertical Scroll Control 2
+	X(0x33, 0x0000) // Vertical Scroll Control 3
+	X(0x34, 0x00db) // Partial Screen Driving Position
+	X(0x35, 0x0000)
+	//X(0x36, 0x00af) // Horizontal Address End Position
+	//X(0x37, 0x0000) // Horizontal Address Start Position
+	//X(0x38, 0x00db) // Vertical Address End Position
+	//X(0x39, 0x0000) // Vertical Address Start Position
+	X(0x50, 0x0008) // Gamma Control 1
+	X(0x51, 0x0808) // Gamma Control 2
+	X(0x52, 0x0e0b) // Gamma Control 3
+	X(0x53, 0x0400) // Gamma Control 4
+	X(0x54, 0x0b0e) // Gamma Control 5
+	X(0x55, 0x0808) // Gamma Control 6
+	X(0x56, 0x0800) // Gamma Control 7
+	X(0x57, 0x0004) // Gamma Control 8
+	X(0x58, 0x0000) // Gamma Control 9
+	X(0x59, 0x0000) // Gamma Control 10
+	LCM_DELAY(50),
+	X(0x07, 0x1017) // Display Control 1
+#undef X
+	LCM_END
+};
+
+static const uint8_t cmd9104_itel_init[] = {
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xb3, 1), 0x03,
+	LCM_CMD(0xb6, 1), 0x01,
+	LCM_CMD(0xa3, 1), 0x11,
+	LCM_CMD(0x21, 0),
+	// should be 0xd0 for RGB
+	//LCM_CMD(0x36, 1), 0xd8, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	LCM_CMD(0xb4, 1), 0x21,
+	LCM_CMD(0xb1, 1), 0xe0,
+	LCM_CMD(0xe6, 2), 0x48,0x3b,
+	LCM_CMD(0xe7, 2), 0x40,0x3b,
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x03,0x4a,0x2d,0x59,
+		0xeb,0x26,0x27,0x00, 0x00,0x0c,0x0e,0x1d, 0x1c,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x00,0x24,0x2e,0x36,
+		0xd6,0x0b,0x0b,0x00, 0x00,0x01,0x01,0x19, 0x18,0x0f,
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	//LCM_CMD(0xff, 0), // ???
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(200),
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_CMD(0x2c, 0),
+	LCM_END
+};
+
+static const uint8_t cmd313032_bqm_init[] = {
+	LCM_DELAY(120),
+	LCM_CMD(0x66, 1), 0x80, // Power control 3
+	LCM_CMD(0x80, 1), 0x05,
+	LCM_DELAY(5),
+	LCM_CMD(0x80, 1), 0x01,
+	LCM_CMD(0xb6, 2), 0x02,0xa2, // Display function control
+	//LCM_CMD(0x36, 1), 0x08, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x65, // Pixel Format Set
+	LCM_CMD(0x60, 1), 0x26, // Power control 0
+	LCM_CMD(0x63, 1), 0x08,
+	LCM_CMD(0x64, 1), 0x09, // Power control 1
+	LCM_CMD(0x68, 1), 0x70,
+	LCM_CMD(0x69, 1), 0x1f, // Power control 4
+	LCM_CMD(0x6a, 1), 0xc4, // Power control 5
+	LCM_CMD(0x6b, 1), 0x09, // Vcom control 1
+	LCM_CMD(0x6c, 1), 0x18, // Vcom control 2
+	LCM_CMD(0x6d, 1), 0x77,
+	LCM_CMD(0x6e, 1), 0x84, // Power control 6
+	LCM_CMD(0x6f, 1), 0x48,
+	LCM_CMD(0xf7, 1), 0x10, // lcd ac drive control
+	LCM_CMD(0x70, 1), 0x44,
+	// Source, VCOM driver timing
+	LCM_CMD(0xed, 6), 0xf9,0xf9,0x00,0x00,0x11,0x00,
+
+	// Gamma control 1-6
+	LCM_CMD(0xe0, 7), 0x10,0x19,0x0d,0x1a,0x07,0x13,0x14,
+	LCM_CMD(0xe1, 2), 0x2b,0x5f,
+	LCM_CMD(0xe2, 6), 0x1b,0x28,0x28,0x18,0x15,0x17,
+	LCM_CMD(0xe3, 7), 0x10,0x17,0x05,0x13,0x08,0x13,0x06,
+	LCM_CMD(0xe4, 2), 0x0b,0x50,
+	LCM_CMD(0xe5, 6), 0x17,0x24,0x15,0x17,0x17,0x1f,
+
+	LCM_CMD(0x67, 1), 0x07,
+	LCM_CMD(0xb1, 2), 0x00,0x12, // Frame rate control 1
+	// Gate driver timing
+	LCM_CMD(0xec, 6), 0x33,0x16,0x16,0x00,0x18,0x18,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(300),
+	LCM_CMD(0x66, 1), 0x94, // Power control 3
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -2001,6 +2122,11 @@ static const lcd_config_t lcd_config1[] = {
 	// JL77389P3
 	X(0xd181b3, 240,320, 0x00, NO_TIMINGS, 52000000, cmdD181B3_hmd)
 #endif
+
+/* Itel it2161R */
+
+	// GlaxyCore GC9104
+	X(0x009104, 128,160, 0xd0, NO_TIMINGS, 39000000, cmd9104_itel)
 };
 
 static const lcd_config_t lcd_config2[] = {
@@ -2114,6 +2240,19 @@ static const lcd_config_t lcd_config2[] = {
 
 	// Sitronix ST7735
 	X(0x80007c89, 128,160, 0xc0, NO_TIMINGS, 10000000, cmd7C89_fly)
+
+/* BQM 2201 Rio */
+
+	// Ilitek ILI9225G
+	X(0x009226, 176,220, 0xc0, 5,150,150,10,50,50, 0, cmd9226_bqm)
+
+/* BQM 2400 Taipei */
+
+	// NewVision NV3029E
+	// screen detecton seems broken in the firmware: id = 0xffff
+	// number taken from the datasheet is probably incorrect
+	// 90-degree rotation is broken (works only for 240x240)
+	X(0x80313032, 240,320, 0x08, 10,150,100,15,30,50, 0, cmd313032_bqm)
 };
 #undef X
 #undef NO_TIMINGS

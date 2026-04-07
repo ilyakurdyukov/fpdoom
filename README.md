@@ -141,6 +141,11 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 83 | Texet TM-D109           | SC6531   | 128x160 ST7735    | dial       |
 | 84 | Jinga Simple F150       | SC6531   | 128x160 ST7735    | 9          |
 | 85 | Fly FF177               | SC6531   | 128x160 ST7735    | 0          |
+| 86 | Explay Simple           | SC6531   | 240x320 ILI9341   | center     |
+| 87 | BQM 2201 Rio            | SC6531   | 176x220 ILI9225G  | left soft  |
+| 88 | Itel it2161R            | SC6531E  | 128x160 GC9104    | left soft  |
+| 89 | BQM 2400 Taipei         | SC6531   | 240x320 NV3029E   | center     |
+| 90 | HMD 150 Music           | SC6531E  | 240x320 GC9307    | *          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
@@ -171,8 +176,9 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * HMD 2660 Flip (TA-1711), Nokia 2660 Flip (TA-1474): use `--gpio_data -0x28,0x5f --bl_extra rgb=0x19` to play on the front screen, or `--gpio_data 0x28,-0x5f --bl_extra w=0x2d` to play on the back screen.
 * Samsung GT-E1200R: use `--keymap keymap_gt_e1200r.bin`, take the file from Releases
 * Nokia 215 4G (TA-1278): use `--spi_mode 1 --bl_extra rgbw=0x16`
-* HMD 130 Music: use `--spi_mode 1 --gpio_data -0x1c`
+* HMD 130 Music, HMD 150 Music: use `--spi_mode 1 --gpio_data -0x1c`
 * Fly FF177: use `--spi 0 --lcd 0x80007c89`
+* BQM 2400 Taipei: use `--lcd 0x80313032`, 90-degree rotation is broken
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
