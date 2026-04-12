@@ -132,7 +132,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 74 | Philips Xenium E6500    | UMS9117  | 240x320 NV3030B   | 2          |
 | 75 | Itel it2160             | SC6531E  | 128x160 ST7735S   | left soft  |
 | 76 | Alcatel 2040D           | SC6531   | 240x320 ILI9341   | dial       |
-| 77 | Alcatel 2051X           | SC6531   | 240x320 GC9305    | dial       |
+| 77 | Alcatel 2051X/2051D     | SC6531   | 240x320 GC9305    | dial       |
 | 78 | HMD 2660 Flip (TA-1711) | UMS9117  | 240x320 GC9307    | *          |
 | 79 | IPRO A1 Mini            | SC6531E  | 128x160 GC9106    | 2          |
 | 80 | Samsung GT-E1200R       | SC6530C  | 128x128 ST7735    | center     |
