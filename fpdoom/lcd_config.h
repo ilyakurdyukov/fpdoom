@@ -1961,10 +1961,41 @@ static const uint8_t cmd313032_bqm_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9101_lexand_init[] = {
+	//LCM_DELAY(40),
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0xff, 1), 0x12,
+	LCM_CMD(0xfd, 1), 0x1a,
+	LCM_CMD(0xa3, 1), 0x11,
+	LCM_CMD(0xe7, 2), 0x94,0x88,
+	LCM_CMD(0xed, 1), 0x11,
+	LCM_CMD(0xf0, 1), 0x00,
+	LCM_CMD(0xf1, 1), 0x55,
+	LCM_CMD(0xf2, 1), 0x07,
+	LCM_CMD(0xf3, 1), 0x52,
+	LCM_CMD(0xf4, 1), 0x00,
+	LCM_CMD(0xf5, 1), 0x00,
+	LCM_CMD(0xf7, 1), 0x07,
+	LCM_CMD(0xf8, 1), 0x22,
+	LCM_CMD(0xf9, 1), 0x77,
+	LCM_CMD(0xfa, 1), 0x25,
+	LCM_CMD(0xfb, 1), 0x00,
+	LCM_CMD(0xfc, 1), 0x00,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(200),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
 #define NO_TIMINGS 0,0,0,0,0,0
+#define R128 (1u << 14)
+#define R160 (2u << 14)
 
 static const lcd_config_t lcd_config1[] = {
 /* F+ F256 */
@@ -2146,10 +2177,10 @@ static const lcd_config_t lcd_config2[] = {
 	// GlaxyCore GC9108
 	X(0x009108, 128,160, 0xd0, 30,150,150,40,50,50, 0, cmd9108)
 
-/* Vector M115 */
+/* Vertex M115 */
 
 	// Sitronix ST7735S CTC
-	X(0x807c89f0, 128+2,128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0_square)
+	X(0x807c89f0, R128+2,R128+3, 0xc8, 15,120,75,15,35,35, 0, cmd7C89F0_square)
 
 /* DZ09 */
 
@@ -2226,12 +2257,12 @@ static const lcd_config_t lcd_config2[] = {
 /* Samsung GT-E1200R */
 
 	// Sitronix ST7735 BYD
-	X(0x5db0f1, 128,128+32, 0xd8, 15,45,90,5,15,40, 0, cmd5DB0F1)
+	X(0x5db0f1, 128,R128+32, 0xd8, 15,45,90,5,15,40, 0, cmd5DB0F1)
 #if 0 // alternative LCDs
 	// Sitronix ST7735
-	X(0x5db8f1, 128+2,128, 0xd8, 15,45,90,5,15,40, 0, cmd5DB8F1)
+	X(0x5db8f1, R128+2,128, 0xd8, 15,45,90,5,15,40, 0, cmd5DB8F1)
 	// Sitronix ST7735 TNM
-	X(0x5ca0f1, 128,128+32, 0x00, 15,45,90,5,15,40, 0, cmd5CA0F1)
+	X(0x5ca0f1, 128,R128+32, 0x00, 15,45,90,5,15,40, 0, cmd5CA0F1)
 	// Sitronix ST7735 DTC
 	X(0x5cc0f1, 128,128, 0xc8, 15,45,90,5,15,60, 0, cmd5CC0F1)
 #endif
@@ -2253,6 +2284,14 @@ static const lcd_config_t lcd_config2[] = {
 	// number taken from the datasheet is probably incorrect
 	// 90-degree rotation is broken (works only for 240x240)
 	X(0x80313032, 240,320, 0x08, 10,150,100,15,30,50, 0, cmd313032_bqm)
+
+/* Lexand LPH1 Mini */
+
+	// GlaxyCore GC9101
+	// actual screen height is 127
+	X(0x009101, R128+2,R128+3, 0xc8, 5,150,150,10,50,50, 0, cmd9101_lexand)
 };
+#undef R128
+#undef R160
 #undef X
 #undef NO_TIMINGS

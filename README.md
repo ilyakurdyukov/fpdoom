@@ -146,10 +146,16 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 88 | Itel it2161R            | SC6531E  | 128x160 GC9104    | left soft  |
 | 89 | BQM 2400 Taipei         | SC6531   | 240x320 NV3029E   | center     |
 | 90 | HMD 150 Music           | SC6531E  | 240x320 GC9307    | *          |
+| 91 | Itel it2163A            | SC6531E  | 128x160 GC9106    | left soft  |
+| 92 | Lexand LPH1 Mini        | SC6531   | 128x128 GC9101    | left soft  |
+| 93 | BQM 1406 Vitre          | SC6531   | 128x128 ST7735S   | left soft  |
+| 94 | BQ 2405 Dream           | SC6531   | 240x320 ST7789    | left soft  |
+| 95 | Texet TM-404            | SC6531E  | 240x320 GC9300    | left soft  |
+| 96 | Texet TM-422            | SC6531   | 240x320 ST7789    | 0          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
-* Vertex M115: use `--lcd 0x807c89f0`
+* Vertex M115, BQM 1406 Vitre: use `--lcd 0x807c89f0`
 * Nobby 170B: use `--mac 0xa8` without `--rotate`
 * Smart Watch DZ09: use `--spi 0 --lcd 0x80009307`, no controls - you can only watch replays, no boot key - use boot cable
 * BQ 3586 Tank Max: use `--bl_gpio 19` for backlight to work properly

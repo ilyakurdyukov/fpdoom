@@ -468,7 +468,7 @@ void sys_wait_refresh(void) {
 static void lcd_init(const lcd_config_t *lcd) {
 	unsigned w = lcd->width, h = lcd->height, x2, y2, w2, h2;
 	unsigned rotate, mac_arg;
-	const uint8_t rtab[4] = { 0, 0xa0, 0xc0, 0x60 };
+	static const uint8_t rtab[] = { 0, 0xa0, 0xc0, 0x60 };
 
 	sys_data.lcd_id = lcd->id;
 
@@ -480,13 +480,11 @@ static void lcd_init(const lcd_config_t *lcd) {
 	if (mac_arg & 0x20) {
 		unsigned t = w; w = h; h = t;
 	}
-	x2 = 0; w2 = w - 1;
-	y2 = 0; h2 = h - 1;
-	// fix for ST7735
-	if ((lcd->id & 0xffffff) == 0x7c89f0) {
-		w -= x2 = w & 3;
-		h -= y2 = h & 3;
-	}
+	x2 = y2 = 0;
+	if (w >> 14) x2 = w & 0xff, w = 128 - 32 + ((w >> 14) << 5);
+	if (h >> 14) y2 = h & 0xff, h = 128 - 32 + ((h >> 14) << 5);
+	w2 = x2 + w - 1;
+	h2 = y2 + h - 1;
 	sys_data.mac = mac_arg;
 	sys_data.display.w1 = w;
 	sys_data.display.h1 = h;

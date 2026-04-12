@@ -640,6 +640,8 @@ static const uint8_t cmd9106_nokia_init[] = {
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
 #define NO_TIMINGS 0,0,0,0,0,0
+#define R128 (1u << 14)
+#define R160 (2u << 14)
 
 static const lcd_config_t lcd_config_t117[] = {
 /* CHAKEYAKE T190  | --bl_extra w=0x2f */
@@ -650,7 +652,7 @@ static const lcd_config_t lcd_config_t117[] = {
 /* Inoi 140 Classic Lite 4G | --bl_extra rgb=0x1f */
 
 	// Sitronix ST7735S
-	X(0x7c89f0, 128+2,160+1, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
+	X(0x7c89f0, R128+2,R160+1, 0xd8, 20,150,150,35,70,70, 0, cmd7C89F0_inoi)
 
 /* BQ 1800L One | --bl_extra rgbw=0x16 */
 
@@ -729,5 +731,7 @@ static const lcd_config_t lcd_config_t117[] = {
 	// GlaxyCore GC9106
 	X(0x009106, 128,160, 0xd0, NO_TIMINGS, 13000000, cmd9106_nokia)
 };
+#undef R128
+#undef R160
 #undef X
 #undef NO_TIMINGS
