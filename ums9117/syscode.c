@@ -46,7 +46,7 @@ void adi_write_or(uint32_t addr, uint32_t val) {
 static void init_chip_id(void) {
 	uint32_t t0;
 	t0 = MEM4(0x402e00fc);
-	sys_data.chip_id.num = t0;
+	sys_data.chip_id = t0;
 	DBG_LOG("chip_id: %s = 0x%x\n", "num", t0);
 }
 

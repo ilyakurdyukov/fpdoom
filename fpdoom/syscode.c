@@ -108,14 +108,18 @@ static void init_chip_id(void) {
 	}
 	// ANA_CHIP_ID_{HIGH,LOW}
 	adi = adi_read(adi) << 16 | adi_read(t1);
-	sys_data.chip_id.num = t0;
-	sys_data.chip_id.ver = ver;
-	sys_data.chip_id.adi = adi;
-	DBG_LOG("chip_id: %s = 0x%x\n", "num", t0);
+	sys_data.chip_id = t0;
+	if (t0 == 0x65620001) {
+		t1 = (~MEM4(0x205000e0) & 1) << 28;
+		t1 = MEM4(t1 + 0x15ffc) & 3;
+		// 3: SC6531EFM_AC
+		DBG_LOG("chip_id: num = 0x%x, num_ex = %u\n", t0, t1);
+	} else
+		DBG_LOG("chip_id: %s = 0x%x\n", "num", t0);
 	DBG_LOG("chip_id: %s = 0x%x\n", "ver", ver);
 	if (_chip == 1) {
 		t0 = MEM4(0x20500168);
-		DBG_LOG("chip_id: %s = 0x%x\n", "ahb", t0);
+		DBG_LOG("chip_id: %s = 0x%x\n", "smc", t0);
 	}
 	DBG_LOG("chip_id: %s = 0x%x\n", "adi", adi);
 	// 0x11300000: SR1130
@@ -203,7 +207,8 @@ static void pin_init(void) {
 				// ANA_LDO_SF_REG0
 				if (adi_read(0x8200148c) & 1 << 9)
 					val |= 0x200000;
-				else if (sys_data.chip_id.ver == 0xa0001)
+				// chip_ver == 0xa0001
+				else if (sys_data.chip_id == 0x65620000)
 					val |= 0x280000;
 			}
 			MEM4(addr) = val;

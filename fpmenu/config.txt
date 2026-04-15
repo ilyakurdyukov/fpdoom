@@ -12,6 +12,7 @@
 # First arguments are stored in the $@ variable.
 # You can define and redefine variables:
 
+$@0 = $@
 $@ = $@ --rotate 3
 
 # Menu colors (0xRRGGBB): bg text  sel_bg sel_text
@@ -49,6 +50,7 @@ $doom = fpbin/fpdoom.bin $@
 #|Chocolate Doom| fpbin/chocolate-doom.bin $@ --dir games/doom1 doom -iwad doom1.wad
 |Heretic| fpbin/chocolate-heretic.bin $@ --dir games/heretic heretic -iwad HERETIC1.WAD
 |Hexen| fpbin/chocolate-hexen.bin $@ --dir games/hexen hexen -iwad HEXEN.WAD
+|Retris| fpbin/retris.bin $@0 --dir games/retris retris
 
 #1234567890123456# 128px = 16 chars
 #12345678901234567890# 160px = 20 chars

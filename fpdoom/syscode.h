@@ -97,7 +97,7 @@ enum {
 
 extern struct sys_data {
 	short *keymap_addr;
-	struct { uint32_t num, ver, adi; } chip_id;
+	uint32_t chip_id;
 	struct sys_display { uint16_t w1, h1, w2, h2; } display;
 	uint16_t keytrn[2][64]; // must be aligned by 4
 	uint8_t brightness, init_done;

@@ -16,7 +16,7 @@ FPBIN_T117 = $(BINDIR)/sdcard/fpbin_t117
 APPS = fpdoom fpduke3d fpsw fpblood infones \
 	wolf3d wolf3d_sw snes9x snes9x_16bit \
 	chocolate-doom chocolate-heretic chocolate-hexen \
-	gnuboy
+	gnuboy retris
 BINS = \
 	$(patsubst %,$(BINDIR)/usb/%.bin,fptest $(APPS)) \
 	$(patsubst %,$(BINDIR)/usb_t117/%.bin,fptest $(APPS)) \
@@ -54,6 +54,9 @@ chocolate-doom/chocolate-doom:
 
 gnuboy/gnuboy:
 	$(call getsrc,gnuboy)
+
+retris/retris:
+	$(call getsrc,retris)
 
 define makebin
 	cd $(1) && $(MAKE) clean $(2)
@@ -148,4 +151,7 @@ $(FPBIN_T117)/config.txt:
 
 %/gnuboy.bin: gnuboy/gnuboy
 	$(call makebin,gnuboy,$(OPTS))
+
+%/retris.bin: retris/retris
+	$(call makebin,retris,$(OPTS))
 

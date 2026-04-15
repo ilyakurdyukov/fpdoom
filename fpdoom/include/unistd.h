@@ -22,6 +22,8 @@ int access(const char*, int);
 #define X_OK 1
 #define F_OK 0
 
+int usleep(unsigned);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,56 @@
+diff --git a/retris.c b/retris.c
+index ffe2e28..8c818a7 100644
+--- a/retris.c
++++ b/retris.c
+@@ -5,6 +5,9 @@
+ #include <string.h>
+ #include <unistd.h> // usleep
+ 
++#ifdef EMBEDDED
++uint64_t get_time_usec(void);
++#else
+ #include <time.h>
+ #include <sys/time.h>
+ static uint64_t get_time_usec(void) {
+@@ -12,6 +15,7 @@ static uint64_t get_time_usec(void) {
+ 	gettimeofday(&time, NULL);
+ 	return time.tv_sec * 1000000LL + time.tv_usec;
+ }
++#endif
+ 
+ #include "mstream.h"
+ 
+@@ -102,7 +106,11 @@ static const char game_pieces[7][8] = {
+ #if USE_CURTAIN
+ #include "curtain.h"
+ #endif
++#ifdef EMBEDDED
++#include "../fpgfx.h"
++#else
+ #include "termgfx.h"
++#endif
+ #if USE_GAMEPAD
+ #include "joyinput.h"
+ #endif
+@@ -413,6 +421,9 @@ int main(int argc, char **argv) {
+ 	js->thr[1] = 0x3fff - 0x1000;
+ 	js->repeat_ms = 100;
+ #endif
++#ifdef EMBEDDED
++	sys->js.repeat_ms = 100;
++#endif
+ 
+ 	sys->colormode = 1;
+ 	sys->next_num = 1;
+@@ -471,6 +482,11 @@ int main(int argc, char **argv) {
+ 		} else if (argc > 2 && !strcmp(argv[1], "--js_rep")) {
+ 			js->repeat_ms = atoi(argv[2]);
+ 			argc -= 2; argv += 2;
++#endif
++#ifdef EMBEDDED
++		} else if (argc > 2 && !strcmp(argv[1], "--key_rep")) {
++			sys->js.repeat_ms = atoi(argv[2]);
++			argc -= 2; argv += 2;
+ #endif
+ 		} else {
+ #if USE_CURTAIN
