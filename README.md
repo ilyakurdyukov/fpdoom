@@ -154,6 +154,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 96 | Texet TM-422            | SC6531   | 240x320 ST7789    | 0          |
 | 97 | DEXP A281               | SC6531E  | 240x320 GC9300    | dial       |
 | 98 | Fly FF180               | SC6531E  | 128x160 GC9106    | #          |
+| 99 | Fontel SP230            | SC6531E  | 320x240 ILI9342   | 9          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
@@ -187,6 +188,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * HMD 130 Music, HMD 150 Music: use `--spi_mode 1 --gpio_data -0x1c`
 * Fly FF177: use `--spi 0 --lcd 0x80007c89`
 * BQM 2400 Taipei: use `--lcd 0x80313032`, 90-degree rotation is broken
+* Fontel SP230: use `--lcd 0x009342`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
