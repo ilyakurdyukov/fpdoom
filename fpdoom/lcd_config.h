@@ -2025,6 +2025,28 @@ static const uint8_t cmd9305_alcatel_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9342_fontel_init[] = {
+	//LCM_DELAY(120),
+	LCM_CMD(0xc8, 3), 0xff,0x93,0x42, // ???
+	//LCM_CMD(0x36, 1), 0xc8, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x55, // Pixel Format Set
+	LCM_CMD(0xc0, 2), 0x15,0x15, // Power Control 1
+	LCM_CMD(0xc1, 1), 0x01, // Power Control 2
+	LCM_CMD(0xc5, 1), 0xea, // VCOM Control 1
+	//LCM_CMD(0xb1, 2), 0x00,0x1b, // Frame Rate Control (Normal)
+	//LCM_CMD(0xb4, 1), 0x02, // Display Inversion Control
+	// Positive Gamma Correction
+	LCM_CMD(0xe0, 15), 0x0f,0x1e,0x25,0x0b,0x19,
+		0x0b,0x4c,0x59,0x5b,0x06, 0x12,0x0e,0x25,0x29,0x00,
+	// Negative Gamma Correction
+	LCM_CMD(0xe1, 15), 0x00,0x1e,0x1d,0x05,0x11,
+		0x05,0x30,0x25,0x3c,0x01, 0x08,0x06,0x22,0x30,0x0f,
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -2193,6 +2215,11 @@ static const lcd_config_t lcd_config1[] = {
 
 	// GlaxyCore GC9104
 	X(0x009104, 128,160, 0xd0, NO_TIMINGS, 39000000, cmd9104_itel)
+
+/* Fontel SP230 */
+
+	// Ilitek ILI9342
+	X(0x009342, 320,240, 0xc8, 15,120,75,15,35,35, 0, cmd9342_fontel)
 };
 
 static const lcd_config_t lcd_config2[] = {

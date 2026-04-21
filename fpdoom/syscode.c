@@ -385,11 +385,8 @@ static unsigned lcd_getid(void) {
 	return lcd_cmdret(0x04, 4) & 0xffffff;
 #else
 	unsigned id = 0, i;
-	for (i = 0; i < 3; i++) {
-		lcm_send_cmd(0xda + i);
-		lcm_recv(1); // dummy
-		id = id << 8 | (lcm_recv(1) & 0xff);
-	}
+	for (i = 0xda; i <= 0xdc; i++)
+		id = id << 8 | (lcd_cmdret(i, 2) & 0xff);
 	return id;
 #endif
 }
@@ -536,7 +533,8 @@ static const lcd_config_t* lcm_init(void) {
 		lcm_send_cmd(0x00);
 		id = lcd_cmdret(0x00, 2);
 	}
-	if (!id) id = lcd_cmdret(0xd3, 4) & 0xffffff; // ILI9341
+	// ILI9341/ILI9342
+	if (!(id & 0xffff)) id = lcd_cmdret(0xd3, 4) & 0xffffff;
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 	if (sys_data.page_reset > 1)
