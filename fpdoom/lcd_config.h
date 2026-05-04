@@ -2047,6 +2047,36 @@ static const uint8_t cmd9342_fontel_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd8552_texet_init[] = {
+	//LCM_DELAY(150),
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0xb2, 5), 0x0c,0x0c,0x00,0x33,0x33,
+	LCM_CMD(0x35, 1), 0x00,
+	//LCM_CMD(0x36, 1), 0x00, // Memory Access Control
+	LCM_CMD(0x3a, 1), 0x05, // Interface Pixel Format
+	LCM_CMD(0xb7, 1), 0x15,
+	LCM_CMD(0xbb, 1), 0x19,
+	LCM_CMD(0xc0, 1), 0x2c,
+	LCM_CMD(0xc2, 1), 0x01,
+	LCM_CMD(0xc3, 1), 0x11,
+	LCM_CMD(0xc4, 1), 0x20,
+	LCM_CMD(0xc6, 1), 0x0f,
+	LCM_CMD(0xd0, 2), 0xa7,0xa1,
+	LCM_CMD(0xd0, 2), 0xa4,0xa1,
+	LCM_CMD(0xd6, 1), 0xa1,
+	// Positive Voltage Gamma Control
+	LCM_CMD(0xe0, 14), 0xf0,0x07,0x12,0x14,
+		0x14,0x2c,0x3b,0x43, 0x4b,0x38,0x13,0x11, 0x1b,0x1e,
+	// Negative Voltage Gamma Control
+	LCM_CMD(0xe1, 14), 0xf0,0x04,0x0e,0x0d,
+		0x0e,0x28,0x3b,0x44, 0x4b,0x0b,0x19,0x19, 0x1e,0x22,
+	LCM_CMD(0x29, 0), // Display ON
+	//LCM_CMD(0x2c, 0),
+	LCM_DELAY(120),
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -2220,6 +2250,13 @@ static const lcd_config_t lcd_config1[] = {
 
 	// Ilitek ILI9342
 	X(0x009342, 320,240, 0xc8, 15,120,75,15,35,35, 0, cmd9342_fontel)
+
+/* Texet TM-308 */
+
+	// config from F+ F256 causes checkerboard pattern artifacts
+
+	// Sitronix ST7789
+	X(0x80858552, 240,320, 0x00, 15,150,150,40,50,50, 0, cmd8552_texet)
 };
 
 static const lcd_config_t lcd_config2[] = {
