@@ -232,6 +232,7 @@ void scan_firmware(intptr_t fw_addr) {
 					flags &= ~1; keymap = NULL;
 				} else if (flags & 1) {
 					keymap = (short*)(p + 3);
+					ret = (ret + 1) & ~1; // keep 32-bit alignment
 					p = (uint32_t*)(keymap + ret) - 1;
 					continue;
 				}
