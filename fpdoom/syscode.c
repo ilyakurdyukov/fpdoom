@@ -535,6 +535,8 @@ static const lcd_config_t* lcm_init(void) {
 	}
 	// ILI9341/ILI9342
 	if (!(id & 0xffff)) id = lcd_cmdret(0xd3, 4) & 0xffffff;
+	// ILI9340X
+	if (!id) id = lcd_cmdret(0xd5, 4) & 0xffffff;
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
 	if (sys_data.page_reset > 1)
