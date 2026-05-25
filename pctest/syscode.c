@@ -227,6 +227,8 @@ int __wrap_main(int argc, char **argv) {
 	sys_data.mac = 0xd0;
 	sys_data.scaler = 0;
 
+	int real_argc = argc;
+	char **real_argv = argv;
 	if (argc) argc--, argv++;
 	while (argc) {
 		if (argc >= 2 && !strcmp(argv[0], "--scaler")) {
@@ -276,7 +278,7 @@ int __wrap_main(int argc, char **argv) {
 		exit(1);
 	}
 
-	ret = __real_main(argc, argv);
+	ret = __real_main(real_argc, real_argv);
 	if (sdl_surface) SDL_FreeSurface(sdl_surface);
 #if SDL_MAJOR_VERSION >= 2
 	if (sdl_window) SDL_DestroyWindow(sdl_window);
