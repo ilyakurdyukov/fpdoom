@@ -156,6 +156,8 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 98 | Fly FF180               | SC6531E  | 128x160 GC9106    | #          |
 | 99 | Fontel SP230            | SC6531E  | 320x240 ILI9342   | 9          |
 | 100 | BQ 3590 Step XXL+      | SC6531E  | 240x320 ILI9340X  | dial       |
+| 101 | Alcatel 2053D          | SC6531E  | 240x320 ???       | *          |
+| 101 | Philips Xenium E2101   | SC6531E  | 128x160 ST7735P3  | left soft  |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands

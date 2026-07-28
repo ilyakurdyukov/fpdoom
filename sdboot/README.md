@@ -6,6 +6,8 @@ This is a small section that is added to the free space in the firmware. The cod
 
 * The key for booting from USB is (0,0). The key positions are the intersections of traces on the PCB, not the physical buttons you see.
 
+* Don't hold down all three sdboot keys, this will trigger USB boot mode due to keypad limitations.
+
 ### How to install
 
 First you need to dump the phone firmware using the [spreadtrum_flash](https://github.com/ilyakurdyukov/spreadtrum_flash) tool. The most common flash memory size is 4MB, but expensive models can have 8 and 16MB. So far, the flash size cannot be determined automatically, so specify 16MB, if the size is less, the dump will simply be repeated in the file several times.
@@ -27,6 +29,20 @@ Then run:
 `./fphelper flash.bin sdboot`
 
 This will print instructions on how to flash `sdboot` to your phone.
+
+### Preparing the SD card
+
+Copy the `prebuilt_fixN.zip/sdcard/fpbin` directory to the root of your SD card.
+
+To run the shareware version of Doom, you need to copy `doom1.wad` to the `games/doom1/` folder on your SD card.
+
+Directory names and menu items can be customized by editing `fpbin/config.txt` on the SD card.
+
+* FAT12/FAT16/exFAT file systems are not supported, only FAT32. Windows may display FAT16 simply as FAT.
+
+* If you need to specify additional compatibility options, add them to the `--bright 50 --charge 2` line at the beginning of `fpbin/config.txt`.
+
+* Remove the `$@ = $@ --rotate 3` line if you're using phone with horizontal or square screen.
 
 ### Build
 
