@@ -2103,6 +2103,37 @@ static const uint8_t cmd9340_bq_init[] = {
 	LCM_END
 };
 
+static const uint8_t cmd9106_meanit_init[] = {
+	LCM_DELAY(120),
+	LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	LCM_CMD(0xef, 0), // Inter Register Enable 2
+	LCM_CMD(0x96, 1), 0x80,
+	LCM_CMD(0x97, 1), 0x01,
+	LCM_CMD(0x99, 1), 0x40,
+	LCM_CMD(0x9d, 1), 0x10,
+	LCM_CMD(0xa7, 1), 0x5b,
+	LCM_CMD(0xa8, 1), 0x5b,
+	LCM_CMD(0xbe, 1), 0x70,
+	LCM_CMD(0xa9, 2), 0x21,0x08,
+	LCM_CMD(0xec, 1), 0x67,
+	// Set Gamma 1
+	LCM_CMD(0xf0, 14), 0x10,0x43,0x2d,0x52,
+		0xb9,0x20,0x23,0x00, 0x0c,0x0b,0x0b,0x16, 0x17,0x0f,
+	// Set Gamma 2
+	LCM_CMD(0xf1, 14), 0x10,0x43,0x2d,0x52,
+		0xa9,0x20,0x23,0x00, 0x0b,0x0b,0x0b,0x14, 0x16,0x0f,
+	LCM_CMD(0x35, 0), // Tearing Effect Line ON (without parameter)
+	LCM_CMD(0x21, 0), // Display Inversion ON
+	LCM_CMD(0x3a, 1), 0x05, // Pixel Format Set
+	//LCM_CMD(0x36, 1), 0x08, // Memory Access Control
+	//LCM_CMD(0xfe, 0), // Inter Register Enable 1
+	//LCM_CMD(0xff, 0), // ???
+	LCM_CMD(0x11, 0), // Sleep Out Mode
+	LCM_DELAY(120),
+	LCM_CMD(0x29, 0), // Display ON
+	LCM_END
+};
+
 #define LCD_CONFIG(id, w,h, mac, a,b,c,d,e,f, spi, name) \
 	{ id, ~0, w,h, mac, { a,b,c,d,e,f }, { spi }, name##_init },
 #define X(...) LCD_CONFIG(__VA_ARGS__)
@@ -2288,6 +2319,13 @@ static const lcd_config_t lcd_config1[] = {
 
 	// Ilitek ILI9340X
 	X(0x009340, 240,320, 0x00, 15,150,150,15,50,50, 0, cmd9340_bq)
+
+/* meanIT F3 MAX */
+
+	// The LCD controller returns 0x9109, but in the firmware it is 0x9106.
+
+	// GlaxyCore GC9106 (?)
+	X(0x009109, 128,160, 0x08, 30,150,150,40,50,50, 0, cmd9106_meanit)
 };
 
 static const lcd_config_t lcd_config2[] = {
