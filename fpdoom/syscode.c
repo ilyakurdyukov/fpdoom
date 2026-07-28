@@ -539,8 +539,10 @@ static const lcd_config_t* lcm_init(void) {
 	if (!id) id = lcd_cmdret(0xd5, 4) & 0xffffff;
 	if (!id) id = lcd_getid2();
 	DBG_LOG("LCD: id = 0x%06x\n", id);
-	if (sys_data.page_reset > 1)
-		sys_data.page_reset = (id & 0xffffff) == 0x009106;
+	if (sys_data.page_reset > 1) {
+		int x = id & 0xffffff;
+		sys_data.page_reset = x == 0x009106 || x == 0x009109;
+	}
 	lcd = lcd_find_conf(id, 0);
 
 	lcm_set_freq(cs, clk_rate, lcd);
