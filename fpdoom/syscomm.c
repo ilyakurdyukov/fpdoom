@@ -40,7 +40,7 @@ static int check_keymap(const void *buf) {
 	for (i = 0; i < n; i++) {
 		a = s[i];
 		if (a == 0xffff) { t0++; continue; }
-		if (a - 0x69 < 5) continue;
+		if (a - 0x68 < 6) continue;
 		if (a - 0x70 < 3) continue;
 		if (a - 1 >= 0x39) break;
 	}

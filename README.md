@@ -161,6 +161,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 102 | meanIT F3 MAX          | SC6531E  | 128x160 GC9106    | 2          |
 | 103 | Inoi 240 Modern 4G     | UMS9117  | 128x160 NV3023    | *          |
 | 104 | Inoi 244 Modern 4G     | UMS9117  | 240x320 NV3030    | *          |
+| 105 | meanIT Veteran         | SC6531E  | 128x160 GC9106    | 2          |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
