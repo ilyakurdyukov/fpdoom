@@ -2392,7 +2392,7 @@ static const lcd_config_t lcd_config1[] = {
 /* MKTEL M2023 */
 
 	// Sitronix ST7735 (?)
-	X(0x80006635, 128,160, 0xd8, 50,250,250,50,50,50, 0, cmd6635_mktel)
+	X(0x80006635, R128+2,R160+1, 0xd8, 50,250,250,50,50,50, 0, cmd6635_mktel)
 	// Sitronix ST7735 (?)
 	X(0x80008376, 128,160, 0xc0, 50,250,250,50,50,50, 0, cmd8376_mktel)
 };
