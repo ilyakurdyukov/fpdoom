@@ -163,6 +163,8 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 | 104 | Inoi 244 Modern 4G     | UMS9117  | 240x320 NV3030    | *          |
 | 105 | meanIT Veteran         | SC6531E  | 128x160 GC9106    | 2          |
 | 106 | MKTEL M2023            | SC6531E  | 128x160 ST7735    | left soft  |
+| 107 | MaxCom MM445           | UMS9117  | 240x320 GC9307    | #          |
+| 108 | Micromax X705          | SC6531   | 240x320 GC9304    | center     |
 
 * Nokia phones (SC6531): add `end_data 0` command for `spd_dump`, before `fdl` commands
 * Nokia phones (UMS9117): add `t117_exec_dist 0x314d` command for `spd_dump`, before `fdl` commands
@@ -198,6 +200,7 @@ All feature phone LCDs I've seen (except GC9308) are vertical, if you have a pho
 * BQM 2400 Taipei: use `--lcd 0x80313032`, 90-degree rotation is broken
 * meanIT F3 MAX: use `--rotate 3,0`
 * MKTEL M2023: use `--lcd 0x80006635` if the screen colors are inverted
+* MaxCom MM445: use `--spi_mode 1`
 
 - monochrome LCDs: can't be detected, support varies across ports and LCDs, better for screens with ST7567A
 
